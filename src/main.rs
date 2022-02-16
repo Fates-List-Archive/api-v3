@@ -13,6 +13,8 @@ use log::{debug, error, log_enabled, info, Level};
 use actix_cors::Cors;
 extern crate redis;
 
+use actix_rt;
+
 mod ipc;
 mod models;
 
@@ -91,40 +93,38 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
     let data: &AppState = req.app_data::<web::Data<AppState>>().unwrap();
 
     if info.target_type.as_ref().unwrap_or(&"bot".to_string()) == "bot" {
-        sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 0 ORDER BY votes DESC LIMIT 12")
+        let rows = sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 0 ORDER BY votes DESC LIMIT 12")
             .fetch_all(&data.postgres)
             .await
-            .unwrap()
-            .iter()
-            .for_each(async |row| {
-                let bot = IndexBot {
-                    guild_count: row.guild_count.unwrap_or(0),
-                    description: row.description.clone().unwrap_or("No description set".to_string()),
-                    banner: row.banner_card.clone(),
-                    state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
-                    nsfw: row.nsfw.unwrap_or(false),
-                    votes: row.votes.unwrap_or(0),
-                    user: ipc::get_user(data.redis, row.bot_id).await,
-                };
-                index.top_voted.push(bot);
-            });
-        sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 6 ORDER BY votes DESC LIMIT 12")
+            .unwrap();
+        for row in rows.iter() {
+            let bot = IndexBot {
+                guild_count: row.guild_count.unwrap_or(0),
+                description: row.description.clone().unwrap_or("No description set".to_string()),
+                banner: row.banner_card.clone(),
+                state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
+                nsfw: row.nsfw.unwrap_or(false),
+                votes: row.votes.unwrap_or(0),
+                user: ipc::get_user(data.redis.clone(), row.bot_id).await,
+            };
+            index.top_voted.push(bot);
+        };
+        let rows = sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 6 ORDER BY votes DESC LIMIT 12")
             .fetch_all(&data.postgres)
             .await
-            .unwrap()
-            .iter()
-            .for_each(|row| {
-                let bot = IndexBot {
-                    guild_count: row.guild_count.unwrap_or(0),
-                    description: row.description.clone().unwrap_or("No description set".to_string()),
-                    banner: row.banner_card.clone(),
-                    state: models::State::try_from(row.state).unwrap_or(models::State::Certified),
-                    nsfw: row.nsfw.unwrap_or(false),
-                    votes: row.votes.unwrap_or(0),
-                    user: ipc::get_user(data.redis, row.bot_id).await,
-                };
-                index.certified.push(bot);
-            });
+            .unwrap();
+        for row in rows.iter() {
+            let bot = IndexBot {
+                guild_count: row.guild_count.unwrap_or(0),
+                description: row.description.clone().unwrap_or("No description set".to_string()),
+                banner: row.banner_card.clone(),
+                state: models::State::try_from(row.state).unwrap_or(models::State::Certified),
+                nsfw: row.nsfw.unwrap_or(false),
+                votes: row.votes.unwrap_or(0),
+                user: ipc::get_user(data.redis.clone(), row.bot_id).await,
+            };
+            index.certified.push(bot);
+        };
         sqlx::query!("SELECT id, icon FROM bot_list_tags")
             .fetch_all(&data.postgres)
             .await
@@ -157,7 +157,13 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
                     state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                     nsfw: row.nsfw.unwrap_or(false),
                     votes: row.votes.unwrap_or(0),
-                    user: ipc::get_user(data.redis, row.guild_id).await,
+                    user: models::User {
+                        id: "0".to_string(),
+                        username: "Unknown".to_string(),
+                        disc: "0000".to_string(),
+                        avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
+                        bot: false,
+                    },
                 };
                 index.top_voted.push(bot);
             });
@@ -174,7 +180,13 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
                     state: models::State::try_from(row.state).unwrap_or(models::State::Certified),
                     nsfw: row.nsfw.unwrap_or(false),
                     votes: row.votes.unwrap_or(0),
-                    user: ipc::get_user(data.redis, row.guild_id).await,
+                    user: models::User {
+                        id: "0".to_string(),
+                        username: "Unknown".to_string(),
+                        disc: "0000".to_string(),
+                        avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
+                        bot: false,
+                    },
                 };
                 index.certified.push(bot);
             });
@@ -210,7 +222,7 @@ async fn not_found(_req: HttpRequest) -> impl Responder {
     )
 }
 
-#[actix_web::main]
+#[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "fates=debug,actix_web=info");
     env_logger::init();
@@ -221,12 +233,21 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Some error message");
     
-    let client = redis::Client::open("redis://localhost:1001/1").unwrap();
+    debug!("Connected to postgres");
+
+
+    let redis_cli = redis::Client::open("redis://127.0.0.1:1001/1").unwrap();
+    
+    let _conn = redis_cli.get_async_connection().await.unwrap();
+
+    debug!("Created redis instance");
+
     let app_state = web::Data::new(AppState {
         postgres: pool,
-        redis: client,
+        redis: redis_cli,
     });
-    debug!("Connected to postgres");
+
+    debug!("Connected to redis");
     
     HttpServer::new(move || {
         let cors = Cors::default()

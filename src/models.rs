@@ -7,6 +7,7 @@ pub struct User {
     pub username: String,
     pub disc: String,
     pub avatar: String,
+    pub bot: bool,
 }
 
 #[derive(Debug, Eq, TryFromPrimitive, Deserialize, PartialEq, Clone, Copy)]
