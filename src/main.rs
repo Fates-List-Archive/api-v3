@@ -13,6 +13,8 @@ use log::{debug, error, log_enabled, info, Level};
 use actix_cors::Cors;
 extern crate redis;
 
+mod ipc;
+mod models;
 
 #[derive(Deserialize, Serialize)]
 #[derive(PartialEq)]
@@ -24,29 +26,6 @@ enum Status {
     DoNotDisturb = 4,
 }
 
-#[derive(Debug, Eq, TryFromPrimitive, Deserialize, PartialEq, Clone, Copy)]
-#[repr(i32)]
-enum State {
-    Approved = 0,
-    Pending = 1,
-    Denied = 2,
-    Hidden = 3,
-    Banned = 4,
-    UnderReview = 5,
-    Certified = 6,
-    Archived = 7,
-    PrivateViewable = 8,
-    PrivateStaffOnly = 9,
-}
-
-impl Serialize for State {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_i32(*self as i32)
-    }
-}
 
 #[derive(Deserialize, Serialize)]
 struct IndexBot {
@@ -55,7 +34,8 @@ struct IndexBot {
     banner: Option<String>,
     nsfw: bool,
     votes: i64,
-    state: State,
+    state: models::State,
+    user: models::User,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -96,8 +76,8 @@ struct IndexQuery {
 struct AppState {
     postgres: PgPool,
     redis: redis::Client,
-
 }
+
 
 #[get("/index")]
 async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder {
@@ -111,23 +91,24 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
     let data: &AppState = req.app_data::<web::Data<AppState>>().unwrap();
 
     if info.target_type.as_ref().unwrap_or(&"bot".to_string()) == "bot" {
-        sqlx::query!("SELECT flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 0 ORDER BY votes DESC LIMIT 12")
+        sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 0 ORDER BY votes DESC LIMIT 12")
             .fetch_all(&data.postgres)
             .await
             .unwrap()
             .iter()
-            .for_each(|row| {
+            .for_each(async |row| {
                 let bot = IndexBot {
                     guild_count: row.guild_count.unwrap_or(0),
                     description: row.description.clone().unwrap_or("No description set".to_string()),
                     banner: row.banner_card.clone(),
-                    state: State::try_from(row.state).unwrap_or(State::Approved),
+                    state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                     nsfw: row.nsfw.unwrap_or(false),
                     votes: row.votes.unwrap_or(0),
+                    user: ipc::get_user(data.redis, row.bot_id).await,
                 };
                 index.top_voted.push(bot);
             });
-        sqlx::query!("SELECT flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 6 ORDER BY votes DESC LIMIT 12")
+        sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 6 ORDER BY votes DESC LIMIT 12")
             .fetch_all(&data.postgres)
             .await
             .unwrap()
@@ -137,9 +118,10 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
                     guild_count: row.guild_count.unwrap_or(0),
                     description: row.description.clone().unwrap_or("No description set".to_string()),
                     banner: row.banner_card.clone(),
-                    state: State::try_from(row.state).unwrap_or(State::Certified),
+                    state: models::State::try_from(row.state).unwrap_or(models::State::Certified),
                     nsfw: row.nsfw.unwrap_or(false),
                     votes: row.votes.unwrap_or(0),
+                    user: ipc::get_user(data.redis, row.bot_id).await,
                 };
                 index.certified.push(bot);
             });
@@ -162,7 +144,7 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
             http::StatusCode::OK,
         )
     } else {
-        sqlx::query!("SELECT flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = 0 ORDER BY votes DESC LIMIT 12")
+        sqlx::query!("SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = 0 ORDER BY votes DESC LIMIT 12")
             .fetch_all(&data.postgres)
             .await
             .unwrap()
@@ -172,13 +154,14 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
                     guild_count: row.guild_count.unwrap_or(0),
                     description: row.description.clone().unwrap_or("No description set".to_string()),
                     banner: row.banner_card.clone(),
-                    state: State::try_from(row.state).unwrap_or(State::Approved),
+                    state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                     nsfw: row.nsfw.unwrap_or(false),
                     votes: row.votes.unwrap_or(0),
+                    user: ipc::get_user(data.redis, row.guild_id).await,
                 };
                 index.top_voted.push(bot);
             });
-        sqlx::query!("SELECT flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = 6 ORDER BY votes DESC LIMIT 12")
+        sqlx::query!("SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = 6 ORDER BY votes DESC LIMIT 12")
             .fetch_all(&data.postgres)
             .await
             .unwrap()
@@ -188,9 +171,10 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
                     guild_count: row.guild_count.unwrap_or(0),
                     description: row.description.clone().unwrap_or("No description set".to_string()),
                     banner: row.banner_card.clone(),
-                    state: State::try_from(row.state).unwrap_or(State::Certified),
+                    state: models::State::try_from(row.state).unwrap_or(models::State::Certified),
                     nsfw: row.nsfw.unwrap_or(false),
                     votes: row.votes.unwrap_or(0),
+                    user: ipc::get_user(data.redis, row.guild_id).await,
                 };
                 index.certified.push(bot);
             });
