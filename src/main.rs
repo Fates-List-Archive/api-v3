@@ -175,6 +175,36 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
                 };
                 index.top_voted.push(bot);
             });
+        sqlx::query!("SELECT flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = 6 ORDER BY votes DESC LIMIT 12")
+            .fetch_all(&data.postgres)
+            .await
+            .unwrap()
+            .iter()
+            .for_each(|row| {
+                let bot = IndexBot {
+                    guild_count: row.guild_count.unwrap_or(0),
+                    description: row.description.clone().unwrap_or("No description set".to_string()),
+                    banner: row.banner_card.clone(),
+                    state: State::try_from(row.state).unwrap_or(State::Certified),
+                    nsfw: row.nsfw.unwrap_or(false),
+                    votes: row.votes.unwrap_or(0),
+                };
+                index.certified.push(bot);
+            });
+        sqlx::query!("SELECT id, name, iconify_data, owner_guild FROM server_tags")
+            .fetch_all(&data.postgres)
+            .await
+            .unwrap()
+            .iter()
+            .for_each(|row| {
+                let tag = Tag {
+                    name: row.name.to_title_case(),
+                    iconify_data: row.iconify_data.clone(),
+                    id: row.id.clone(),
+                    owner_guild: Some(row.owner_guild.to_string()),
+                };
+                index.tags.push(tag);
+            });
         (
             web::Json(index),
             http::StatusCode::OK,
