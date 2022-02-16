@@ -11,6 +11,7 @@ extern crate inflector;
 use inflector::Inflector;
 use log::{debug, error, log_enabled, info, Level};
 use actix_cors::Cors;
+extern crate redis;
 
 
 #[derive(Deserialize, Serialize)]
@@ -94,6 +95,8 @@ struct IndexQuery {
 
 struct AppState {
     postgres: PgPool,
+    redis: redis::Client,
+
 }
 
 #[get("/index")]
@@ -233,8 +236,11 @@ async fn main() -> std::io::Result<()> {
         .connect("postgres://localhost/fateslist")
         .await
         .expect("Some error message");
+    
+    let client = redis::Client::open("redis://localhost:1001/1").unwrap();
     let app_state = web::Data::new(AppState {
         postgres: pool,
+        redis: client,
     });
     debug!("Connected to postgres");
     
