@@ -1,3 +1,5 @@
+#![feature(derive_default_enum)]
+
 extern crate env_logger;
 
 use actix_web::{middleware, web, http, HttpResponse, App, HttpServer, HttpRequest, error::ResponseError};
@@ -12,8 +14,7 @@ mod ipc;
 mod models;
 mod database;
 mod core;
-
-
+mod docs;
 
 async fn not_found(_req: HttpRequest) -> HttpResponse {
     models::CustomError::NotFoundGeneric.error_response()
@@ -30,6 +31,7 @@ async fn main() -> std::io::Result<()> {
 
     let app_state = web::Data::new(models::AppState {
         database: pool,
+        docs: docs::document_routes(),
     });
 
     error!("This is a error");
@@ -64,6 +66,7 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(not_found))
             .service(core::index)
             .service(core::get_vanity)
+            .service(core::docs_tmpl)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

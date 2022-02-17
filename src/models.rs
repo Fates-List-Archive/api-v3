@@ -5,16 +5,8 @@ use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
-use paperclip::actix::{
-    // extension trait for actix_web::App and proc-macro attributes
-    OpenApiExt, Apiv2Schema, api_v2_operation,
-    // If you prefer the macro syntax for defining routes, import the paperclip macros
-    // get, post, put, delete
-    // use this instead of actix_web::web
-    web::{self, Json},
-};
 
-#[derive(Deserialize, Serialize, Apiv2Schema)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
     pub id: String,
     pub username: String,
@@ -23,9 +15,10 @@ pub struct User {
     pub bot: bool,
 }
 
-#[derive(Debug, Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Apiv2Schema)]
+#[derive(Debug, Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
 #[repr(i32)]
 pub enum State {
+    #[default]
     Approved = 0,
     Pending = 1,
     Denied = 2,
@@ -38,7 +31,7 @@ pub enum State {
     PrivateStaffOnly = 9,
 }
 
-#[derive(Deserialize, Serialize, Apiv2Schema)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct IndexBot {
     pub guild_count: i64,
     pub description: String,
@@ -49,7 +42,7 @@ pub struct IndexBot {
     pub user: User,
 }
 
-#[derive(Deserialize, Serialize, Apiv2Schema)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Tag {
     pub name: String,
     pub iconify_data: String,
@@ -57,14 +50,14 @@ pub struct Tag {
     pub owner_guild: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Apiv2Schema)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Feature {
     pub name: String,
     pub viewed_as: String,
     pub description: String,
 }
 
-#[derive(Deserialize, Serialize, Apiv2Schema)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Index {
     pub new: Vec<IndexBot>,
     pub top_voted: Vec<IndexBot>,
@@ -73,13 +66,26 @@ pub struct Index {
     pub features: HashMap<String, Feature>,
 }
 
-#[derive(Deserialize, Serialize, Apiv2Schema)]
+impl Index {
+    pub fn new() -> Index {
+        Index {
+            top_voted: Vec::new(),
+            certified: Vec::new(),
+            new: Vec::new(),
+            tags: Vec::new(),
+            features: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone)]
 pub struct IndexQuery {
     pub target_type: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Default)]
 pub enum Status {
+    #[default]
     Unknown = 0,
     Online = 1,
     Offline = 2, // Or invisible
@@ -95,9 +101,10 @@ pub struct Vanity {
 
 pub struct AppState {
     pub database: database::Database,
+    pub docs: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 struct APIResponse {
     done: bool,
     reason: Option<String>,
