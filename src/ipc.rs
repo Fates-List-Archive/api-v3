@@ -15,7 +15,6 @@ struct IpcCall {
 
 enum IpcErr {
     Timeout,
-    Ok,
 }
 
 async fn ipc_call(call: &mut IpcCall) -> Result<String, IpcErr> {

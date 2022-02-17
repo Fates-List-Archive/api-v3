@@ -48,6 +48,44 @@ impl Database {
         bots
     }
 
+    pub async fn index_new_bots(self: &Self) -> Vec<models::IndexBot> {
+        let mut bots: Vec<models::IndexBot> = Vec::new();
+        let rows = sqlx::query!(
+            "SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
+            models::State::Approved as i32
+        )
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
+        for row in rows.iter() {
+            let bot = models::IndexBot {
+                guild_count: row.guild_count.unwrap_or(0),
+                description: row.description.clone().unwrap_or("No description set".to_string()),
+                banner: row.banner_card.clone(),
+                state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
+                nsfw: row.nsfw.unwrap_or(false),
+                votes: row.votes.unwrap_or(0),
+                user: ipc::get_user(self.redis.clone(), row.bot_id).await,
+            };
+            bots.push(bot);
+        };
+        bots
+    }
+
+    pub async fn get_server(self: &Self, guild_id: i64) -> models::User {
+        let row = sqlx::query!("SELECT guild_id::text AS id, name_cached AS username, avatar_cached AS avatar FROM servers WHERE guild_id = $1", guild_id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap();
+        models::User {
+            id: row.id.unwrap().clone(),
+            username: row.username.clone(),
+            disc: "0000".to_string(),
+            avatar: row.avatar.unwrap_or("".to_string()).clone(),
+            bot: false,
+        }
+    }
+
     pub async fn index_servers(self: &Self, state: models::State) -> Vec<models::IndexBot> {
         let mut servers: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
@@ -65,13 +103,31 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                user: models::User {
-                    id: row.guild_id.to_string(),
-                    username: "Unknown".to_string(),
-                    disc: "0000".to_string(),
-                    avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
-                    bot: false,
-                },
+                user: self.get_server(row.guild_id).await,
+            };
+            servers.push(server);
+        };
+        servers
+    }
+
+    pub async fn index_new_servers(self: &Self) -> Vec<models::IndexBot> {
+        let mut servers: Vec<models::IndexBot> = Vec::new();
+        let rows = sqlx::query!(
+            "SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
+            models::State::Approved as i32
+        )
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
+        for row in rows.iter() {
+            let server = models::IndexBot {
+                guild_count: row.guild_count.unwrap_or(0),
+                description: row.description.clone().unwrap_or("No description set".to_string()),
+                banner: row.banner_card.clone(),
+                state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
+                nsfw: row.nsfw.unwrap_or(false),
+                votes: row.votes.unwrap_or(0),
+                user: self.get_server(row.guild_id).await,
             };
             servers.push(server);
         };
@@ -146,5 +202,28 @@ impl Database {
                 return None;
             }
         }
+    }
+
+    // Auth functions
+    
+    pub async fn authorize_user(self: &Self, user_id: i64, token: &str) -> bool {
+        let row = sqlx::query!(
+            "SELECT COUNT(1) FROM users WHERE user_id = $1 AND api_token = $2",
+            user_id,
+            token,
+        )
+        .fetch_one(&self.pool)
+        .await;
+        row.is_ok()
+    }
+    pub async fn authorize_bot(self: &Self, bot_id: i64, token: &str) -> bool {
+        let row = sqlx::query!(
+            "SELECT COUNT(1) FROM bots WHERE bot_id = $1 AND api_token = $2",
+            bot_id,
+            token,
+        )
+        .fetch_one(&self.pool)
+        .await;
+        row.is_ok()
     }
 }
