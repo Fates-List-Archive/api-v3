@@ -1,89 +1,75 @@
 extern crate env_logger;
 
-use actix_web::{get, middleware, web, http, App, HttpServer, HttpRequest, Result, Responder};
+use actix_web::{get, middleware, web, http, HttpResponse, App, HttpServer, HttpRequest, error::ResponseError, Responder};
 use actix_web::middleware::Logger;
-use serde::{Deserialize, Serialize, Serializer};
-use sqlx::postgres::PgPoolOptions;
-use sqlx::postgres::PgPool;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use num_enum::TryFromPrimitive;
 extern crate inflector;
-use inflector::Inflector;
-use log::{debug, error, log_enabled, info, Level};
+use log::{debug, error, info};
 use actix_cors::Cors;
-extern crate redis;
+use thiserror::Error;
 
 use actix_rt;
 
 mod ipc;
 mod models;
-
-#[derive(Deserialize, Serialize)]
-#[derive(PartialEq)]
-enum Status {
-    Unknown = 0,
-    Online = 1,
-    Offline = 2, // Or invisible
-    Idle = 3,
-    DoNotDisturb = 4,
-}
-
-
-#[derive(Deserialize, Serialize)]
-struct IndexBot {
-    guild_count: i64,
-    description: String,
-    banner: Option<String>,
-    nsfw: bool,
-    votes: i64,
-    state: models::State,
-    user: models::User,
-}
-
-#[derive(Deserialize, Serialize)]
-struct Tag {
-    name: String,
-    iconify_data: String,
-    id: String,
-    owner_guild: Option<String>,
-}
-
-#[derive(Deserialize, Serialize)]
-struct Feature {
-    name: String,
-    viewed_as: String,
-    description: String,
-}
-
-#[derive(Deserialize, Serialize)]
-struct Index {
-    top_voted: Vec<IndexBot>,
-    certified: Vec<IndexBot>,
-    tags: Vec<Tag>,
-    features: HashMap<String, Feature>,
-}
+mod database;
 
 #[derive(Deserialize, Serialize)]
 struct APIResponse {
     done: bool,
     reason: Option<String>,
+    error: Option<String>, // This is the error itself
 }
 
+#[derive(Error, Debug)]
+enum CustomError {
+    #[error("Not Found")]
+    NotFoundGeneric,
+    #[error("Forbidden")]
+    ForbiddenGeneric,
+    #[error("Unknown Internal Error")]
+    Unknown
+}
 
-#[derive(Deserialize)]
-struct IndexQuery {
-    target_type: Option<String>,
+impl CustomError {
+    pub fn name(&self) -> String {
+        match self {
+            Self::NotFoundGeneric => "Not Found".to_string(),
+            Self::ForbiddenGeneric => "Forbidden".to_string(),
+            Self::Unknown => "Unknown".to_string(),
+        }
+    }
+}
+
+impl ResponseError for CustomError {
+    fn status_code(&self) -> http::StatusCode {
+        match *self {
+            Self::NotFoundGeneric  => http::StatusCode::NOT_FOUND,
+            Self::ForbiddenGeneric => http::StatusCode::FORBIDDEN,
+            Self::Unknown => http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        let status_code = self.status_code();
+        let error_response = APIResponse {
+            reason: Some(self.to_string()),
+            error: Some(self.name()),
+            done: status_code.is_success(),
+        };
+        HttpResponse::build(status_code).json(error_response)
+    }
 }
 
 struct AppState {
-    postgres: PgPool,
-    redis: redis::Client,
+    database: database::Database,
 }
 
 
 #[get("/index")]
-async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder {
-    let mut index = Index {
+async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> impl Responder {
+    let mut index = models::Index {
         top_voted: Vec::new(),
         certified: Vec::new(),
         tags: Vec::new(),
@@ -93,117 +79,17 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
     let data: &AppState = req.app_data::<web::Data<AppState>>().unwrap();
 
     if info.target_type.as_ref().unwrap_or(&"bot".to_string()) == "bot" {
-        let rows = sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 0 ORDER BY votes DESC LIMIT 12")
-            .fetch_all(&data.postgres)
-            .await
-            .unwrap();
-        for row in rows.iter() {
-            let bot = IndexBot {
-                guild_count: row.guild_count.unwrap_or(0),
-                description: row.description.clone().unwrap_or("No description set".to_string()),
-                banner: row.banner_card.clone(),
-                state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
-                nsfw: row.nsfw.unwrap_or(false),
-                votes: row.votes.unwrap_or(0),
-                user: ipc::get_user(data.redis.clone(), row.bot_id).await,
-            };
-            index.top_voted.push(bot);
-        };
-        let rows = sqlx::query!("SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = 6 ORDER BY votes DESC LIMIT 12")
-            .fetch_all(&data.postgres)
-            .await
-            .unwrap();
-        for row in rows.iter() {
-            let bot = IndexBot {
-                guild_count: row.guild_count.unwrap_or(0),
-                description: row.description.clone().unwrap_or("No description set".to_string()),
-                banner: row.banner_card.clone(),
-                state: models::State::try_from(row.state).unwrap_or(models::State::Certified),
-                nsfw: row.nsfw.unwrap_or(false),
-                votes: row.votes.unwrap_or(0),
-                user: ipc::get_user(data.redis.clone(), row.bot_id).await,
-            };
-            index.certified.push(bot);
-        };
-        sqlx::query!("SELECT id, icon FROM bot_list_tags")
-            .fetch_all(&data.postgres)
-            .await
-            .unwrap()
-            .iter()
-            .for_each(|row| {
-                let tag = Tag {
-                    name: row.id.to_title_case(),
-                    iconify_data: row.icon.clone(),
-                    id: row.id.clone(),
-                    owner_guild: None,
-                };
-                index.tags.push(tag);
-            });
+        index.top_voted = data.database.index_bots(models::State::Approved).await;
+        index.certified = data.database.index_bots(models::State::Certified).await;
+        index.tags = data.database.bot_list_tags().await;
         ( 
             web::Json(index),
             http::StatusCode::OK,
         )
     } else {
-        sqlx::query!("SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = 0 ORDER BY votes DESC LIMIT 12")
-            .fetch_all(&data.postgres)
-            .await
-            .unwrap()
-            .iter()
-            .for_each(|row| {
-                let bot = IndexBot {
-                    guild_count: row.guild_count.unwrap_or(0),
-                    description: row.description.clone().unwrap_or("No description set".to_string()),
-                    banner: row.banner_card.clone(),
-                    state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
-                    nsfw: row.nsfw.unwrap_or(false),
-                    votes: row.votes.unwrap_or(0),
-                    user: models::User {
-                        id: "0".to_string(),
-                        username: "Unknown".to_string(),
-                        disc: "0000".to_string(),
-                        avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
-                        bot: false,
-                    },
-                };
-                index.top_voted.push(bot);
-            });
-        sqlx::query!("SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = 6 ORDER BY votes DESC LIMIT 12")
-            .fetch_all(&data.postgres)
-            .await
-            .unwrap()
-            .iter()
-            .for_each(|row| {
-                let bot = IndexBot {
-                    guild_count: row.guild_count.unwrap_or(0),
-                    description: row.description.clone().unwrap_or("No description set".to_string()),
-                    banner: row.banner_card.clone(),
-                    state: models::State::try_from(row.state).unwrap_or(models::State::Certified),
-                    nsfw: row.nsfw.unwrap_or(false),
-                    votes: row.votes.unwrap_or(0),
-                    user: models::User {
-                        id: "0".to_string(),
-                        username: "Unknown".to_string(),
-                        disc: "0000".to_string(),
-                        avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
-                        bot: false,
-                    },
-                };
-                index.certified.push(bot);
-            });
-        sqlx::query!("SELECT id, name, iconify_data, owner_guild FROM server_tags")
-            .fetch_all(&data.postgres)
-            .await
-            .unwrap()
-            .iter()
-            .for_each(|row| {
-                let tag = Tag {
-                    name: row.name.to_title_case(),
-                    iconify_data: row.iconify_data.clone(),
-                    id: row.id.clone(),
-                    owner_guild: Some(row.owner_guild.to_string()),
-                };
-                index.tags.push(tag);
-            });
+        index.top_voted = data.database.index_servers(models::State::Approved).await;
+        index.certified = data.database.index_servers(models::State::Certified).await;
+        index.tags = data.database.server_list_tags().await;
         (
             web::Json(index),
             http::StatusCode::OK,
@@ -211,15 +97,8 @@ async fn index(req: HttpRequest, info: web::Query<IndexQuery>) -> impl Responder
     }
 }
 
-async fn not_found(_req: HttpRequest) -> impl Responder {
-    let error = APIResponse {
-        done: false,
-        reason: Some("Not found".to_string()),
-    };
-    (
-        web::Json(error),
-        http::StatusCode::NOT_FOUND,
-    )
+async fn not_found(_req: HttpRequest) -> HttpResponse {
+    CustomError::NotFoundGeneric.error_response()
 }
 
 #[actix_rt::main]
@@ -227,24 +106,12 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "fates=debug,actix_web=info");
     env_logger::init();
     info!("Starting up...");
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect("postgres://localhost/fateslist")
-        .await
-        .expect("Some error message");
+    let pool = database::Database::new(7, "postgres://localhost/fateslist", "redis://127.0.0.1:1001/1").await;
     
-    debug!("Connected to postgres");
-
-
-    let redis_cli = redis::Client::open("redis://127.0.0.1:1001/1").unwrap();
-    
-    let _conn = redis_cli.get_async_connection().await.unwrap();
-
-    debug!("Created redis instance");
+    debug!("Connected to postgres/redis");
 
     let app_state = web::Data::new(AppState {
-        postgres: pool,
-        redis: redis_cli,
+        database: pool,
     });
 
     debug!("Connected to redis");
@@ -281,4 +148,3 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
-

@@ -1,12 +1,12 @@
-extern crate redis;
 use uuid::Uuid;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::models;
 use serde_json;
-use crate::redis::AsyncCommands;
+use deadpool_redis;
+use deadpool_redis::redis::AsyncCommands;
 
 struct IpcCall {
-    redis: redis::Client,
+    redis: deadpool_redis::Pool,
     cmd: String,
     args: Vec<String>,
     message: String, // Use serde_json::to_string(&message) to serialize,
@@ -16,12 +16,11 @@ struct IpcCall {
 enum IpcErr {
     Timeout,
     Ok,
-    Unknown,
 }
 
 async fn ipc_call(call: &mut IpcCall) -> Result<String, IpcErr> {
     let cmd_id: String = Uuid::new_v4().to_hyphenated().to_string();
-    let mut conn = call.redis.get_async_connection().await.unwrap();
+    let mut conn = call.redis.get().await.unwrap();
     if !call.message.is_empty() {
         let msg_id: String = Uuid::new_v4().to_hyphenated().to_string();
         let _: () = conn.set(msg_id.clone(), &call.message).await.unwrap();
@@ -46,9 +45,9 @@ async fn ipc_call(call: &mut IpcCall) -> Result<String, IpcErr> {
     }
 }
 
-pub async fn get_user(redis: redis::Client, user_id: i64) -> models::User {
+pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User {
     // First check cache
-    let mut conn = redis.get_async_connection().await.unwrap();
+    let mut conn = redis.get().await.unwrap();
     let data: String = conn.get("user-cache:".to_string() + &user_id.to_string()).await.unwrap_or("".to_string());
     if !data.is_empty() {
         let user: models::User = serde_json::from_str(&data).unwrap();
