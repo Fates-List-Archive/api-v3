@@ -61,17 +61,22 @@ pub struct Index {
     pub features: HashMap<String, Feature>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct IndexQuery {
     pub target_type: Option<String>,
 }
 
-#[derive(Deserialize, Serialize)]
-#[derive(PartialEq)]
+#[derive(Deserialize, Serialize, PartialEq)]
 pub enum Status {
     Unknown = 0,
     Online = 1,
     Offline = 2, // Or invisible
     Idle = 3,
     DoNotDisturb = 4,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Vanity {
+    pub target_type: String,
+    pub target_id: String
 }

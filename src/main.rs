@@ -97,6 +97,22 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> impl R
     }
 }
 
+#[get("/code/{vanity}")]
+async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
+    let data: &AppState = req.app_data::<web::Data<AppState>>().unwrap();
+    let resolved_vanity = data.database.resolve_vanity(&code.into_inner()).await;
+    match resolved_vanity {
+        Some(data) => {
+            return HttpResponse::build(http::StatusCode::OK).json(data);
+        }
+        _ => {
+            let error = CustomError::NotFoundGeneric;
+            return error.error_response();
+        }
+    }
+}
+
+
 async fn not_found(_req: HttpRequest) -> HttpResponse {
     CustomError::NotFoundGeneric.error_response()
 }
@@ -142,6 +158,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .default_service(web::route().to(not_found))
             .service(index)
+            .service(get_vanity)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

@@ -115,4 +115,36 @@ impl Database {
             });
         tags
     }
+
+    pub async fn resolve_vanity(self: &Self, code: &str) -> Option<models::Vanity> {
+        let row = sqlx::query!("SELECT type, redirect FROM vanity WHERE vanity_url = $1", code)
+        .fetch_one(&self.pool)
+        .await;
+        match row {
+            Ok(data) => {
+                let target_type = match data.r#type {
+                    Some(0) => {
+                        "server"
+                    },
+                    Some(1) => {
+                        "bot"
+                    },
+                    Some(2) => {
+                        "profile"
+                    },
+                    _ => {
+                        "bot"
+                    },
+                };
+                let vanity = models::Vanity {
+                    target_type: target_type.to_string(),
+                    target_id: data.redirect.unwrap_or(0).to_string(),
+                };
+                return Some(vanity);
+            },
+            Err(_) => {
+                return None;
+            }
+        }
+    }
 }
