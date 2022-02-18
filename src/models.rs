@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use bevy_reflect::Reflect;
 use num_enum::TryFromPrimitive;
 use serde_repr::*;
 use std::collections::HashMap;
@@ -78,9 +79,13 @@ impl Index {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct IndexQuery {
     pub target_type: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct Empty {
 }
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Default)]
