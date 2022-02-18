@@ -5,7 +5,9 @@ use crate::ipc;
 use crate::converters;
 use deadpool_redis::{Config, Runtime};
 use crate::inflector::Inflector;
-use log::error;
+use log::{error, debug};
+use pulldown_cmark::{Parser, Options, html::push_html};
+
 
 pub struct Database {
     pool: PgPool,
@@ -271,7 +273,7 @@ impl Database {
             user_count, votes, total_votes, donate, privacy_policy,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
             page_style, keep_banner_decor, long_description_type, 
-            long_description FROM bots WHERE bot_id = $1 OR client_id = $1", 
+            long_description, long_description_parsed FROM bots WHERE bot_id = $1 OR client_id = $1", 
             bot_id
         )
         .fetch_one(&self.pool) 
@@ -288,6 +290,24 @@ impl Database {
                     None => {
                     }
                 };
+
+                let long_description_type = models::LongDescriptionType::try_from(data.long_description_type).unwrap_or(models::LongDescriptionType::Html);
+
+                let mut long_description_parsed = data.long_description_parsed;
+                match long_description_parsed {
+                    Some(_) => {
+                        // Do nothing
+                    }
+                    None => {
+                        let html = self.sanitize_description(long_description_type, data.long_description.clone().unwrap_or_default());
+                        long_description_parsed = Some(html);
+                        // Save to db
+                        sqlx::query!("UPDATE bots SET long_description_parsed = $1 WHERE bot_id = $2", long_description_parsed, bot_id)
+                            .execute(&self.pool)
+                            .await
+                            .unwrap();
+                    }
+                }
 
                 // Tags
                 let tag_rows = sqlx::query!(
@@ -387,12 +407,13 @@ impl Database {
                     client_id,
                     tags,
                     long_description: data.long_description.unwrap_or_else(|| "".to_string()),
+                    long_description_type,
+                    long_description_parsed: long_description_parsed.unwrap_or_default(),
                     owners,
                     vanity: self.get_vanity_from_id(bot_id).await.unwrap_or_else(|| "unknown".to_string()),
                     uptime_checks_total: data.uptime_checks_total,
                     uptime_checks_failed: data.uptime_checks_failed,
                     page_style: models::PageStyle::try_from(data.page_style).unwrap_or(models::PageStyle::Tabs),
-                    long_description_type: models::LongDescriptionType::try_from(data.long_description_type).unwrap_or(models::LongDescriptionType::Html),
                     user: ipc::get_user(self.redis.clone(), data.bot_id).await,
                     owners_html,
                     action_logs,
@@ -404,5 +425,27 @@ impl Database {
                 None
             }  
         }
+    }
+
+    pub fn sanitize_description(&self, long_desc_type: models::LongDescriptionType, description: String) -> String {
+        // TODO: Check if stored in redis
+        debug!("Sanitizing description");
+        let mut html = String::new();
+        if long_desc_type == models::LongDescriptionType::MarkdownServerSide {
+            let options = Options::all();
+            let md_parse = Parser::new_ext(description.as_ref(), options);
+            push_html(&mut html, md_parse);
+        } else {
+            html = description.clone();
+        }
+    
+        ammonia::Builder::new()
+        .rm_clean_content_tags(&["style", "iframe"])
+        .add_tags(&["span", "img", "video", "iframe", "style", "p", "br", "center", "div", "h1", "h2", "h3", "h4", "h5", "section", "article", "fl-lang"]) 
+        .add_generic_attributes(&["id", "class", "style", "data-src", "data-background-image", "data-background-image-set", "data-background-delimiter", "data-icon", "data-inline", "data-height", "code"])
+        .add_tag_attributes("iframe", &["src", "height", "width"])
+        .add_tag_attributes("img", &["src", "alt", "width", "height", "crossorigin", "referrerpolicy", "sizes", "srcset"])
+        .clean(&html)
+        .to_string()
     }
 }

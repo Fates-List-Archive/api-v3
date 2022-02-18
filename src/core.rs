@@ -1,6 +1,5 @@
 
 use actix_web::{http, HttpRequest, get, web, HttpResponse, ResponseError, web::Json};
-
 use crate::models;
 
 #[get("/index")]
@@ -50,8 +49,8 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
     let inner = info.into_inner();
     let bot = data.database.get_bot(id.into_inner().id, inner.lang.unwrap_or_else(|| "en".to_string())).await;
     match bot {
-        Some(data) => {
-            HttpResponse::build(http::StatusCode::OK).json(data)
+        Some(bot_data) => {
+            HttpResponse::build(http::StatusCode::OK).json(bot_data)
         }
         _ => {
             models::CustomError::NotFoundGeneric.error_response()
