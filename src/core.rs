@@ -15,6 +15,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<m
         index.certified = data.database.index_bots(models::State::Certified).await;
         index.tags = data.database.bot_list_tags().await;
         index.new = data.database.index_new_bots().await;
+        index.features = data.database.bot_features().await;
     } else {
         index.top_voted = data.database.index_servers(models::State::Approved).await;
         index.certified = data.database.index_servers(models::State::Certified).await;

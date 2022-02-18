@@ -51,8 +51,9 @@ pub struct Tag {
     pub owner_guild: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Feature {
+    pub id: String,
     pub name: String,
     pub viewed_as: String,
     pub description: String,
@@ -64,7 +65,7 @@ pub struct Index {
     pub top_voted: Vec<IndexBot>,
     pub certified: Vec<IndexBot>,
     pub tags: Vec<Tag>,
-    pub features: HashMap<String, Feature>,
+    pub features: Vec<Feature>,
 }
 
 impl Index {
@@ -74,7 +75,7 @@ impl Index {
             certified: Vec::new(),
             new: Vec::new(),
             tags: Vec::new(),
-            features: HashMap::new(),
+            features: Vec::new(),
         }
     }
 }
@@ -98,7 +99,13 @@ pub enum Status {
     DoNotDisturb = 4,
 }
 
-#[derive(Deserialize, Serialize)]
+// For the sake of documentation
+#[derive(Deserialize, Serialize, Reflect)]
+pub struct VanityPath {
+    pub code: String,
+}
+
+#[derive(Deserialize, Serialize, Reflect)]
 pub struct Vanity {
     pub target_type: String,
     pub target_id: String
@@ -110,10 +117,10 @@ pub struct AppState {
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
-struct APIResponse {
-    done: bool,
-    reason: Option<String>,
-    error: Option<String>, // This is the error itself
+pub struct APIResponse {
+    pub done: bool,
+    pub reason: Option<String>,
+    pub context: Option<String>, // This is the error itself
 }
 
 #[derive(Error, Debug)]
@@ -149,7 +156,7 @@ impl ResponseError for CustomError {
         let status_code = self.status_code();
         let error_response = APIResponse {
             reason: Some(self.to_string()),
-            error: Some(self.name()),
+            context: Some(self.name()),
             done: status_code.is_success(),
         };
         HttpResponse::build(status_code).json(error_response)

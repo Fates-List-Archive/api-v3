@@ -48,6 +48,26 @@ impl Database {
         bots
     }
 
+    pub async fn bot_features(self: &Self) -> Vec<models::Feature> {
+        let mut features: Vec<models::Feature> = Vec::new();
+        let rows = sqlx::query!(
+            "SELECT id, name, viewed_as, description FROM features"
+        )
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
+        for row in rows.iter() {
+            let feature = models::Feature {
+                id: row.id.clone(),
+                name: row.name.clone(),
+                viewed_as: row.viewed_as.clone(),
+                description: row.description.clone(),
+            };
+            features.push(feature);
+        };
+        features
+    }
+
     pub async fn index_new_bots(self: &Self) -> Vec<models::IndexBot> {
         let mut bots: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
