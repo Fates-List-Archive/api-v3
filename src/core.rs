@@ -43,6 +43,7 @@ async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
     HttpResponse::build(http::StatusCode::OK).body(data.docs.clone())
 }
 
+// Bot route
 #[get("/bots/{id}")]
 async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
