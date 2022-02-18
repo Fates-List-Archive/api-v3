@@ -21,7 +21,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<m
         index.new = data.database.index_new_servers().await;
         index.tags = data.database.server_list_tags().await;
     }
-    return Json(index);
+    Json(index)
 }
 
 #[get("/code/{vanity}")]
@@ -30,10 +30,10 @@ async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
     let resolved_vanity = data.database.resolve_vanity(&code.into_inner()).await;
     match resolved_vanity {
         Some(data) => {
-            return HttpResponse::build(http::StatusCode::OK).json(data);
+            HttpResponse::build(http::StatusCode::OK).json(data)
         }
         _ => {
-            return models::CustomError::NotFoundGeneric.error_response();
+            models::CustomError::NotFoundGeneric.error_response()
         }
     }
 }
@@ -41,20 +41,20 @@ async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
 #[get("/_docs_template")]
 async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    return HttpResponse::build(http::StatusCode::OK).body(data.docs.clone());
+    HttpResponse::build(http::StatusCode::OK).body(data.docs.clone())
 }
 
 #[get("/bots/{id}")]
 async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let inner = info.into_inner();
-    let bot = data.database.get_bot(id.into_inner().id, inner.compact.unwrap_or(true), inner.lang.unwrap_or("en".to_string())).await;
+    let bot = data.database.get_bot(id.into_inner().id, inner.lang.unwrap_or_else(|| "en".to_string())).await;
     match bot {
         Some(data) => {
-            return HttpResponse::build(http::StatusCode::OK).json(data);
+            HttpResponse::build(http::StatusCode::OK).json(data)
         }
         _ => {
-            return models::CustomError::NotFoundGeneric.error_response();
+            models::CustomError::NotFoundGeneric.error_response()
         }
     }
 }

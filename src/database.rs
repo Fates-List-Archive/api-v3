@@ -1,10 +1,8 @@
-use sqlx;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::postgres::PgPool;
 use crate::models;
 use crate::ipc;
 use crate::converters;
-use deadpool_redis;
 use deadpool_redis::{Config, Runtime};
 use crate::inflector::Inflector;
 use log::error;
@@ -26,7 +24,7 @@ impl Database {
             redis: cfg.create_pool(Some(Runtime::Tokio1)).unwrap(),
         }
     }
-    pub async fn index_bots(self: &Self, state: models::State) -> Vec<models::IndexBot> {
+    pub async fn index_bots(&self, state: models::State) -> Vec<models::IndexBot> {
         let mut bots: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
             "SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = $1 ORDER BY votes DESC LIMIT 12",
@@ -38,8 +36,8 @@ impl Database {
         for row in rows.iter() {
             let bot = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row.description.clone().unwrap_or("No description set".to_string()),
-                banner: row.banner_card.clone(),
+                description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -50,7 +48,7 @@ impl Database {
         bots
     }
 
-    pub async fn bot_features(self: &Self) -> Vec<models::Feature> {
+    pub async fn bot_features(&self) -> Vec<models::Feature> {
         let mut features: Vec<models::Feature> = Vec::new();
         let rows = sqlx::query!(
             "SELECT id, name, viewed_as, description FROM features"
@@ -70,7 +68,7 @@ impl Database {
         features
     }
 
-    pub async fn index_new_bots(self: &Self) -> Vec<models::IndexBot> {
+    pub async fn index_new_bots(&self) -> Vec<models::IndexBot> {
         let mut bots: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
             "SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
@@ -82,8 +80,8 @@ impl Database {
         for row in rows.iter() {
             let bot = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row.description.clone().unwrap_or("No description set".to_string()),
-                banner: row.banner_card.clone(),
+                description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -94,21 +92,21 @@ impl Database {
         bots
     }
 
-    pub async fn get_server(self: &Self, guild_id: i64) -> models::User {
+    pub async fn get_server(&self, guild_id: i64) -> models::User {
         let row = sqlx::query!("SELECT guild_id::text AS id, name_cached AS username, avatar_cached AS avatar FROM servers WHERE guild_id = $1", guild_id)
             .fetch_one(&self.pool)
             .await
             .unwrap();
         models::User {
-            id: row.id.unwrap().clone(),
+            id: row.id.unwrap(),
             username: row.username.clone(),
             disc: "0000".to_string(),
-            avatar: row.avatar.unwrap_or("".to_string()).clone(),
+            avatar: row.avatar.unwrap_or_else(|| "".to_string()),
             bot: false,
         }
     }
 
-    pub async fn index_servers(self: &Self, state: models::State) -> Vec<models::IndexBot> {
+    pub async fn index_servers(&self, state: models::State) -> Vec<models::IndexBot> {
         let mut servers: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
             "SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = $1 ORDER BY votes DESC LIMIT 12",
@@ -120,8 +118,8 @@ impl Database {
         for row in rows.iter() {
             let server = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row.description.clone().unwrap_or("No description set".to_string()),
-                banner: row.banner_card.clone(),
+                description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -132,7 +130,7 @@ impl Database {
         servers
     }
 
-    pub async fn index_new_servers(self: &Self) -> Vec<models::IndexBot> {
+    pub async fn index_new_servers(&self) -> Vec<models::IndexBot> {
         let mut servers: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
             "SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
@@ -144,8 +142,8 @@ impl Database {
         for row in rows.iter() {
             let server = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row.description.clone().unwrap_or("No description set".to_string()),
-                banner: row.banner_card.clone(),
+                description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -156,7 +154,7 @@ impl Database {
         servers
     }
 
-    pub async fn bot_list_tags(self: &Self) -> Vec<models::Tag> {
+    pub async fn bot_list_tags(&self) -> Vec<models::Tag> {
         let mut tags: Vec<models::Tag> = Vec::new();
         sqlx::query!("SELECT id, icon FROM bot_list_tags")
             .fetch_all(&self.pool)
@@ -175,7 +173,7 @@ impl Database {
         tags
     }
 
-    pub async fn server_list_tags(self: &Self) -> Vec<models::Tag> {
+    pub async fn server_list_tags(&self) -> Vec<models::Tag> {
         let mut tags: Vec<models::Tag> = Vec::new();
         sqlx::query!("SELECT id, name, iconify_data, owner_guild FROM server_tags")
             .fetch_all(&self.pool)
@@ -194,7 +192,7 @@ impl Database {
         tags
     }
 
-    pub async fn resolve_vanity(self: &Self, code: &str) -> Option<models::Vanity> {
+    pub async fn resolve_vanity(&self, code: &str) -> Option<models::Vanity> {
         let row = sqlx::query!("SELECT type, redirect FROM vanity WHERE vanity_url = $1", code)
         .fetch_one(&self.pool)
         .await;
@@ -218,31 +216,31 @@ impl Database {
                     target_type: target_type.to_string(),
                     target_id: data.redirect.unwrap_or(0).to_string(),
                 };
-                return Some(vanity);
+                Some(vanity)
             },
             Err(_) => {
-                return None;
+                None
             }
         }
     }
 
-    pub async fn get_vanity_from_id(self: &Self, bot_id: i64) -> Option<String> {
+    pub async fn get_vanity_from_id(&self, bot_id: i64) -> Option<String> {
         let row = sqlx::query!("SELECT vanity_url FROM vanity WHERE redirect = $1", bot_id)
         .fetch_one(&self.pool)
         .await;
         match row {
             Ok(data) => {
-                return data.vanity_url;
+                data.vanity_url
             },
             Err(_) => {
-                return None;
+                None
             }
         }
     }
 
     // Auth functions
     
-    pub async fn authorize_user(self: &Self, user_id: i64, token: &str) -> bool {
+    pub async fn authorize_user(&self, user_id: i64, token: &str) -> bool {
         let row = sqlx::query!(
             "SELECT COUNT(1) FROM users WHERE user_id = $1 AND api_token = $2",
             user_id,
@@ -252,7 +250,7 @@ impl Database {
         .await;
         row.is_ok()
     }
-    pub async fn authorize_bot(self: &Self, bot_id: i64, token: &str) -> bool {
+    pub async fn authorize_bot(&self, bot_id: i64, token: &str) -> bool {
         let row = sqlx::query!(
             "SELECT COUNT(1) FROM bots WHERE bot_id = $1 AND api_token = $2",
             bot_id,
@@ -264,7 +262,7 @@ impl Database {
     }
 
     // Get bot
-    pub async fn get_bot(self: &Self, bot_id: i64, compact: bool, lang: String) -> Option<models::Bot> {
+    pub async fn get_bot(&self, bot_id: i64, lang: String) -> Option<models::Bot> {
         let row = sqlx::query!(
             "SELECT bot_id, created_at, last_stats_post, description, 
             css, flags, banner_card, banner_page, guild_count, shard_count, 
@@ -272,8 +270,8 @@ impl Database {
             AS library, state, website, discord AS support, github, 
             user_count, votes, total_votes, donate, privacy_policy,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
-            page_style, keep_banner_decor, long_description_type FROM 
-            bots WHERE bot_id = $1 OR client_id = $1", 
+            page_style, keep_banner_decor, long_description_type, 
+            long_description FROM bots WHERE bot_id = $1 OR client_id = $1", 
             bot_id
         )
         .fetch_one(&self.pool) 
@@ -330,11 +328,11 @@ impl Database {
                 let mut owners = Vec::new();
                 let mut owners_html = "".to_string();
                 for row in owner_rows.iter() {
-                    let user = ipc::get_user(self.redis.clone(), row.owner.clone()).await;
+                    let user = ipc::get_user(self.redis.clone(), row.owner).await;
                     owners_html += &converters::owner_html(user.id.clone(), user.username.clone());
                     owners.push(models::BotOwner {
                         user: user.clone(),
-                        main: row.main.clone().unwrap_or(false),
+                        main: row.main.unwrap_or(false),
                     });
                 }
 
@@ -361,20 +359,20 @@ impl Database {
                 let bot = models::Bot {
                     created_at: data.created_at,
                     last_stats_post: data.last_stats_post,
-                    description: data.description.unwrap_or("No description set".to_string()),
-                    css: "<style>".to_string() + &data.css.unwrap_or("".to_string()) + "</style>",
-                    flags: data.flags.unwrap_or(Vec::new()),
+                    description: data.description.unwrap_or_else(|| "No description set".to_string()),
+                    css: "<style>".to_string() + &data.css.unwrap_or_else(|| "".to_string()) + "</style>",
+                    flags: data.flags.unwrap_or_default(),
                     banner_card: data.banner_card,
                     banner_page: data.banner_page,
                     guild_count: data.guild_count.unwrap_or(0),
                     shard_count: data.shard_count.unwrap_or(0),
-                    shards: data.shards.unwrap_or(Vec::new()),
+                    shards: data.shards.unwrap_or_default(),
                     prefix: data.prefix,
                     invite: data.invite.clone(),
-                    invite_link: converters::invite_link(client_id.clone(), data.invite.clone().unwrap_or("".to_string())),
+                    invite_link: converters::invite_link(client_id.clone(), data.invite.clone().unwrap_or_else(|| "".to_string())),
                     invite_amount: data.invite_amount.unwrap_or(0),
                     features: Vec::new(), // TODO
-                    library: data.library.clone().unwrap_or("".to_string()),
+                    library: data.library.clone().unwrap_or_else(|| "".to_string()),
                     state: models::State::try_from(data.state).unwrap_or(models::State::Approved),
                     website: data.website,
                     support: data.support,
@@ -388,9 +386,9 @@ impl Database {
                     keep_banner_decor: data.keep_banner_decor.unwrap_or(false),
                     client_id,
                     tags,
-                    long_description: None,
+                    long_description: data.long_description.unwrap_or_else(|| "".to_string()),
                     owners,
-                    vanity: self.get_vanity_from_id(bot_id).await.unwrap_or("unknown".to_string()),
+                    vanity: self.get_vanity_from_id(bot_id).await.unwrap_or_else(|| "unknown".to_string()),
                     uptime_checks_total: data.uptime_checks_total,
                     uptime_checks_failed: data.uptime_checks_failed,
                     page_style: models::PageStyle::try_from(data.page_style).unwrap_or(models::PageStyle::Tabs),
@@ -399,11 +397,11 @@ impl Database {
                     owners_html,
                     action_logs,
                 };
-                return Some(bot);
+                Some(bot)
             }
             Err(err) => {
                 error!("{}", err);
-                return None;
+                None
             }  
         }
     }

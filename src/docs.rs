@@ -205,7 +205,7 @@ Fetches bot information given a bot ID. If not found, 404 will be returned.
 
 This endpoint handles both bot IDs and client IDs
 
-- **compact** (default `true`) -> long_description will be not be given
+**Unlike API v2, this does not support compact unless under specific circumstances**
 
 - **no_cache** (default: `false`) -> cached responses will not be served (may be temp disabled in the case of a DDOS or temp disabled for specific 
 bots as required). **Uncached requests may take up to 100-200 times longer or possibly more**

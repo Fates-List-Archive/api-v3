@@ -8,8 +8,6 @@ extern crate inflector;
 use log::{debug, error, info};
 use actix_cors::Cors;
 
-use actix_rt;
-
 mod ipc;
 mod models;
 mod database;

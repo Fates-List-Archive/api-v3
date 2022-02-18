@@ -2,11 +2,10 @@ use serde::{Deserialize, Serialize};
 use bevy_reflect::Reflect;
 use num_enum::TryFromPrimitive;
 use serde_repr::*;
-use std::collections::HashMap;
+//use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
-use chrono;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -17,7 +16,7 @@ pub struct User {
     pub bot: bool,
 }
 
-#[derive(Debug, Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
 #[repr(i32)]
 pub enum State {
     #[default]
@@ -33,7 +32,7 @@ pub enum State {
     PrivateStaffOnly = 9,
 }
 
-#[derive(Debug, Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
 #[repr(i32)]
 pub enum LongDescriptionType {
     #[default]
@@ -42,7 +41,7 @@ pub enum LongDescriptionType {
     MarkdownMarked = 2,
 }
 
-#[derive(Debug, Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
 #[repr(i32)]
 pub enum PageStyle {
     #[default]
@@ -54,7 +53,7 @@ pub enum PageStyle {
 pub struct IndexBot {
     pub guild_count: i64,
     pub description: String,
-    pub banner: Option<String>,
+    pub banner: String,
     pub nsfw: bool,
     pub votes: i64,
     pub state: State,
@@ -143,7 +142,6 @@ pub struct APIResponse {
 
 #[derive(Deserialize, Serialize, Default, Reflect)]
 pub struct FetchBotQuery {
-    pub compact: Option<bool>,
     pub no_cache: Option<bool>,
     pub lang: Option<String>,
 }
@@ -218,7 +216,7 @@ pub struct Bot {
     pub tags: Vec<Tag>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_stats_post: chrono::DateTime<chrono::Utc>,
-    pub long_description: Option<String>,
+    pub long_description: String,
     pub long_description_type: LongDescriptionType,
     pub guild_count: i64,
     pub shard_count: i64,
@@ -256,20 +254,20 @@ pub struct Bot {
 
 impl Default for Bot {
     fn default() -> Self {
-        let mut owners = Vec::new();
-        owners.push(BotOwner::default());
-        
-        let mut features = Vec::new();
-        features.push(Feature::default());
+        let owners = vec![
+            BotOwner::default()
+        ];
 
-        let mut action_logs = Vec::new();
-        action_logs.push(ActionLog {
+        let features = vec![
+            Feature::default()
+        ];
+
+        let action_logs = vec![ActionLog {
             user_id: "".to_string(),
             action: 0,
             action_time: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             context: None,
-        });
-
+        }];
 
         Bot {
             user: User::default(),
@@ -277,7 +275,7 @@ impl Default for Bot {
             tags: Vec::new(),
             created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             last_stats_post: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
-            long_description: Some("blah blah blah".to_string()),
+            long_description: "blah blah blah".to_string(),
             long_description_type: LongDescriptionType::MarkdownMarked,
             page_style: PageStyle::SingleScroll,
             guild_count: 0,
@@ -289,9 +287,9 @@ impl Default for Bot {
             invite: None,
             invite_link: "https://discord.com/api/oauth2/authorize....".to_string(),
             invite_amount: 48,
-            owners: owners,
+            owners,
             owners_html: "".to_string(),
-            features: features,
+            features,
             state: State::default(),
             website: None,
             support: Some("".to_string()),
@@ -308,7 +306,7 @@ impl Default for Bot {
             keep_banner_decor: false,
             client_id: "".to_string(),
             flags: Vec::new(),
-            action_logs: action_logs,
+            action_logs,
             uptime_checks_total: Some(30),
             uptime_checks_failed: Some(19),
         }

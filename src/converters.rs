@@ -1,5 +1,4 @@
 // Handle simple data conversions
-use core::slice::Split;
 
 pub fn invite_link(client_id: String, invite: String) -> String {
     if invite.starts_with("P:") && invite.len() > 2 {

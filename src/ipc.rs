@@ -1,8 +1,6 @@
 use uuid::Uuid;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::models;
-use serde_json;
-use deadpool_redis;
 use deadpool_redis::redis::AsyncCommands;
 
 struct IpcCall {
@@ -31,14 +29,14 @@ async fn ipc_call(call: &mut IpcCall) -> Result<String, IpcErr> {
     if call.timeout > 0 {
         let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
         while SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - start < call.timeout {
-            let data: String = conn.get(cmd_id.clone()).await.unwrap_or("".to_string());
+            let data: String = conn.get(cmd_id.clone()).await.unwrap_or_else(|_| "".to_string());
             if data.is_empty() {
                 continue
             } else {
                 return Ok(data);
             }
         }
-        return Err(IpcErr::Timeout);
+        Err(IpcErr::Timeout)
     } else {
         Err(IpcErr::Timeout)
     }
@@ -47,14 +45,14 @@ async fn ipc_call(call: &mut IpcCall) -> Result<String, IpcErr> {
 pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User {
     // First check cache
     let mut conn = redis.get().await.unwrap();
-    let data: String = conn.get("user-cache:".to_string() + &user_id.to_string()).await.unwrap_or("".to_string());
+    let data: String = conn.get("user-cache:".to_string() + &user_id.to_string()).await.unwrap_or_else(|_| "".to_string());
     if !data.is_empty() {
         let user: models::User = serde_json::from_str(&data).unwrap();
         return user;
     }
     
     let mut call = IpcCall {
-        redis: redis,
+        redis,
         cmd: "GETCH".to_string(),
         args: vec![user_id.to_string()],
         message: "".to_string(),
@@ -63,7 +61,7 @@ pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User
     let val = ipc_call(&mut call).await;
     match val {
         Ok(data) => {
-            conn.set_ex("user-cache:".to_string() + &user_id.to_string(), data.clone(), 60*60*8).await.unwrap_or("".to_string());
+            conn.set_ex("user-cache:".to_string() + &user_id.to_string(), data.clone(), 60*60*8).await.unwrap_or_else(|_| "".to_string());
             let user: models::User = serde_json::from_str(&data).unwrap();
             user
         },
