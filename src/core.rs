@@ -25,6 +25,9 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<m
 
 #[get("/code/{vanity}")]
 async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
+    if code.starts_with("_") {
+        return models::CustomError::NotFoundGeneric.error_response();
+    }
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let resolved_vanity = data.database.resolve_vanity(&code.into_inner()).await;
     match resolved_vanity {
