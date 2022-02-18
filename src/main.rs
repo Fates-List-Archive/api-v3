@@ -15,6 +15,7 @@ mod models;
 mod database;
 mod core;
 mod docs;
+mod converters;
 
 async fn not_found(_req: HttpRequest) -> HttpResponse {
     models::CustomError::NotFoundGeneric.error_response()
@@ -67,6 +68,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::index)
             .service(core::get_vanity)
             .service(core::docs_tmpl)
+            .service(core::get_bot)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

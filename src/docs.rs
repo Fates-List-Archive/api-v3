@@ -1,5 +1,4 @@
 use serde::Serialize;
-use std::collections::HashMap;
 use crate::models;
 use bevy_reflect::{Reflect, Struct};
 
@@ -24,7 +23,19 @@ fn _get_value_from(
         }
     }
 
-    return "[".to_owned() + &field_name_ext + " (type info may be incomplete, see example)]";
+    // Optional i64 case
+    if let Some(value) = value.downcast_ref::<Option<i64>>() {
+        match value {
+            Some(value) => {
+                field_name_ext = "i64? ".to_string() + "| default = " + &value.to_string();
+            },
+            None => {
+                // Ignored
+            },
+        }
+    }    
+
+    "[".to_owned() + &field_name_ext + " (type info may be incomplete, see example)]"
 }
 
 fn _get_params<T: Struct>(
@@ -35,12 +46,12 @@ fn _get_params<T: Struct>(
         let field_name: String = params.name_at(i).unwrap().to_string();
         let field_value = _get_value_from(value);
         params_string += &format!(
-            "{field_name} {field_value}\n",
+            "**{field_name}** {field_value}\n\n",
             field_name = field_name,
             field_value = field_value,
         )
     }
-    return params_string;
+    params_string
 }
 
 fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize>(
@@ -135,14 +146,13 @@ pub fn document_routes() -> String {
 
     // TODO: For each route, add doc system
 
-    // - Index route
-    let mut index_bots = Vec::new();
-    index_bots.push(models::IndexBot::default());
-    let mut tags = Vec::new();
-    tags.push(models::Tag::default());
 
-    let mut features = Vec::new();
-    features.push(models::Feature::default());
+    // - Index route
+    let index_bots = vec![models::IndexBot::default()];
+
+    let tags = vec![models::Tag::default()];
+
+    let features = vec![models::Feature::default()];
 
     docs += &doc(
         "Index",
@@ -157,12 +167,13 @@ pub fn document_routes() -> String {
         &models::Index {
             top_voted: index_bots.clone(),
             certified: index_bots.clone(),
-            new: index_bots.clone(),
-            tags: tags.clone(),
-            features: features.clone(),
+            new: index_bots, // Clone later if needed
+            tags,
+            features,
         },
         "[Get Index](https://api.fateslist.xyz/docs/redoc#operation/get_index)",
     );
+
 
     // - Vanity route
     docs += &doc(
@@ -180,6 +191,35 @@ pub fn document_routes() -> String {
             target_type: "bot | server".to_string(),
         },
         "[Get Vanity](https://api.fateslist.xyz/docs/redoc#operation/get_vanity)",
+    );
+
+    // - Fetch Bot route
+    docs += &doc(
+        "Get Bot",
+        "GET",
+        "/bots/{id}",
+        &models::FetchBotPath::default(),
+        &models::FetchBotQuery::default(),
+r#"
+Fetches bot information given a bot ID. If not found, 404 will be returned. 
+
+This endpoint handles both bot IDs and client IDs
+
+- **compact** (default `true`) -> long_description will be not be given
+
+- **no_cache** (default: `false`) -> cached responses will not be served (may be temp disabled in the case of a DDOS or temp disabled for specific 
+bots as required). **Uncached requests may take up to 100-200 times longer or possibly more**
+
+**Important note: the first owner may or may not be the main owner. 
+Use the `main` key instead of object order**
+
+*long_description/css is sanitized with ammonia*
+
+**Set the Frostpaw header if you are a custom client**
+"#,
+    &models::Empty{},
+    &models::Bot::default(), // TODO
+    "[Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/fetch_bot)",
     );
 
     // Return docs

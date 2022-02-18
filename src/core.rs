@@ -3,7 +3,6 @@ use actix_web::{http, HttpRequest, get, web, HttpResponse, ResponseError, web::J
 
 use crate::models;
 
-/// TODO: Handle features
 #[get("/index")]
 async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<models::Index> {
     let mut index = models::Index::new();
@@ -43,4 +42,19 @@ async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
 async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     return HttpResponse::build(http::StatusCode::OK).body(data.docs.clone());
+}
+
+#[get("/bots/{id}")]
+async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let inner = info.into_inner();
+    let bot = data.database.get_bot(id.into_inner().id, inner.compact.unwrap_or(true), inner.lang.unwrap_or("en".to_string())).await;
+    match bot {
+        Some(data) => {
+            return HttpResponse::build(http::StatusCode::OK).json(data);
+        }
+        _ => {
+            return models::CustomError::NotFoundGeneric.error_response();
+        }
+    }
 }

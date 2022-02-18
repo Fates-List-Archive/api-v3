@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
+use chrono;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -30,6 +31,23 @@ pub enum State {
     Archived = 7,
     PrivateViewable = 8,
     PrivateStaffOnly = 9,
+}
+
+#[derive(Debug, Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[repr(i32)]
+pub enum LongDescriptionType {
+    #[default]
+    Html = 0,
+    MarkdownServerSide = 1, // COMPAT: Maybe make this a subprocess of some form for now if too much breaks or just push to marked?
+    MarkdownMarked = 2,
+}
+
+#[derive(Debug, Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[repr(i32)]
+pub enum PageStyle {
+    #[default]
+    Tabs = 0,
+    SingleScroll = 1,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -121,6 +139,180 @@ pub struct APIResponse {
     pub done: bool,
     pub reason: Option<String>,
     pub context: Option<String>, // This is the error itself
+}
+
+#[derive(Deserialize, Serialize, Default, Reflect)]
+pub struct FetchBotQuery {
+    pub compact: Option<bool>,
+    pub no_cache: Option<bool>,
+    pub lang: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Default, Reflect)]
+pub struct FetchBotPath {
+    pub id: i64,
+}
+
+/* 
+    description: str | None = None
+    tags: list[str]
+    created_at: datetime.datetime
+    last_stats_post: datetime.datetime | None = None
+    long_description_type: enums.LongDescType | None = None
+    long_description: str | None = None
+    guild_count: int
+    shard_count: int | None = 0
+    user_count: int
+    shards: list[int] | None = []
+    prefix: str | None = None
+    library: str
+    invite: str | None = None
+    invite_link: str
+    invite_amount: int
+    owners: BotOwners | None = None
+    owners_html: str | None = None
+    features: list[BotFeature]
+    state: enums.BotState
+    page_style: enums.PageStyle | None = enums.PageStyle.tabs
+    website: str | None = None
+    support: str | None = None
+    github: str | None = None
+    css: str | None = None
+    votes: int
+    total_votes: int
+    vanity: str | None = "unknown"
+    donate: str | None = None
+    privacy_policy: str | None = None
+    nsfw: bool
+    banner_card: str | None = None
+    banner_page: str | None = None
+    keep_banner_decor: bool | None = None
+    client_id: str | None = None
+    flags: list[int] | None = []
+    action_logs: list[dict] | None = None
+    uptime_checks_total: int | None = None
+    uptime_checks_failed: int | None = None
+    resources: list | None = [] # TODO
+    commands: dict | None = {} # TODO
+    promos: list[dict] | None = [] # TODO
+*/
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotOwner {
+    pub user: User,
+    pub main: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ActionLog {
+    pub user_id: String,
+    pub action: i32,
+    pub action_time: chrono::DateTime<chrono::Utc>,
+    pub context: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct Bot {
+    pub user: User,
+    pub description: String,
+    pub tags: Vec<Tag>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub last_stats_post: chrono::DateTime<chrono::Utc>,
+    pub long_description: Option<String>,
+    pub long_description_type: LongDescriptionType,
+    pub guild_count: i64,
+    pub shard_count: i64,
+    pub user_count: i64,
+    pub shards: Vec<i32>,
+    pub prefix: Option<String>,
+    pub library: String,
+    pub invite: Option<String>,
+    pub invite_link: String,
+    pub invite_amount: i32,
+    pub owners: Vec<BotOwner>,
+    pub owners_html: String,
+    pub features: Vec<Feature>,
+    pub state: State,
+    pub page_style: PageStyle,
+    pub website: Option<String>,
+    pub support: Option<String>,
+    pub github: Option<String>,
+    pub css: String,
+    pub votes: i64,
+    pub total_votes: i64,
+    pub vanity: String,
+    pub donate: Option<String>,
+    pub privacy_policy: Option<String>,
+    pub nsfw: bool,
+    pub banner_card: Option<String>,
+    pub banner_page: Option<String>,
+    pub keep_banner_decor: bool,
+    pub client_id: String,
+    pub flags: Vec<i32>,
+    pub action_logs: Vec<ActionLog>,
+    pub uptime_checks_total: Option<i32>,
+    pub uptime_checks_failed: Option<i32>,
+}
+
+impl Default for Bot {
+    fn default() -> Self {
+        let mut owners = Vec::new();
+        owners.push(BotOwner::default());
+        
+        let mut features = Vec::new();
+        features.push(Feature::default());
+
+        let mut action_logs = Vec::new();
+        action_logs.push(ActionLog {
+            user_id: "".to_string(),
+            action: 0,
+            action_time: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            context: None,
+        });
+
+
+        Bot {
+            user: User::default(),
+            description: "".to_string(),
+            tags: Vec::new(),
+            created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            last_stats_post: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            long_description: Some("blah blah blah".to_string()),
+            long_description_type: LongDescriptionType::MarkdownMarked,
+            page_style: PageStyle::SingleScroll,
+            guild_count: 0,
+            shard_count: 493,
+            user_count: 0,
+            shards: Vec::new(),
+            prefix: None,
+            library: "".to_string(),
+            invite: None,
+            invite_link: "https://discord.com/api/oauth2/authorize....".to_string(),
+            invite_amount: 48,
+            owners: owners,
+            owners_html: "".to_string(),
+            features: features,
+            state: State::default(),
+            website: None,
+            support: Some("".to_string()),
+            github: None,
+            css: "<style></style>".to_string(),
+            votes: 0,
+            total_votes: 0,
+            vanity: "".to_string(),
+            donate: None,
+            privacy_policy: None,
+            nsfw: false,
+            banner_card: None,
+            banner_page: None,
+            keep_banner_decor: false,
+            client_id: "".to_string(),
+            flags: Vec::new(),
+            action_logs: action_logs,
+            uptime_checks_total: Some(30),
+            uptime_checks_failed: Some(19),
+        }
+    }
 }
 
 #[derive(Error, Debug)]
