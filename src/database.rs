@@ -195,7 +195,7 @@ impl Database {
     }
 
     pub async fn resolve_vanity(&self, code: &str) -> Option<models::Vanity> {
-        let row = sqlx::query!("SELECT type, redirect FROM vanity WHERE vanity_url = $1", code)
+        let row = sqlx::query!("SELECT type, redirect FROM vanity WHERE lower(vanity_url) = $1", code.to_lowercase())
         .fetch_one(&self.pool)
         .await;
         match row {
@@ -339,7 +339,7 @@ impl Database {
 
                 // Owners
                 let owner_rows = sqlx::query!(
-                    "SELECT owner, main FROM bot_owner WHERE bot_id = $1 ORDER BY main ASC",
+                    "SELECT owner, main FROM bot_owner WHERE bot_id = $1 ORDER BY main DESC",
                     bot_id
                 )
                 .fetch_all(&self.pool)
