@@ -58,6 +58,7 @@ pub enum PageStyle {
     SingleScroll = 1,
 }
 
+/// IndexBot represents a bot/server on the index page
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct IndexBot {
     pub guild_count: i64,
@@ -106,9 +107,78 @@ impl Index {
     }
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct BotPack {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub icon: String,
+    pub banner: String,
+    pub resolved_bots: Vec<ResolvedPackBot>,
+    pub owner: User,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl Default for BotPack {
+    fn default() -> Self {
+        BotPack {
+            id: "0".to_string(),
+            name: "".to_string(),
+            description: "".to_string(),
+            icon: "".to_string(),
+            banner: "".to_string(),
+            resolved_bots: vec![ResolvedPackBot::default()],
+            owner: User::default(),
+            created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+        }
+    }
+}
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ResolvedPackBot {
+    pub user: User,
+    pub description: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotPackCreate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub icon: String,
+    pub banner: String,
+    pub bots: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct SearchProfile {
+    pub banner: String,
+    pub description: String,
+    pub user: User,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct SearchTags {
+    pub bots: Vec<Tag>,
+    pub servers: Vec<Tag>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct Search {
+    pub bots: Vec<IndexBot>,
+    pub servers: Vec<IndexBot>,
+    pub profiles: Vec<SearchProfile>,
+    pub packs: Vec<BotPack>,
+    pub tags: SearchTags,
+}
+
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct IndexQuery {
     pub target_type: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct SearchQuery {
+    pub q: Option<String>
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
@@ -159,50 +229,6 @@ pub struct FetchBotQuery {
 pub struct FetchBotPath {
     pub id: i64,
 }
-
-/* 
-    description: str | None = None
-    tags: list[str]
-    created_at: datetime.datetime
-    last_stats_post: datetime.datetime | None = None
-    long_description_type: enums.LongDescType | None = None
-    long_description: str | None = None
-    guild_count: int
-    shard_count: int | None = 0
-    user_count: int
-    shards: list[int] | None = []
-    prefix: str | None = None
-    library: str
-    invite: str | None = None
-    invite_link: str
-    invite_amount: int
-    owners: BotOwners | None = None
-    owners_html: str | None = None
-    features: list[BotFeature]
-    state: enums.BotState
-    page_style: enums.PageStyle | None = enums.PageStyle.tabs
-    website: str | None = None
-    support: str | None = None
-    github: str | None = None
-    css: str | None = None
-    votes: int
-    total_votes: int
-    vanity: str | None = "unknown"
-    donate: str | None = None
-    privacy_policy: str | None = None
-    nsfw: bool
-    banner_card: str | None = None
-    banner_page: str | None = None
-    keep_banner_decor: bool | None = None
-    client_id: str | None = None
-    flags: list[int] | None = []
-    action_logs: list[dict] | None = None
-    uptime_checks_total: int | None = None
-    uptime_checks_failed: int | None = None
-    resources: list | None = [] # TODO
-    commands: dict | None = {} # TODO
-    promos: list[dict] | None = [] # TODO
-*/
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct BotCommand {

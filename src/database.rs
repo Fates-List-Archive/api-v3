@@ -6,7 +6,6 @@ use crate::converters;
 use deadpool_redis::{Config, Runtime};
 use crate::inflector::Inflector;
 use log::{error, debug};
-use pulldown_cmark::{Parser, Options, html::push_html};
 use std::collections::HashMap;
 use deadpool_redis::redis::AsyncCommands;
 
@@ -40,7 +39,7 @@ impl Database {
             let bot = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -84,7 +83,7 @@ impl Database {
             let bot = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -122,7 +121,7 @@ impl Database {
             let server = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -146,7 +145,7 @@ impl Database {
             let server = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/banner.webp".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
@@ -264,13 +263,30 @@ impl Database {
         row.is_ok()
     }
 
-    // Get bot from cache
+    // Cache functions
     pub async fn get_bot_from_cache(&self, bot_id: i64) -> Option<models::Bot> {
         let mut conn = self.redis.get().await.unwrap();
         let data: String = conn.get("bot:".to_string() + &bot_id.to_string()).await.unwrap_or_else(|_| "".to_string());
         if !data.is_empty() {
             let bot: Result<models::Bot, serde_json::error::Error> = serde_json::from_str(&data);
             match bot {
+                Ok(data) => {
+                    return Some(data);
+                }
+                Err(_) => {
+                    return None;
+                }
+            }
+        }
+        None
+    }
+
+    pub async fn get_search_from_cache(&self, query: String) -> Option<models::Search> {
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn.get("search:".to_string() + &query.to_string()).await.unwrap_or_else(|_| "".to_string());
+        if !data.is_empty() {
+            let res: Result<models::Search, serde_json::error::Error> = serde_json::from_str(&data);
+            match res {
                 Ok(data) => {
                     return Some(data);
                 }
@@ -312,7 +328,7 @@ impl Database {
 
                 // Sanitize long description
                 let long_description_type = models::LongDescriptionType::try_from(data.long_description_type).unwrap_or(models::LongDescriptionType::Html);
-                let long_description = self.sanitize_description(long_description_type, data.long_description.clone().unwrap_or_default());
+                let long_description = converters::sanitize_description(long_description_type, data.long_description.clone().unwrap_or_default());
 
                 // Tags
                 let tag_rows = sqlx::query!(
@@ -493,25 +509,164 @@ impl Database {
         }
     }
 
-    pub fn sanitize_description(&self, long_desc_type: models::LongDescriptionType, description: String) -> String {
-        // TODO: Check if stored in redis
-        debug!("Sanitizing description");
-        let mut html = String::new();
-        if long_desc_type == models::LongDescriptionType::MarkdownServerSide {
-            let options = Options::all();
-            let md_parse = Parser::new_ext(description.as_ref(), options);
-            push_html(&mut html, md_parse);
-        } else {
-            html = description.clone();
+    pub async fn resolve_pack_bots(&self, bots: Vec<i64>) -> Vec<models::ResolvedPackBot> {
+        let mut resolved_bots = Vec::new();
+        for bot in bots {
+            let description = sqlx::query!(
+                "SELECT description FROM bots WHERE bot_id = $1",
+                bot
+            )
+            .fetch_one(&self.pool)
+            .await
+            .unwrap();
+            resolved_bots.push(models::ResolvedPackBot {
+                user: ipc::get_user(self.redis.clone(), bot).await,
+                description: description.description.unwrap_or_default(),
+            });
         }
-    
-        ammonia::Builder::new()
-        .rm_clean_content_tags(&["style", "iframe"])
-        .add_tags(&["span", "img", "video", "iframe", "style", "p", "br", "center", "div", "h1", "h2", "h3", "h4", "h5", "section", "article", "fl-lang"]) 
-        .add_generic_attributes(&["id", "class", "style", "data-src", "data-background-image", "data-background-image-set", "data-background-delimiter", "data-icon", "data-inline", "data-height", "code"])
-        .add_tag_attributes("iframe", &["src", "height", "width"])
-        .add_tag_attributes("img", &["src", "alt", "width", "height", "crossorigin", "referrerpolicy", "sizes", "srcset"])
-        .clean(&html)
-        .to_string()
+        resolved_bots
+    }
+
+    pub async fn search(&self, query: String) -> models::Search {
+        // Get bots row
+        let bots_row = sqlx::query!(
+            "SELECT DISTINCT bots.bot_id,
+            bots.description, bots.banner_card AS banner, bots.state, 
+            bots.votes, bots.guild_count, bots.nsfw FROM bots 
+            INNER JOIN bot_owner ON bots.bot_id = bot_owner.bot_id 
+            WHERE (bots.description ilike $1 
+            OR bots.long_description ilike $1 
+            OR bots.username_cached ilike $1 
+            OR bot_owner.owner::text ilike $1) 
+            AND (bots.state = $2 OR bots.state = $3) 
+            ORDER BY bots.votes DESC, bots.guild_count DESC LIMIT 6", 
+            "%".to_string()+&query+"%",
+            models::State::Approved as i32,
+            models::State::Certified as i32,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+        let mut bots = Vec::new();
+        for bot in bots_row {
+            bots.push(models::IndexBot {
+                guild_count: bot.guild_count.unwrap_or_default(),
+                description: bot.description.unwrap_or_default(),
+                banner: bot.banner.unwrap_or_default(),
+                nsfw: bot.nsfw.unwrap_or_default(),
+                votes: bot.votes.unwrap_or_default(),
+                state: models::State::try_from(bot.state).unwrap_or(models::State::Approved),
+                user: ipc::get_user(self.redis.clone(), bot.bot_id).await,
+            });
+        }
+
+        // Get servers row
+        let servers_row = sqlx::query!(
+            "SELECT DISTINCT servers.guild_id,
+            servers.description, servers.banner_card AS banner, servers.state,
+            servers.votes, servers.guild_count, servers.nsfw FROM servers
+            WHERE (servers.description ilike $1
+            OR servers.long_description ilike $1
+            OR servers.name_cached ilike $1) AND servers.state = $2
+            ORDER BY servers.votes DESC, servers.guild_count DESC LIMIT 6",
+            "%".to_string()+&query+"%",
+            models::State::Approved as i32,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        let mut servers = Vec::new();
+
+        for server in servers_row {
+            servers.push(models::IndexBot {
+                guild_count: server.guild_count.unwrap_or(0),
+                description: server.description.clone().unwrap_or_else(|| "No description set".to_string()),
+                banner: server.banner.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+                state: models::State::try_from(server.state).unwrap_or(models::State::Approved),
+                nsfw: server.nsfw.unwrap_or(false),
+                votes: server.votes.unwrap_or(0),
+                user: self.get_server(server.guild_id).await,
+            });
+        }
+
+        // Profiles
+        let profiles_row = sqlx::query!(
+            "SELECT DISTINCT users.user_id, users.description FROM users 
+            INNER JOIN bot_owner ON users.user_id = bot_owner.owner 
+            INNER JOIN bots ON bot_owner.bot_id = bots.bot_id 
+            WHERE ((bots.state = 0 OR bots.state = 6) 
+            AND (bots.username_cached ilike $1 OR bots.description ilike $1 OR bots.bot_id::text ilike $1)) 
+            OR (users.username ilike $1) LIMIT 12", 
+            "%".to_string()+&query+"%",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        let mut profiles = Vec::new();
+
+        for profile in profiles_row {
+            profiles.push(models::SearchProfile {
+                banner: "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string(),
+                description: profile.description.unwrap_or_default(),
+                user: ipc::get_user(self.redis.clone(), profile.user_id.unwrap_or_default()).await,
+            });
+        }
+
+
+        // Tags
+        let tags = models::SearchTags {
+            bots: self.bot_list_tags().await,
+            servers: self.server_list_tags().await,
+        };
+
+        // Packs
+        let packs_row = sqlx::query!(
+            "SELECT DISTINCT bot_packs.id, bot_packs.icon, bot_packs.banner, 
+            bot_packs.created_at, bot_packs.owner, bot_packs.bots, 
+            bot_packs.description, bot_packs.name FROM (
+                SELECT id, icon, banner, 
+                created_at, owner, bots, 
+                description, name, unnest(bots) AS bot_id FROM bot_packs
+            ) bot_packs
+            INNER JOIN bots ON bots.bot_id = bot_packs.bot_id 
+            INNER JOIN users ON users.user_id = bot_packs.owner
+            WHERE bot_packs.name ilike $1 OR bot_packs.owner::text 
+            ilike $1 OR users.username ilike $1 OR bots.bot_id::text ilike $1 
+            OR bots.username_cached ilike $1", 
+            "%".to_string()+&query+"%",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        let mut packs = Vec::new();
+
+        for pack in packs_row {
+            packs.push(models::BotPack {
+                id: pack.id.to_string(),
+                name: pack.name.unwrap_or_default().to_string(),
+                description: pack.description.unwrap_or_default(),
+                icon: pack.icon.unwrap_or_default(),
+                banner: pack.banner.unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+                owner: ipc::get_user(self.redis.clone(), pack.owner.unwrap_or_default()).await,
+                created_at: pack.created_at.unwrap_or_else(|| chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)),
+                resolved_bots: self.resolve_pack_bots(pack.bots.unwrap_or_default()).await,
+            });
+        }
+
+        let res = models::Search {
+            bots,
+            servers,
+            tags,
+            profiles,
+            packs,
+        };
+
+        let mut conn = self.redis.get().await.unwrap();
+        conn.set_ex("search:".to_string() + &query.to_string(), serde_json::to_string(&res).unwrap(), 60).await.unwrap_or_else(|_| "".to_string());
+        
+        res
     }
 }

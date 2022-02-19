@@ -74,3 +74,24 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
         }
     }
 }
+
+// Search route
+
+
+#[get("/search")]
+async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    let query = info.q.clone().unwrap_or("fates".to_string());
+
+    let cached_resp = data.database.get_search_from_cache(query.clone()).await;
+    match cached_resp {
+        Some(resp) => {
+            Json(resp)
+        }
+        None => {
+            let search_resp = data.database.search(query).await;
+            Json(search_resp)
+        }
+    }
+}
