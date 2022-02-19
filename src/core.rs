@@ -50,14 +50,27 @@ async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
 #[get("/bots/{id}")]
 async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    // TODO: Check for Frostpaw header and if so handle analytics
+
     let inner = info.into_inner();
-    let bot = data.database.get_bot(id.into_inner().id, inner.lang.unwrap_or_else(|| "en".to_string())).await;
-    match bot {
-        Some(bot_data) => {
-            HttpResponse::build(http::StatusCode::OK).json(bot_data)
+    let id = id.into_inner();
+
+    let cached_bot = data.database.get_bot_from_cache(id.id).await;
+    match cached_bot {
+        Some(bot) => {
+            HttpResponse::build(http::StatusCode::OK).json(bot)
         }
-        _ => {
-            models::CustomError::NotFoundGeneric.error_response()
+        None => {
+            let bot = data.database.get_bot(id.id, inner.lang.unwrap_or_else(|| "en".to_string())).await;
+            match bot {
+                Some(bot_data) => {
+                    HttpResponse::build(http::StatusCode::OK).json(bot_data)
+                }
+                _ => {
+                    models::CustomError::NotFoundGeneric.error_response()
+                }
+            }
         }
     }
 }

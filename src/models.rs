@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use bevy_reflect::Reflect;
 use num_enum::TryFromPrimitive;
 use serde_repr::*;
-//use std::collections::HashMap;
+use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
@@ -30,6 +30,15 @@ pub enum State {
     Archived = 7,
     PrivateViewable = 8,
     PrivateStaffOnly = 9,
+}
+
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[repr(i32)]
+pub enum CommandType {
+    #[default]
+    PrefixCommand = 0,
+    SlashCommandGlobal = 1,
+    SlashCommandGuild = 2,
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
@@ -196,6 +205,29 @@ pub struct FetchBotPath {
 */
 
 #[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotCommand {
+    pub cmd_type: CommandType,
+    pub cmd_groups: Vec<String>,
+    pub cmd_name: String,
+    pub vote_locked: bool,
+    pub description: String,
+    pub args: Vec<String>,
+    pub examples: Vec<String>,
+    pub premium_only: bool,
+    pub notes: Vec<String>,
+    pub doc_link: String,
+    pub id: String,    
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct Resource {
+    pub id: String,
+    pub resource_title: String,
+    pub resource_link: String,
+    pub resource_description: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct BotOwner {
     pub user: User,
     pub main: bool,
@@ -217,7 +249,7 @@ pub struct Bot {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub last_stats_post: chrono::DateTime<chrono::Utc>,
     pub long_description: String,
-    pub long_description_parsed: String,
+    pub long_description_raw: String,
     pub long_description_type: LongDescriptionType,
     pub guild_count: i64,
     pub shard_count: i64,
@@ -251,6 +283,8 @@ pub struct Bot {
     pub action_logs: Vec<ActionLog>,
     pub uptime_checks_total: Option<i32>,
     pub uptime_checks_failed: Option<i32>,
+    pub commands: HashMap<String, Vec<BotCommand>>,
+    pub resources: Vec<Resource>,
 }
 
 impl Default for Bot {
@@ -277,7 +311,7 @@ impl Default for Bot {
             created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             last_stats_post: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             long_description: "blah blah blah".to_string(),
-            long_description_parsed: "blah blah blah sanitized".to_string(),
+            long_description_raw: "blah blah blah unsanitized".to_string(),
             long_description_type: LongDescriptionType::MarkdownMarked,
             page_style: PageStyle::SingleScroll,
             guild_count: 0,
@@ -311,6 +345,10 @@ impl Default for Bot {
             action_logs,
             uptime_checks_total: Some(30),
             uptime_checks_failed: Some(19),
+            commands: HashMap::from([
+                ("default".to_string(), vec![BotCommand::default()]),
+            ]),
+            resources: vec![Resource::default()],
         }
     }
 }

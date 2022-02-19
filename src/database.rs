@@ -7,7 +7,8 @@ use deadpool_redis::{Config, Runtime};
 use crate::inflector::Inflector;
 use log::{error, debug};
 use pulldown_cmark::{Parser, Options, html::push_html};
-
+use std::collections::HashMap;
+use deadpool_redis::redis::AsyncCommands;
 
 pub struct Database {
     pool: PgPool,
@@ -263,6 +264,24 @@ impl Database {
         row.is_ok()
     }
 
+    // Get bot from cache
+    pub async fn get_bot_from_cache(&self, bot_id: i64) -> Option<models::Bot> {
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn.get("bot:".to_string() + &bot_id.to_string()).await.unwrap_or_else(|_| "".to_string());
+        if !data.is_empty() {
+            let bot: Result<models::Bot, serde_json::error::Error> = serde_json::from_str(&data);
+            match bot {
+                Ok(data) => {
+                    return Some(data);
+                }
+                Err(_) => {
+                    return None;
+                }
+            }
+        }
+        None
+    }
+
     // Get bot
     pub async fn get_bot(&self, bot_id: i64, lang: String) -> Option<models::Bot> {
         let row = sqlx::query!(
@@ -273,7 +292,7 @@ impl Database {
             user_count, votes, total_votes, donate, privacy_policy,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
             page_style, keep_banner_decor, long_description_type, 
-            long_description, long_description_parsed FROM bots WHERE bot_id = $1 OR client_id = $1", 
+            long_description FROM bots WHERE bot_id = $1 OR client_id = $1", 
             bot_id
         )
         .fetch_one(&self.pool) 
@@ -291,23 +310,9 @@ impl Database {
                     }
                 };
 
+                // Sanitize long description
                 let long_description_type = models::LongDescriptionType::try_from(data.long_description_type).unwrap_or(models::LongDescriptionType::Html);
-
-                let mut long_description_parsed = data.long_description_parsed;
-                match long_description_parsed {
-                    Some(_) => {
-                        // Do nothing
-                    }
-                    None => {
-                        let html = self.sanitize_description(long_description_type, data.long_description.clone().unwrap_or_default());
-                        long_description_parsed = Some(html);
-                        // Save to db
-                        sqlx::query!("UPDATE bots SET long_description_parsed = $1 WHERE bot_id = $2", long_description_parsed, bot_id)
-                            .execute(&self.pool)
-                            .await
-                            .unwrap();
-                    }
-                }
+                let long_description = self.sanitize_description(long_description_type, data.long_description.clone().unwrap_or_default());
 
                 // Tags
                 let tag_rows = sqlx::query!(
@@ -375,6 +380,63 @@ impl Database {
                     })
                 }
 
+                // Commands
+                let mut commands = HashMap::new();
+
+                let commands_rows = sqlx::query!(
+                    "SELECT id, cmd_type, description, args, examples, premium_only, notes, doc_link, cmd_groups, cmd_name, vote_locked FROM bot_commands WHERE bot_id = $1",
+                    bot_id
+                )
+                .fetch_all(&self.pool)
+                .await
+                .unwrap();
+
+                debug!("Commands: {:?}", commands_rows);
+
+                for command in commands_rows.iter() {
+                    let groups = command.cmd_groups.clone().unwrap_or_default();
+                    for group in groups.iter() {
+                        let group_ref = group.clone();
+                        if let std::collections::hash_map::Entry::Vacant(e) = commands.entry(group_ref.clone()) {
+                            e.insert(Vec::new());
+                        } else {
+                            commands.get_mut(&group_ref).unwrap().push(models::BotCommand {
+                                id: command.id.to_string(),
+                                cmd_type: models::CommandType::try_from(command.cmd_type).unwrap_or(models::CommandType::SlashCommandGlobal),
+                                description: command.description.clone().unwrap_or_default(),
+                                args: command.args.clone().unwrap_or_default(),
+                                examples: command.examples.clone().unwrap_or_default(),
+                                premium_only: command.premium_only.unwrap_or_default(),
+                                notes: command.notes.clone().unwrap_or_default(),
+                                doc_link: command.doc_link.clone().unwrap_or_default(),
+                                cmd_name: command.cmd_name.clone(),
+                                vote_locked: command.vote_locked.unwrap_or_default(),
+                                cmd_groups: command.cmd_groups.clone().unwrap_or_default(),
+                            });
+                        }
+                    }
+                }
+
+                // Resources
+                let mut resources = Vec::new();
+                let resources_row = sqlx::query!(
+                    "SELECT id, resource_title, resource_link, resource_description FROM resources WHERE target_id = $1",
+                    bot_id
+                )
+                .fetch_all(&self.pool)
+                .await
+                .unwrap();
+
+                for resource in resources_row.iter() {
+                    resources.push(models::Resource {
+                        id: resource.id.to_string(),
+                        resource_title: resource.resource_title.clone(),
+                        resource_link: resource.resource_link.clone(),
+                        resource_description: resource.resource_description.clone(),
+                    });
+                }
+
+
                 // Make the struct
                 let bot = models::Bot {
                     created_at: data.created_at,
@@ -406,9 +468,11 @@ impl Database {
                     keep_banner_decor: data.keep_banner_decor.unwrap_or(false),
                     client_id,
                     tags,
-                    long_description: data.long_description.unwrap_or_else(|| "".to_string()),
+                    resources,
+                    commands,
                     long_description_type,
-                    long_description_parsed: long_description_parsed.unwrap_or_default(),
+                    long_description: long_description,
+                    long_description_raw: data.long_description.unwrap_or_default(),
                     owners,
                     vanity: self.get_vanity_from_id(bot_id).await.unwrap_or_else(|| "unknown".to_string()),
                     uptime_checks_total: data.uptime_checks_total,
@@ -418,6 +482,8 @@ impl Database {
                     owners_html,
                     action_logs,
                 };
+                let mut conn = self.redis.get().await.unwrap();
+                conn.set_ex("bot:".to_string() + &bot_id.to_string(), serde_json::to_string(&bot).unwrap(), 60).await.unwrap_or_else(|_| "".to_string());        
                 Some(bot)
             }
             Err(err) => {

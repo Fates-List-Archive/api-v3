@@ -25,7 +25,7 @@ pub fn invite_link(client_id: String, invite: String) -> String {
 
 pub fn owner_html(id: String, username: String) -> String {
     return format!(
-        "<a class='long-desc-link' href='/profile/{id}'>{username}</a>",
+        "<a class='long-desc-link' href='/profile/{id}'>{username}</a><br/>",
         id = id,
         username = username,
     )
