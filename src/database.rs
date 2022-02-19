@@ -697,6 +697,25 @@ impl Database {
         index_bot
     }
 
+    pub async fn random_server(&self) -> models::IndexBot {
+        let random_row = sqlx::query!(
+            "SELECT description, banner_card, state, votes, guild_count, guild_id FROM servers WHERE (state = 0 OR state = 6) AND nsfw = false ORDER BY RANDOM() LIMIT 1"
+        )
+        .fetch_one(&self.pool)
+        .await
+        .unwrap();
+        let index_bot = models::IndexBot {
+            description: random_row.description.unwrap_or_default(),
+            banner: random_row.banner_card.unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+            state: models::State::try_from(random_row.state).unwrap_or(models::State::Approved),
+            nsfw: false,
+            votes: random_row.votes.unwrap_or(0),
+            guild_count: random_row.guild_count.unwrap_or(0),
+            user: self.get_server(random_row.guild_id).await,
+        };
+        index_bot
+    }
+
     pub async fn ws_event<T: 'static + Serialize + Clone + Send>(&self, event: models::Event<T>) {
         task::spawn(ipc::ws_event(self.redis.clone(), event));
     }

@@ -155,3 +155,11 @@ async fn random_bot(req: HttpRequest) -> Json<models::IndexBot> {
     Json(bot)
 }
 
+// Get Random Server
+
+#[get("/random-server")]
+async fn random_server(req: HttpRequest) -> Json<models::IndexBot> {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let server = data.database.random_server().await;
+    Json(server)
+}

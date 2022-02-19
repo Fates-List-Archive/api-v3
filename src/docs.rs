@@ -292,6 +292,34 @@ def random_bot():
             equiv_v2_route: "(no longer working) [Fetch Random Bot](https://api.fateslist.xyz/api/docs/redoc#operation/fetch_random_bot)",
     });
 
+    docs += &doc(
+        models::Route {
+            title: "Random Server",
+            method: "GET",
+            path: "/random-server",
+            path_params: &models::Empty {},
+            query_params: &models::Empty {},
+            request_body: &models::Empty {},
+            response_body: &models::IndexBot::default(),
+description: r#"
+Fetches a random server on the list
+
+Example:
+```py
+import requests
+
+def random_server():
+    res = requests.get(api_url"/random-server")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+"#,
+            equiv_v2_route: "(no longer working) [Fetch Random Server](https://api.fateslist.xyz/api/docs/redoc#operation/fetch_random_server)",
+    });
+
     // Return docs
     docs
 }
