@@ -614,7 +614,7 @@ impl Database {
             profiles.push(models::SearchProfile {
                 banner: "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string(),
                 description: profile.description.unwrap_or_default(),
-                user: ipc::get_user(self.redis.clone(), profile.user_id.unwrap_or_default()).await,
+                user: ipc::get_user(self.redis.clone(), profile.user_id).await,
             });
         }
 
@@ -673,7 +673,7 @@ impl Database {
         
         res
     }
-
+ 
     #[async_recursion]
     pub async fn random_bot(&self) -> models::IndexBot {
         let random_row = sqlx::query!(
