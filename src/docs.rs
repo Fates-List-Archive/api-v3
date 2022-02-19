@@ -46,7 +46,7 @@ fn _get_params<T: Struct>(
         let field_name: String = params.name_at(i).unwrap().to_string();
         let field_value = _get_value_from(value);
         params_string += &format!(
-            "**{field_name}** {field_value}\n\n",
+            "- **{field_name}** {field_value}\n",
             field_name = field_name,
             field_value = field_value,
         )
@@ -129,7 +129,36 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
 }
 
 pub fn document_routes() -> String {
-    let mut docs: String = "# API v3\n".to_string();
+    let mut docs: String = "# API v3\n**API URL**: ``https://next.fateslist.xyz`` (for now)\n".to_string();
+
+    // Add basic auth stuff
+    docs += r#"
+## Authorization
+
+- **Bot:** These endpoints require a bot token. 
+You can get this from Bot Settings. Make sure to keep this safe and in 
+a .gitignore/.env. A prefix of `Bot` before the bot token such as 
+`Bot abcdef` is supported and can be used to avoid ambiguity but is not 
+required. The default auth scheme if no prefix is given depends on the
+endpoint: Endpoints which have only one auth scheme will use that auth 
+scheme while endpoints with multiple will always use `Bot` for 
+backward compatibility
+
+- **Server:** These endpoints require a server
+token which you can get using ``/get API Token`` in your server. 
+Same warnings and information from the other authentication types 
+apply here. A prefix of ``Server`` before the server token is 
+supported and can be used to avoid ambiguity but is not required.
+
+- **User:** These endpoints require a user token. You can get this 
+from your profile under the User Token section. If you are using this 
+for voting, make sure to allow users to opt out! A prefix of `User` 
+before the user token such as `User abcdef` is supported and can be 
+used to avoid ambiguity but is not required outside of endpoints that 
+have both a user and a bot authentication option such as Get Votes. 
+In such endpoints, the default will always be a bot auth unless 
+you prefix the token with `User`
+"#;
 
     // API Response route
     let buf = Vec::new();
@@ -171,7 +200,7 @@ pub fn document_routes() -> String {
             tags,
             features,
         },
-        "[Get Index](https://api.fateslist.xyz/docs/redoc#operation/get_index)",
+        "(no longer working) [Get Index](https://api.fateslist.xyz/docs/redoc#operation/get_index)",
     );
 
 
@@ -190,7 +219,7 @@ pub fn document_routes() -> String {
             target_id: "0000000000".to_string(),
             target_type: "bot | server".to_string(),
         },
-        "[Get Vanity](https://api.fateslist.xyz/docs/redoc#operation/get_vanity)",
+        "(no longer working) [Get Vanity](https://api.fateslist.xyz/docs/redoc#operation/get_vanity)",
     );
 
     // - Fetch Bot route
@@ -205,21 +234,42 @@ Fetches bot information given a bot ID. If not found, 404 will be returned.
 
 This endpoint handles both bot IDs and client IDs
 
-**Unlike API v2, this does not support compact unless under specific circumstances**
+Differences from API v2:
 
-- **no_cache** (default: `false`) -> cached responses will not be served (may be temp disabled in the case of a DDOS or temp disabled for specific 
-bots as required). **Uncached requests may take up to 100-200 times longer or possibly more**
-
-**Important note: the first owner may or may not be the main owner. 
-Use the `main` key instead of object order**
-
-*long_description/css is sanitized with ammonia*
+- Unlike API v2, this does not support compact or no_cache. Owner order is also guaranteed
+- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
+- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
+- Some fields have been renamed or removed (such as ``promos`` which may be readded at a later date)
 
 **Set the Frostpaw header if you are a custom client**
 "#,
     &models::Empty{},
     &models::Bot::default(), // TODO
     "[Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/fetch_bot)",
+    );
+
+    // - Search List route
+    docs += &doc(
+        "Search List",
+        "GET",
+        "/search?q={query}",
+        &models::Empty {},
+        &models::SearchQuery {
+            q: Some("mew".to_string()),
+        },
+        r#"Searches the list"#,
+        &models::Empty {},
+        &models::Search {
+            bots: vec![models::IndexBot::default()],
+            servers: vec![models::IndexBot::default()],
+            packs: vec![models::BotPack::default()],
+            profiles: vec![models::SearchProfile::default()],
+            tags: models::SearchTags {
+                bots: vec![models::Tag::default()],
+                servers: vec![models::Tag::default()]
+            },
+        },
+        "(no longer working) [Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/search_list)",
     );
 
     // Return docs
