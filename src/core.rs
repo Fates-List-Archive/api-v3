@@ -1,6 +1,10 @@
-
+// A core endpoint is one that is absolutely essential
 use actix_web::{http, HttpRequest, get, web, HttpResponse, ResponseError, web::Json};
+use actix_web::http::header::HeaderValue;
 use crate::models;
+use log::error;
+use uuid::Uuid;
+
 
 #[get("/index")]
 async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<models::Index> {
@@ -51,10 +55,56 @@ async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
 async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    // TODO: Check for Frostpaw header and if so handle analytics
-
     let inner = info.into_inner();
     let id = id.into_inner();
+
+    // This code *does not work IPC side yet due to needed flamepaw changes*
+    if req.headers().contains_key("Frostpaw") {
+        let auth_default = &HeaderValue::from_str("").unwrap();
+        let auth = req.headers().get("Frostpaw-Auth").clone().unwrap_or(auth_default);
+        let mut event_user: Option<String> = None;
+        if !auth.clone().is_empty() {
+            let auth_bytes = auth.to_str();
+            match auth_bytes {
+                Ok(auth_str) => {
+                    let auth_split = auth_str.split("|");
+                    let auth_vec = auth_split.collect::<Vec<&str>>();
+
+                    let user_id = auth_vec.get(0).unwrap_or(&"");
+                    let token = auth_vec.get(1).unwrap_or(&"");
+
+                    let user_id_str = user_id.to_string();
+
+                    let user_id_i64 = user_id_str.parse::<i64>().unwrap_or(0);
+
+                    if data.database.authorize_user(user_id_i64, &token.to_string()).await {
+                        event_user = Some(user_id_str);
+                    }
+
+                    let event = models::Event {
+                        m: models::EventMeta {
+                            e: models::EventName::BotView,
+                            eid: Uuid::new_v4().to_hyphenated().to_string(),
+                        },
+                        ctx: models::EventContext {
+                            target: id.id.to_string(),
+                            target_type: models::EventTargetType::Bot,
+                            user: event_user,
+                        },
+                        props: models::BotViewProp {
+                            vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
+                            widget: false,
+                        }
+                    }; 
+                    data.database.ws_event(event).await;
+                }
+                Err(err) => {
+                    error!("{}", err);
+                }
+            }
+        }
+    }
+
 
     let cached_bot = data.database.get_bot_from_cache(id.id).await;
     match cached_bot {

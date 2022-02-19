@@ -8,6 +8,9 @@ use crate::inflector::Inflector;
 use log::{error, debug};
 use std::collections::HashMap;
 use deadpool_redis::redis::AsyncCommands;
+use serde::Serialize;
+use tokio::task;
+
 
 pub struct Database {
     pool: PgPool,
@@ -668,5 +671,19 @@ impl Database {
         conn.set_ex("search:".to_string() + &query.to_string(), serde_json::to_string(&res).unwrap(), 60).await.unwrap_or_else(|_| "".to_string());
         
         res
+    }
+
+    /*
+    if not id:
+        id = uuid.uuid4()
+    id = str(id)
+    if "m" not in ws_event.keys():
+        ws_event["m"] = {}
+    ws_event["m"]["eid"] = id
+    ws_event["m"]["ts"] = time.time()
+    asyncio.create_task(redis_ipc_new(redis, "ADDWSEVENT", msg=ws_event, args=[str(target), str(id), "1" if type == "bot" else "0"], timeout=timeout))
+    */
+    pub async fn ws_event<T: 'static + Serialize + Clone + Send>(&self, event: models::Event<T>) {
+        task::spawn(ipc::ws_event(self.redis.clone(), event));
     }
 }

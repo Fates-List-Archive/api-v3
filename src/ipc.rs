@@ -2,6 +2,8 @@ use uuid::Uuid;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::models;
 use deadpool_redis::redis::AsyncCommands;
+use serde::Serialize;
+use log::{error, debug};
 
 struct IpcCall {
     redis: deadpool_redis::Pool,
@@ -11,6 +13,7 @@ struct IpcCall {
     timeout: u64, // Use 0 for no timeout
 }
 
+#[derive(Debug)]
 enum IpcErr {
     Timeout,
 }
@@ -42,6 +45,27 @@ async fn ipc_call(call: &mut IpcCall) -> Result<String, IpcErr> {
     }
 }
 
+pub async fn ws_event<T: 'static + Serialize + Clone + Send>(redis: deadpool_redis::Pool, event: models::Event<T>) {
+    let cloned_event = event.clone();
+    let mut call = IpcCall {
+        redis,
+        cmd: "WSEVENT".to_string(),
+        args: vec![cloned_event.ctx.target.to_string(), cloned_event.m.eid, models::EventTargetType::to_arg(event.ctx.target_type).to_string()],
+        message: serde_json::to_string(&event).unwrap(),
+        timeout: 30,
+    };
+    let res = ipc_call(&mut call).await;
+    match res {
+        Ok(res) => {
+            debug!("WSEvent Response: {:?}", res);
+        }
+        Err(err) => {
+            debug!("WSEvent Response: {:?}", err);
+        }
+    }
+}
+
+/// Gets a user
 pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User {
     // First check cache
     let mut conn = redis.get().await.unwrap();

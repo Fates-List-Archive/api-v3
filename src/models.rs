@@ -225,7 +225,7 @@ pub struct FetchBotQuery {
     pub lang: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Default, Reflect)]
+#[derive(Deserialize, Serialize, Default, Reflect, Clone)]
 pub struct FetchBotPath {
     pub id: i64,
 }
@@ -377,6 +377,86 @@ impl Default for Bot {
             resources: vec![Resource::default()],
         }
     }
+}
+
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[repr(i32)]
+pub enum EventName {
+    #[default]
+    BotVote = 0,
+    BotEdit = 2,
+    BotDelete = 3,
+    BotClaim = 4,
+    BotApprove = 5, 
+    BotDeny = 6, 
+    BotBan = 7, 
+    BotUnban = 8, 
+    BotRequeue = 9, 
+    BotCertify = 10, 
+    BotUncertify = 11, 
+    BotTransfer = 12, 
+    BotUnverify = 15, 
+    BotView = 16, 
+    BotInvite = 17,
+    BotUnclaim = 18,
+    BotVoteReset = 20, 
+    BotLock = 22, 
+    BotUnlock = 23,
+    ReviewVote = 30, 
+    ReviewAdd = 31, 
+    ReviewEdit = 32, 
+    ReviewDelete = 33,
+    ResourceAdd = 40, 
+    ResourceDelete = 41, 
+    CommandAdd = 50, 
+    CommandDelete = 51,
+    ServerView = 70, 
+    ServerVote = 71,
+    ServerInvite = 72, 
+}
+
+// {"m": {"e": enums.APIEvents.bot_view}, "ctx": {"user": str(user_id), "widget": False, "vote_page": compact}}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct BotViewProp {
+    pub widget: bool,
+    pub vote_page: bool
+}
+
+#[derive(Eq, Serialize, Deserialize, PartialEq, Clone, Copy, Default)]
+pub enum EventTargetType {
+    #[default]
+    Bot,
+    Server,
+}
+
+impl EventTargetType {
+    pub fn to_arg(t: EventTargetType) -> &'static str {
+        match t {
+            EventTargetType::Bot => "1",
+            EventTargetType::Server => "2",
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct EventContext {
+    pub user: Option<String>,
+    pub target: String,
+    pub target_type: EventTargetType,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct EventMeta {
+    pub e: EventName,
+    pub eid: String,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct Event<T: Serialize + Clone + Send> {
+    pub m: EventMeta,    
+    pub ctx: EventContext,
+    pub props: T,
 }
 
 #[derive(Error, Debug)]
