@@ -28,3 +28,4 @@ ammonia = "3"
 pulldown-cmark = { version = "0.9.1", default-features = false, features = ["simd"] }
 maplit = "1.0.2"
 tokio = "1.17.0"
+async-recursion = "1.0.0"

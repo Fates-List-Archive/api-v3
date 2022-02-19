@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use bevy_reflect::Reflect;
+use bevy_reflect::{Reflect, Struct};
 use num_enum::TryFromPrimitive;
 use serde_repr::*;
 use std::collections::HashMap;
@@ -498,3 +498,27 @@ impl ResponseError for CustomError {
         HttpResponse::build(status_code).json(error_response)
     }
 }  
+
+/* fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize>(
+    title: &str,
+    method: &str,
+    path: &str,
+    path_params: &T3,
+    query_params: &T4,
+    description: &str,
+    request_body: &T,
+    response_body: &T2,
+    equiv_v2_route: &str,
+) */
+
+pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize> {
+    pub title: &'a str,
+    pub method: &'a str,
+    pub path: &'a str,
+    pub path_params: &'a T3,
+    pub query_params: &'a T4,
+    pub description: &'a str,
+    pub request_body: &'a T,
+    pub response_body: &'a T2,
+    pub equiv_v2_route: &'a str,
+}

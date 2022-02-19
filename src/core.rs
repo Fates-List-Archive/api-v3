@@ -145,3 +145,13 @@ async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json
         }
     }
 }
+
+// Get Random Bot
+
+#[get("/random-bot")]
+async fn random_bot(req: HttpRequest) -> Json<models::IndexBot> {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let bot = data.database.random_bot().await;
+    Json(bot)
+}
+

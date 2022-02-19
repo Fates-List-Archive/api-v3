@@ -55,38 +55,30 @@ fn _get_params<T: Struct>(
 }
 
 fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize>(
-    title: &str,
-    method: &str,
-    path: &str,
-    path_params: &T3,
-    query_params: &T4,
-    description: &str,
-    request_body: &T,
-    response_body: &T2,
-    equiv_v2_route: &str,
+    route: models::Route<T, T2, T3, T4>,
 ) -> String {
     // Serialize request body
     let buf = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser = serde_json::Serializer::with_formatter(buf, formatter);
     
-    request_body.serialize(&mut ser).unwrap();
+    route.request_body.serialize(&mut ser).unwrap();
 
     // Serialize response body
     let buf2 = Vec::new();
     let formatter2 = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser2 = serde_json::Serializer::with_formatter(buf2, formatter2);
 
-    response_body.serialize(&mut ser2).unwrap();
+    route.response_body.serialize(&mut ser2).unwrap();
 
     // Serialize query parameters
     let buf4 = Vec::new();
     let formatter4 = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser4 = serde_json::Serializer::with_formatter(buf4, formatter4);
 
-    let mut query_params_str = _get_params(query_params);
+    let mut query_params_str = _get_params(route.query_params);
 
-    query_params.serialize(&mut ser4).unwrap();
+    route.query_params.serialize(&mut ser4).unwrap();
 
     let query_params_json = &String::from_utf8(ser4.into_inner()).unwrap();
 
@@ -97,9 +89,9 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
     let formatter3 = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser3 = serde_json::Serializer::with_formatter(buf3, formatter3);
 
-    let mut path_params_str = _get_params(path_params);
+    let mut path_params_str = _get_params(route.path_params);
 
-    path_params.serialize(&mut ser3).unwrap();
+    route.path_params.serialize(&mut ser3).unwrap();
 
     let path_params_json = &String::from_utf8(ser3.into_inner()).unwrap();
 
@@ -107,11 +99,11 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
 
     let mut base_doc = format!(
         "## {title}\n### {method} {path}\n\n{description}\n\n**API v2 analogue:** {equiv_v2_route}",
-        title = title,
-        method = method,
-        path = path,
-        description = description,
-        equiv_v2_route = equiv_v2_route,
+        title = route.title,
+        method = route.method,
+        path = route.path,
+        description = route.description,
+        equiv_v2_route = route.equiv_v2_route,
     );
 
     if path_params_json.len() > 2 {
@@ -129,7 +121,7 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
 }
 
 pub fn document_routes() -> String {
-    let mut docs: String = "# API v3\n**API URL**: ``https://next.fateslist.xyz`` (for now)\n".to_string();
+    let mut docs: String = "# API v3\n**API URL**: ``https://next.fateslist.xyz`` (for now, can change in future)\n".to_string();
 
     // Add basic auth stuff
     docs += r#"
@@ -183,53 +175,53 @@ you prefix the token with `User`
 
     let features = vec![models::Feature::default()];
 
-    docs += &doc(
-        "Index",
-        "GET",
-        "/index",
-        &models::Empty {},
-        &models::IndexQuery {
+    docs += &doc(models::Route {
+        title: "Index",
+        method: "GET",
+        path: "/index",
+        path_params: &models::Empty {},
+        query_params: &models::IndexQuery {
             target_type: Some("bot".to_string()),
         },
-        "Returns the index for bots and servers",
-        &models::Empty {},
-        &models::Index {
+        description: "Returns the index for bots and servers",
+        request_body: &models::Empty {},
+        response_body: &models::Index {
             top_voted: index_bots.clone(),
             certified: index_bots.clone(),
             new: index_bots, // Clone later if needed
             tags,
             features,
         },
-        "(no longer working) [Get Index](https://api.fateslist.xyz/docs/redoc#operation/get_index)",
-    );
+        equiv_v2_route: "(no longer working) [Get Index](https://api.fateslist.xyz/docs/redoc#operation/get_index)",
+    });
 
 
     // - Vanity route
-    docs += &doc(
-        "Resolve Vanity",
-        "GET",
-        "/code/{code}",
-        &models::VanityPath {
+    docs += &doc( models::Route {
+        title: "Resolve Vanity",
+        method: "GET",
+        path: "/code/{code}",
+        path_params: &models::VanityPath {
             code: "my-vanity".to_string(),
         },
-        &models::Empty {},
-        "Resolves the vanity for a bot/server in the list",
-        &models::Empty {},
-        &models::Vanity {
+        query_params: &models::Empty {},
+        description: "Resolves the vanity for a bot/server in the list",
+        request_body: &models::Empty {},
+        response_body: &models::Vanity {
             target_id: "0000000000".to_string(),
             target_type: "bot | server".to_string(),
         },
-        "(no longer working) [Get Vanity](https://api.fateslist.xyz/docs/redoc#operation/get_vanity)",
-    );
+        equiv_v2_route: "(no longer working) [Get Vanity](https://api.fateslist.xyz/docs/redoc#operation/get_vanity)",
+    });
 
     // - Fetch Bot route
-    docs += &doc(
-        "Get Bot",
-        "GET",
-        "/bots/{id}",
-        &models::FetchBotPath::default(),
-        &models::FetchBotQuery::default(),
-r#"
+    docs += &doc( models::Route {
+        title: "Get Bot",
+        method: "GET",
+        path: "/bots/{id}",
+        path_params: &models::FetchBotPath::default(),
+        query_params: &models::FetchBotQuery::default(),
+description: r#"
 Fetches bot information given a bot ID. If not found, 404 will be returned. 
 
 This endpoint handles both bot IDs and client IDs
@@ -243,23 +235,23 @@ Differences from API v2:
 
 **Set the Frostpaw header if you are a custom client**
 "#,
-    &models::Empty{},
-    &models::Bot::default(), // TODO
-    "[Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/fetch_bot)",
-    );
+    request_body: &models::Empty{},
+    response_body: &models::Bot::default(), // TODO
+    equiv_v2_route: "[Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/fetch_bot)",
+    });
 
     // - Search List route
-    docs += &doc(
-        "Search List",
-        "GET",
-        "/search?q={query}",
-        &models::Empty {},
-        &models::SearchQuery {
+    docs += &doc(models::Route {
+        title: "Search List",
+        method: "GET",
+        path: "/search?q={query}",
+        path_params: &models::Empty {},
+        query_params: &models::SearchQuery {
             q: Some("mew".to_string()),
         },
-        r#"Searches the list"#,
-        &models::Empty {},
-        &models::Search {
+        description: r#"Searches the list based on a query named ``q``"#,
+        request_body: &models::Empty {},
+        response_body: &models::Search {
             bots: vec![models::IndexBot::default()],
             servers: vec![models::IndexBot::default()],
             packs: vec![models::BotPack::default()],
@@ -269,8 +261,36 @@ Differences from API v2:
                 servers: vec![models::Tag::default()]
             },
         },
-        "(no longer working) [Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/search_list)",
-    );
+        equiv_v2_route: "(no longer working) [Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/search_list)",
+    });
+
+    docs += &doc(
+        models::Route {
+            title: "Random Bot",
+            method: "GET",
+            path: "/random-bot",
+            path_params: &models::Empty {},
+            query_params: &models::Empty {},
+            request_body: &models::Empty {},
+            response_body: &models::IndexBot::default(),
+description: r#"
+Fetches a random bot on the list
+
+Example:
+```py
+import requests
+
+def random_bot():
+    res = requests.get(api_url"/random-bot")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+"#,
+            equiv_v2_route: "(no longer working) [Fetch Random Bot](https://api.fateslist.xyz/api/docs/redoc#operation/fetch_random_bot)",
+    });
 
     // Return docs
     docs

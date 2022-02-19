@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use deadpool_redis::redis::AsyncCommands;
 use serde::Serialize;
 use tokio::task;
+use async_recursion::async_recursion;
 
 
 pub struct Database {
@@ -673,16 +674,29 @@ impl Database {
         res
     }
 
-    /*
-    if not id:
-        id = uuid.uuid4()
-    id = str(id)
-    if "m" not in ws_event.keys():
-        ws_event["m"] = {}
-    ws_event["m"]["eid"] = id
-    ws_event["m"]["ts"] = time.time()
-    asyncio.create_task(redis_ipc_new(redis, "ADDWSEVENT", msg=ws_event, args=[str(target), str(id), "1" if type == "bot" else "0"], timeout=timeout))
-    */
+    #[async_recursion]
+    pub async fn random_bot(&self) -> models::IndexBot {
+        let random_row = sqlx::query!(
+            "SELECT description, banner_card, state, votes, guild_count, bot_id FROM bots WHERE (state = 0 OR state = 6) AND nsfw = false ORDER BY RANDOM() LIMIT 1"
+        )
+        .fetch_one(&self.pool)
+        .await
+        .unwrap();
+        let index_bot = models::IndexBot {
+            description: random_row.description.unwrap_or_default(),
+            banner: random_row.banner_card.unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+            state: models::State::try_from(random_row.state).unwrap_or(models::State::Approved),
+            nsfw: false,
+            votes: random_row.votes.unwrap_or(0),
+            guild_count: random_row.guild_count.unwrap_or(0),
+            user: ipc::get_user(self.redis.clone(), random_row.bot_id).await,
+        };
+        if index_bot.user.username.starts_with("Deleted") {
+            return self.random_bot().await;
+        }
+        index_bot
+    }
+
     pub async fn ws_event<T: 'static + Serialize + Clone + Send>(&self, event: models::Event<T>) {
         task::spawn(ipc::ws_event(self.redis.clone(), event));
     }

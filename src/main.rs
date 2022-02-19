@@ -68,6 +68,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::docs_tmpl)
             .service(core::get_bot)
             .service(core::search)
+            .service(core::random_bot)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?
