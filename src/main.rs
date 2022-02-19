@@ -15,8 +15,19 @@ mod core;
 mod docs;
 mod converters;
 
+use crate::models::APIResponse;
+
 async fn not_found(_req: HttpRequest) -> HttpResponse {
     models::CustomError::NotFoundGeneric.error_response()
+}
+
+fn actix_handle_err<T: std::error::Error + 'static>(err: T) -> actix_web::error::Error {
+    let response = HttpResponse::BadRequest().json(APIResponse {
+        done: false,
+        reason: Some(err.to_string()),
+	context: None,
+    });
+    actix_web::error::InternalError::from_response(err, response).into()
 }
 
 #[actix_rt::main]
@@ -59,6 +70,13 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600);
         App::new()
             .app_data(app_state.clone())
+            .app_data(
+                web::JsonConfig::default()
+                    .limit(1024 * 1024 * 10)
+                    .error_handler(|err, _req| actix_handle_err(err)),
+            )
+            .app_data(web::QueryConfig::default().error_handler(|err, _req| actix_handle_err(err)))
+            .app_data(web::PathConfig::default().error_handler(|err, _req| actix_handle_err(err)))
             .wrap(cors)
             .wrap(middleware::Compress::default())
             .wrap(Logger::default())

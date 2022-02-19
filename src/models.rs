@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
+use serde_json::Value;
+use actix_web::http::StatusCode;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -522,3 +524,4 @@ pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: St
     pub response_body: &'a T2,
     pub equiv_v2_route: &'a str,
 }
+
