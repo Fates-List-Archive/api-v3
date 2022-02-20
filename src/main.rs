@@ -7,6 +7,11 @@ use actix_web::middleware::Logger;
 extern crate inflector;
 use log::{debug, error, info};
 use actix_cors::Cors;
+use bytes::Bytes;
+use actix_web::dev::Service;
+use actix_web::http::Uri;
+use actix_web::http::uri::PathAndQuery;
+use futures::future::FutureExt;
 
 mod ipc;
 mod models;
@@ -80,6 +85,31 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(middleware::Compress::default())
             .wrap(Logger::default())
+            .wrap(middleware::NormalizePath::new(middleware::TrailingSlash::MergeOnly))
+            .wrap_fn(|mut req, srv| {
+                // Adapted from https://actix.rs/actix-web/src/actix_web/middleware/normalize.rs.html#89
+                let head = req.head_mut();
+
+                let original_path = head.uri.path();
+                let path = original_path.replacen("/api/v2/", "/", 1);
+
+                let mut parts = head.uri.clone().into_parts();
+                let query = parts.path_and_query.as_ref().and_then(|pq| pq.query());
+
+                let path = match query {
+                    Some(q) => Bytes::from(format!("{}?{}", path, q)),
+                    None => Bytes::copy_from_slice(path.as_bytes()),
+                };
+                parts.path_and_query = Some(PathAndQuery::from_maybe_shared(path).unwrap());
+
+                let uri = Uri::from_parts(parts).unwrap();
+                req.match_info_mut().get_mut().update(&uri);
+                req.head_mut().uri = uri;
+
+                srv.call(req).map(|res| {
+                    res
+                })
+            })    
             .default_service(web::route().to(not_found))
             .service(core::index)
             .service(core::get_vanity)
