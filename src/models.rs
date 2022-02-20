@@ -6,8 +6,6 @@ use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
-use serde_json::Value;
-use actix_web::http::StatusCode;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -223,7 +221,6 @@ pub struct APIResponse {
 
 #[derive(Deserialize, Serialize, Default, Reflect)]
 pub struct FetchBotQuery {
-    pub no_cache: Option<bool>,
     pub lang: Option<String>,
 }
 
@@ -267,6 +264,54 @@ pub struct ActionLog {
     pub action: i32,
     pub action_time: chrono::DateTime<chrono::Utc>,
     pub context: Option<String>,
+}
+
+/*
+class Guild(BaseModel):
+    """
+    Represents a server/guild on Fates List
+    """
+    user: BaseUser
+    description: str | None = None
+    tags: list[dict[str, str]]
+    long_description_type: enums.LongDescType | None = None
+    long_description: str | None = None
+    guild_count: int
+    invite_amount: int
+    total_votes: int
+    state: enums.BotState
+    website: str | None = None
+    css: str | None = None
+    votes: int
+    vanity: str | None = None
+    nsfw: bool
+    banner_card: str | None = None
+    banner_page: str | None = None
+    keep_banner_decor: bool | None = None
+    flags: list[int] | None = []
+*/
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct Server {
+    pub user: User,
+    pub description: String,
+    pub tags: Vec<Tag>,
+    pub long_description_type: LongDescriptionType,
+    pub long_description: String,
+    pub long_description_raw: String,
+    pub guild_count: i64,
+    pub invite_amount: i32,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub state: State,
+    pub flags: Vec<i32>,
+    pub css: String,
+    pub website: Option<String>,
+    pub banner_card: Option<String>,
+    pub banner_page: Option<String>,
+    pub keep_banner_decor: bool,
+    pub nsfw: bool,
+    pub votes: i64,
+    pub total_votes: i64,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -500,18 +545,6 @@ impl ResponseError for CustomError {
         HttpResponse::build(status_code).json(error_response)
     }
 }  
-
-/* fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize>(
-    title: &str,
-    method: &str,
-    path: &str,
-    path_params: &T3,
-    query_params: &T4,
-    description: &str,
-    request_body: &T,
-    response_body: &T2,
-    equiv_v2_route: &str,
-) */
 
 pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize> {
     pub title: &'a str,

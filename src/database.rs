@@ -98,7 +98,7 @@ impl Database {
         bots
     }
 
-    pub async fn get_server(&self, guild_id: i64) -> models::User {
+    pub async fn get_server_user(&self, guild_id: i64) -> models::User {
         let row = sqlx::query!("SELECT guild_id::text AS id, name_cached AS username, avatar_cached AS avatar FROM servers WHERE guild_id = $1", guild_id)
             .fetch_one(&self.pool)
             .await
@@ -129,7 +129,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                user: self.get_server(row.guild_id).await,
+                user: self.get_server_user(row.guild_id).await,
             };
             servers.push(server);
         };
@@ -153,7 +153,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                user: self.get_server(row.guild_id).await,
+                user: self.get_server_user(row.guild_id).await,
             };
             servers.push(server);
         };
@@ -291,6 +291,24 @@ impl Database {
         if !data.is_empty() {
             let res: Result<models::Search, serde_json::error::Error> = serde_json::from_str(&data);
             match res {
+                Ok(data) => {
+                    return Some(data);
+                }
+                Err(_) => {
+                    return None;
+                }
+            }
+        }
+        None
+    }
+
+    // Cache functions
+    pub async fn get_server_from_cache(&self, server_id: i64) -> Option<models::Server> {
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn.get("server:".to_string() + &server_id.to_string()).await.unwrap_or_else(|_| "".to_string());
+        if !data.is_empty() {
+            let server: Result<models::Server, serde_json::error::Error> = serde_json::from_str(&data);
+            match server {
                 Ok(data) => {
                     return Some(data);
                 }
@@ -513,6 +531,54 @@ impl Database {
         }
     }
 
+    // Get Server
+    pub async fn get_server(&self, server_id: i64, lang: String) -> Option<models::Server> {
+        let data = sqlx::query!(
+            "SELECT description, long_description, long_description_type,
+            flags, keep_banner_decor, banner_card, banner_page, guild_count, 
+            invite_amount, css, state, website, total_votes, votes, nsfw, 
+            tags, created_at FROM servers WHERE guild_id = $1", 
+            server_id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        match data {
+            Ok(row) => {
+                // Sanitize long description
+                let long_description_type = models::LongDescriptionType::try_from(row.long_description_type.unwrap_or(models::LongDescriptionType::Html as i32)).unwrap_or(models::LongDescriptionType::Html);
+                let long_description = converters::sanitize_description(long_description_type, row.long_description.clone().unwrap_or_default());
+
+                Some(models::Server {
+                    flags: row.flags.unwrap_or_default(),
+                    description: row.description.unwrap_or_else(|| "No description set".to_string()),
+                    long_description,
+                    long_description_raw: row.long_description.unwrap_or_default(),
+                    long_description_type,
+                    banner_card: row.banner_card,
+                    banner_page: row.banner_page,
+                    keep_banner_decor: row.keep_banner_decor.unwrap_or_default(),
+                    guild_count: row.guild_count.unwrap_or_default(),
+                    invite_amount: row.invite_amount.unwrap_or_default(),
+                    css: "<style>".to_string() + &row.css.unwrap_or_default() + "</style>",
+                    state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
+                    website: row.website,
+                    total_votes: row.total_votes.unwrap_or_default(),
+                    votes: row.votes.unwrap_or_default(),
+                    nsfw: row.nsfw.unwrap_or(false),
+                    created_at: row.created_at,
+                    user: self.get_server_user(server_id).await,
+                    tags: Vec::new(), // TODO
+                })
+            }
+            Err(err) => {
+                error!("{}", err);
+                None
+            }
+        }
+        
+    }
+
     pub async fn resolve_pack_bots(&self, bots: Vec<i64>) -> Vec<models::ResolvedPackBot> {
         let mut resolved_bots = Vec::new();
         for bot in bots {
@@ -590,7 +656,7 @@ impl Database {
                 state: models::State::try_from(server.state).unwrap_or(models::State::Approved),
                 nsfw: server.nsfw.unwrap_or(false),
                 votes: server.votes.unwrap_or(0),
-                user: self.get_server(server.guild_id).await,
+                user: self.get_server_user(server.guild_id).await,
             });
         }
 
@@ -711,7 +777,7 @@ impl Database {
             nsfw: false,
             votes: random_row.votes.unwrap_or(0),
             guild_count: random_row.guild_count.unwrap_or(0),
-            user: self.get_server(random_row.guild_id).await,
+            user: self.get_server_user(random_row.guild_id).await,
         };
         index_bot
     }

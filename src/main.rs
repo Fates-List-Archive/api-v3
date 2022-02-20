@@ -85,6 +85,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::get_vanity)
             .service(core::docs_tmpl)
             .service(core::get_bot)
+            .service(core::get_server)
             .service(core::search)
             .service(core::random_bot)
             .service(core::random_server)
