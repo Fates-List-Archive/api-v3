@@ -3,6 +3,7 @@ name = "fates"
 version = "0.1.0"
 edition = "2021"
 
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -29,3 +30,9 @@ pulldown-cmark = { version = "0.9.1", default-features = false, features = ["sim
 maplit = "1.0.2"
 tokio = "1.17.0"
 async-recursion = "1.0.0"
+
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+lto = "fat"
+codegen-units = 1
+
