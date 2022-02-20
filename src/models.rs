@@ -203,7 +203,6 @@ pub struct OauthUser {
     pub username: String,
     pub discriminator: String,
     pub avatar: String,
-    pub bot: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone)]

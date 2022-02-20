@@ -26,7 +26,7 @@ pub async fn login_user(data: &models::AppState, code: String, redirect_url: Str
         .await
         .map_err(models::OauthError::BadExchange)?;
     
-    let user_exchange = data.requests.post("https://discord.com/api/v10/users/@me")
+    let user_exchange = data.requests.get("https://discord.com/api/v10/users/@me")
         .bearer_auth(json.access_token)
         .timeout(Duration::from_secs(10))
         .send()

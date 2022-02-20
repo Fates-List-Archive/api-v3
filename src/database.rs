@@ -853,7 +853,7 @@ impl Database {
                         .map(char::from)
                         .collect();
                         sqlx::query!(
-                            "INSERT INTO users (user_id, username, user_css, site_lang, api_token) VALUES ($1, $2, $3, $4, $5)",
+                            "INSERT INTO users (id, user_id, username, user_css, site_lang, api_token) VALUES ($1, $1, $2, $3, $4, $5)",
                             user_i64,
                             user.username,
                             css, // User css is always initially nothing
@@ -879,7 +879,7 @@ impl Database {
                 username: user.username,
                 disc: user.discriminator,
                 avatar: user.avatar,
-                bot: user.bot,
+                bot: false,
             },
             token,
             state,
