@@ -98,7 +98,7 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
     path_params_str += &("\n\n**Example**\n\n```json\n".to_string() + &path_params_json.clone() + "\n```");
 
     let mut base_doc = format!(
-        "## {title}\n### {method} {path}\n\n{description}\n\n**API v2 analogue:** {equiv_v2_route}",
+        "### {title}\n#### {method} {path}\n\n{description}\n\n**API v2 analogue:** {equiv_v2_route}",
         title = route.title,
         method = route.method,
         path = route.path,
@@ -118,6 +118,14 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
         request_body = String::from_utf8(ser.into_inner()).unwrap(),
         response_body = String::from_utf8(ser2.into_inner()).unwrap(),
     );
+}
+
+/// Begin a new doc category
+fn doc_category(name: &str) -> String {
+    format!(
+        "## {name}\n\n",
+        name = name,
+    )
 }
 
 pub fn document_routes() -> String {
@@ -167,6 +175,7 @@ you prefix the token with `User`
 
     // TODO: For each route, add doc system
 
+    docs += &doc_category("Core");
 
     // - Index route
     let index_bots = vec![models::IndexBot::default()];
@@ -318,6 +327,68 @@ def random_server():
 ```
 "#,
             equiv_v2_route: "(no longer working) [Fetch Random Server](https://api.fateslist.xyz/api/docs/redoc#operation/fetch_random_server)",
+    });
+
+    docs += &doc( models::Route {
+        title: "Get Server",
+        method: "GET",
+        path: "/servers/{id}",
+        path_params: &models::FetchBotPath::default(),
+        query_params: &models::FetchBotQuery::default(),
+description: r#"
+Fetches server information given a server/guild ID. If not found, 404 will be returned. 
+
+Differences from API v2:
+
+- Unlike API v2, this does not support compact or no_cache.
+- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
+- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
+- Some fields have been renamed or removed
+
+**Set the Frostpaw header if you are a custom client**
+"#,
+    request_body: &models::Empty{},
+    response_body: &models::Server::default(),
+    equiv_v2_route: "(no longer working) [Fetch Server](https://api.fateslist.xyz/docs/redoc#operation/fetch_server)",
+    });
+
+    docs += &doc_category("Auth");
+
+    docs += &doc( models::Route {
+        title: "Get OAuth2 Link",
+        method: "GET",
+        path: "/oauth2",
+        description: "Returns the oauth2 link used to login with",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: Some("https://discord.com/.........".to_string()),
+        },
+        equiv_v2_route: "(no longer working) [Get OAuth2 Link](https://api.fateslist.xyz/docs/redoc#operation/get_oauth2_link)",
+    });
+
+    docs += &doc( models::Route {
+        title: "Delete OAuth2 Login",
+        method: "DELETE",
+        path: "/oauth2",
+description: r#"
+'Deletes' (logs out) a oauth2 login. Always call this when logging out 
+even if you do not use cookies as it may perform other logout tasks in future
+
+This API is essentially a logout
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://api.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
     });
 
     // Return docs

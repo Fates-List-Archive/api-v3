@@ -230,8 +230,8 @@ impl Database {
         }
     }
 
-    pub async fn get_vanity_from_id(&self, bot_id: i64) -> Option<String> {
-        let row = sqlx::query!("SELECT vanity_url FROM vanity WHERE redirect = $1", bot_id)
+    pub async fn get_vanity_from_id(&self, id: i64) -> Option<String> {
+        let row = sqlx::query!("SELECT vanity_url FROM vanity WHERE redirect = $1", id)
         .fetch_one(&self.pool)
         .await;
         match row {
@@ -549,7 +549,35 @@ impl Database {
                 let long_description_type = models::LongDescriptionType::try_from(row.long_description_type.unwrap_or(models::LongDescriptionType::Html as i32)).unwrap_or(models::LongDescriptionType::Html);
                 let long_description = converters::sanitize_description(long_description_type, row.long_description.clone().unwrap_or_default());
 
-                Some(models::Server {
+                // Tags
+                let mut tags = Vec::new();
+
+                for tag in row.tags.unwrap_or_default() {
+                    let row = sqlx::query!(
+                        "SELECT name, id, iconify_data, owner_guild FROM server_tags WHERE id = $1", 
+                        tag
+                    )
+                    .fetch_one(&self.pool)
+                    .await;
+                    match row {
+                        Ok(data) => {
+                            tags.push(models::Tag {
+                                id: data.id,
+                                name: data.name,
+                                iconify_data: data.iconify_data,
+                                owner_guild: Some(data.owner_guild.to_string()),
+                            });
+                        }
+                        Err(err) => {
+                            error!("{}", err);
+                        }
+                    }
+                }
+
+                // api_ret["tags"] = [dict(await db.fetchrow("SELECT name, id, iconify_data FROM server_tags WHERE id = $1", id)) for id in api_ret["_tags"]]
+
+
+                let res = Some(models::Server {
                     flags: row.flags.unwrap_or_default(),
                     description: row.description.unwrap_or_else(|| "No description set".to_string()),
                     long_description,
@@ -568,8 +596,14 @@ impl Database {
                     nsfw: row.nsfw.unwrap_or(false),
                     created_at: row.created_at,
                     user: self.get_server_user(server_id).await,
-                    tags: Vec::new(), // TODO
-                })
+                    tags,
+                    vanity: self.get_vanity_from_id(server_id).await,
+                });
+
+                let mut conn = self.redis.get().await.unwrap();
+                conn.set_ex("server:".to_string() + &server_id.to_string(), serde_json::to_string(&res).unwrap(), 60).await.unwrap_or_else(|_| "".to_string());        
+
+                res
             }
             Err(err) => {
                 error!("{}", err);

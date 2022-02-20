@@ -6,6 +6,11 @@ use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
+use std::fs::File;
+use std::io::Read;
+use std::env;
+use std::path::PathBuf;
+use log::debug;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -207,8 +212,43 @@ pub struct Vanity {
     pub target_id: String
 }
 
+// Internal Secrets Struct
+#[derive(Deserialize)]
+pub struct Secrets {
+    pub client_id: String,
+    pub client_secret: String,
+}
+
+pub struct AppConfig {
+    pub secrets: Secrets,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        let path = match env::var_os("HOME") {
+            None => { panic!("$HOME not set"); }
+            Some(path) => PathBuf::from(path),
+        };    
+
+        let data_dir = path.into_os_string().into_string().unwrap() + "/FatesList/config/data/";
+
+        debug!("Data dir: {}", data_dir);
+
+        let mut file = File::open(data_dir + "secrets.json").expect("No config file found");
+        let mut data = String::new();
+        file.read_to_string(&mut data).unwrap();
+
+        let secrets: Secrets = serde_json::from_str(&data).expect("JSON was not well-formatted");
+    
+        AppConfig {
+            secrets,
+        }
+    }
+}
+
 pub struct AppState {
     pub database: database::Database,
+    pub config: AppConfig,
     pub docs: String,
 }
 
@@ -299,6 +339,7 @@ pub struct Server {
     pub long_description_type: LongDescriptionType,
     pub long_description: String,
     pub long_description_raw: String,
+    pub vanity: Option<String>,
     pub guild_count: i64,
     pub invite_amount: i32,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -312,6 +353,33 @@ pub struct Server {
     pub nsfw: bool,
     pub votes: i64,
     pub total_votes: i64,
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Server {
+            user: User::default(),
+            description: "".to_string(),
+            tags: vec![],
+            long_description_type: LongDescriptionType::default(),
+            long_description: "".to_string(),
+            long_description_raw: "".to_string(),
+            vanity: None,
+            guild_count: 0,
+            invite_amount: 0,
+            created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            state: State::default(),
+            flags: vec![],
+            css: "".to_string(),
+            website: None,
+            banner_card: None,
+            banner_page: None,
+            keep_banner_decor: false,
+            nsfw: false,
+            votes: 0,
+            total_votes: 0,
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone)]
