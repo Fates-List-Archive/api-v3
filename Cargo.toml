@@ -31,8 +31,12 @@ maplit = "1.0.2"
 tokio = "1.17.0"
 async-recursion = "1.0.0"
 
-[profile.release]
+[profile.release-lto]
+inherits = "release"
 strip = true  # Automatically strip symbols from the binary.
 lto = "fat"
 codegen-units = 1
 
+
+[profile.release-fast]
+inherits = "release"
