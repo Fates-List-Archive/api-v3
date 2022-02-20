@@ -12,6 +12,7 @@ use actix_web::dev::Service;
 use actix_web::http::Uri;
 use actix_web::http::uri::PathAndQuery;
 use futures::future::FutureExt;
+use reqwest;
 
 mod ipc;
 mod models;
@@ -20,6 +21,7 @@ mod core;
 mod login;
 mod docs;
 mod converters;
+mod oauth2;
 
 use crate::models::APIResponse;
 
@@ -45,10 +47,16 @@ async fn main() -> std::io::Result<()> {
     
     debug!("Connected to postgres/redis");
 
+    let client = reqwest::Client::builder()
+    .user_agent("FatesList-Lightleap-WarriorCats/0.1")
+    .build()
+    .unwrap();
+
     let app_state = web::Data::new(models::AppState {
         database: pool,
         docs: docs::document_routes(),
         config: models::AppConfig::default(),
+        requests: client,
     });
 
     error!("This is a error");
@@ -123,6 +131,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::random_server)
             .service(login::get_oauth2)
             .service(login::del_oauth2)
+            .service(login::do_oauth2)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

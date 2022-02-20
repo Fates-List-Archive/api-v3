@@ -11,6 +11,7 @@ use std::io::Read;
 use std::env;
 use std::path::PathBuf;
 use log::debug;
+use reqwest;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -35,6 +36,15 @@ pub enum State {
     Archived = 7,
     PrivateViewable = 8,
     PrivateStaffOnly = 9,
+}
+
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[repr(i32)]
+pub enum UserState {
+    #[default]
+    Normal = 0,
+    GlobalBan = 1,
+    ProfileBan = 2,
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
@@ -182,6 +192,36 @@ pub struct IndexQuery {
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct OauthDoQuery {
+    pub code: String,
+    pub state: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct OauthUser {
+    pub id: String,
+    pub username: String,
+    pub discriminator: String,
+    pub avatar: String,
+    pub bot: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct OauthUserLogin {
+    pub state: UserState,
+    pub token: String,
+    pub user: User,
+    pub site_lang: String,
+    pub css: Option<String>,
+}
+
+/// The response from the oauth2 endpoint. We do not care about anything but access token
+#[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct OauthAccessTokenResponse {
+    pub access_token: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct SearchQuery {
     pub q: Option<String>
 }
@@ -250,6 +290,7 @@ pub struct AppState {
     pub database: database::Database,
     pub config: AppConfig,
     pub docs: String,
+    pub requests: reqwest::Client,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -581,7 +622,25 @@ pub enum CustomError {
     #[error("Forbidden")]
     ForbiddenGeneric,
     #[error("Unknown Internal Error")]
-    Unknown
+    Unknown,
+}
+
+pub enum OauthError {
+    BadExchange(reqwest::Error),
+    BadExchangeJson(String),
+    NoUser(reqwest::Error),
+    SQLError(sqlx::Error),
+}
+
+impl OauthError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::BadExchange(e) => format!("Bad Exchange: {}", e),
+            Self::BadExchangeJson(e) => format!("Bad Exchange JSON: {}", e),
+            Self::NoUser(e) => format!("No User: {}", e),
+            Self::SQLError(e) => format!("SQL Error: {}", e),
+        }
+    }
 }
 
 impl CustomError {

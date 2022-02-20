@@ -11,6 +11,8 @@ use deadpool_redis::redis::AsyncCommands;
 use serde::Serialize;
 use tokio::task;
 use async_recursion::async_recursion;
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 
 
 pub struct Database {
@@ -818,5 +820,71 @@ impl Database {
 
     pub async fn ws_event<T: 'static + Serialize + Clone + Send>(&self, event: models::Event<T>) {
         task::spawn(ipc::ws_event(self.redis.clone(), event));
+    }
+
+    pub async fn create_user_oauth(&self, user: models::OauthUser) -> Result<models::OauthUserLogin, sqlx::Error> {
+        let user_i64 = user.id.parse::<i64>().unwrap();
+        let check = sqlx::query!(
+            "SELECT state, api_token, user_css, js_allowed, username, site_lang FROM users WHERE user_id = $1",
+            user_i64,
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        let token: String;
+        let mut site_lang: Option<String> = Some("en".to_string());
+        let mut css: Option<String> = Some("".to_string());
+        let mut state = models::UserState::Normal;
+
+        match check {
+            Ok(user) => {
+                token = user.api_token; // This must always exist, we *should* panic if not
+                site_lang = user.site_lang;
+                css = user.user_css;
+                state = models::UserState::try_from(user.state).unwrap_or(models::UserState::Normal);
+            }
+            Err(err) => {
+                match err {
+                    sqlx::Error::RowNotFound => {
+                        // We create the new user
+                        token = thread_rng()
+                        .sample_iter(&Alphanumeric)
+                        .take(128)
+                        .map(char::from)
+                        .collect();
+                        sqlx::query!(
+                            "INSERT INTO users (user_id, username, user_css, site_lang, api_token) VALUES ($1, $2, $3, $4, $5)",
+                            user_i64,
+                            user.username,
+                            css, // User css is always initially nothing
+                            site_lang,
+                            token,
+                        )
+                        .execute(&self.pool)
+                        .await
+                        .unwrap();              
+                    }
+                    _ => {
+                        // Odd error, lets return it
+                        error!("{}", err);
+                        return Err(err);
+                    }
+                }
+            }
+        }
+
+        Ok(models::OauthUserLogin {
+            user: models::User {
+                id: user.id.clone(),
+                username: user.username,
+                disc: user.discriminator,
+                avatar: user.avatar,
+                bot: user.bot,
+            },
+            token,
+            state,
+            site_lang: site_lang.unwrap_or_else(|| "en".to_string()),
+            css,
+        })
     }
 }
