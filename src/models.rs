@@ -12,6 +12,7 @@ use std::env;
 use std::path::PathBuf;
 use log::debug;
 use reqwest;
+use indexmap::IndexMap;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -626,19 +627,9 @@ pub struct Event<T: Serialize + Clone + Send> {
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Policies {
-    rules: PolicyRules,
-    privacy_policy: HashMap<String, HashMap<String, Vec<String>>>,
+    rules: IndexMap<String, IndexMap<String, Vec<String>>>,
+    privacy_policy: IndexMap<String, IndexMap<String, Vec<String>>>,
 }
-
-// We want sane ordering so we fix it with a struct
-#[derive(Deserialize, Serialize, Clone, Default)]
-#[repr(C)]
-pub struct PolicyRules {
-    bot_requirements: HashMap<String, Vec<String>>,
-    certification: HashMap<String, Vec<String>>,
-}
-
-
 
 // Error Handling
 #[derive(Error, Debug)]
