@@ -249,24 +249,45 @@ impl Database {
     // Auth functions
     
     pub async fn authorize_user(&self, user_id: i64, token: &str) -> bool {
+        if token.is_empty() {
+            return false;
+        }
+
         let row = sqlx::query!(
             "SELECT COUNT(1) FROM users WHERE user_id = $1 AND api_token = $2",
             user_id,
-            token,
+            token.replace("User ", ""),
         )
         .fetch_one(&self.pool)
         .await;
-        row.is_ok()
+        match row {
+            Ok(count) => {
+                count.count.unwrap_or(0) > 0
+            },
+            Err(_) => {
+                false
+            }
+        }
     }
     pub async fn authorize_bot(&self, bot_id: i64, token: &str) -> bool {
+        if token.is_empty() {
+            return false;
+        }
         let row = sqlx::query!(
             "SELECT COUNT(1) FROM bots WHERE bot_id = $1 AND api_token = $2",
             bot_id,
-            token,
+            token.replace("Bot ", ""),
         )
         .fetch_one(&self.pool)
         .await;
-        row.is_ok()
+        match row {
+            Ok(count) => {
+                count.count.unwrap_or(0) > 0
+            },
+            Err(_) => {
+                false
+            }
+        }
     }
 
     // Cache functions
@@ -878,7 +899,7 @@ impl Database {
                 id: user.id.clone(),
                 username: user.username,
                 disc: user.discriminator,
-                avatar: user.avatar,
+                avatar: user.avatar.unwrap_or_else(|| "https://api.fateslist.xyz/static/botlisticon.webp".to_string()),
                 bot: false,
             },
             token,
@@ -886,5 +907,116 @@ impl Database {
             site_lang: site_lang.unwrap_or_else(|| "en".to_string()),
             css,
         })
+    }
+
+    pub async fn get_user_voted(&self, bot_id: i64, user_id: i64) -> models::UserVoted {
+        let voter_ts = sqlx::query!(
+            "SELECT timestamps FROM bot_voters WHERE bot_id = $1 AND user_id = $2", 
+            bot_id, 
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        match voter_ts {
+            Ok(ts) => {
+                let vote_ts = ts.timestamps.unwrap_or_default();
+
+                let votes = vote_ts.len() as i64;
+
+                let mut conn = self.redis.get().await.unwrap();
+                
+                // Get vote epoch
+                let ttl = conn.ttl(format!(
+                    "vote_lock:{user_id}", user_id = user_id
+                )).await.unwrap_or(-2);
+
+                let mut time_to_vote: i64 = 0;
+                if ttl > 0 {
+                    time_to_vote = 60*60*8 - ttl
+                }
+
+                models::UserVoted {
+                    votes: votes,
+                    vote_epoch: ttl,
+                    vote_right_now: ttl < 0,
+                    time_to_vote,
+                    voted: votes > 0,
+                    timestamps: vote_ts,
+                }
+            }
+            Err(_) => {
+                models::UserVoted {
+                    votes: 0,
+                    time_to_vote: 0,
+                    vote_right_now: true,
+                    vote_epoch: -2,
+                    voted: false,
+                    timestamps: Vec::new(),
+                }
+            }
+        }
+    }
+
+    pub async fn post_stats(&self, bot_id: i64, stats: models::BotStats) -> Result<(), models::StatsError> {
+        // Shard count
+        match stats.shard_count {
+            Some(count) => {
+                sqlx::query!(
+                    "UPDATE bots SET shard_count = $1 WHERE bot_id = $2",
+                    count,
+                    bot_id
+                )
+                .execute(&self.pool)
+                .await
+                .map_err(models::StatsError::SQLError)?; 
+            }
+            None => {
+                debug!("Not setting shard_count as it is not provided!")
+            }
+        }
+
+        match stats.user_count {
+            Some(count) => {
+                sqlx::query!(
+                    "UPDATE bots SET user_count = $1 WHERE bot_id = $2",
+                    count,
+                    bot_id
+                )
+                .execute(&self.pool)
+                .await
+                .map_err(models::StatsError::SQLError)?; 
+            }
+            None => {
+                debug!("Not setting user_count as it is not provided!")
+            }
+        }
+
+        match stats.shards {
+            Some(count) => {
+                let count_ref: &[i32] = &count;
+                sqlx::query!(
+                    "UPDATE bots SET shards = $1 WHERE bot_id = $2",
+                    count_ref,
+                    bot_id
+                )
+                .execute(&self.pool)
+                .await
+                .map_err(models::StatsError::SQLError)?; 
+            }
+            None => {
+                debug!("Not setting shards as it is not provided!")
+            }
+        }
+
+        sqlx::query!(
+            "UPDATE bots SET last_stats_post = NOW(), guild_count = $1 WHERE bot_id = $2", 
+            stats.guild_count,
+            bot_id, 
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::StatsError::SQLError)?;
+        Ok(())
     }
 }

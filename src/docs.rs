@@ -365,8 +365,49 @@ Differences from API v2:
     equiv_v2_route: "(no longer working) [Fetch Server](https://api.fateslist.xyz/docs/redoc#operation/fetch_server)",
     });
 
+    // - Get User Votes
+    docs += &doc( models::Route {
+        title: "Get User Votes",
+        method: "GET",
+        path: "/users/{user_id}/bots/{bot_id}/votes",
+        path_params: &models::GetUserVotedPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the bot has.
+- voted | Whether or not the user has *ever* voted for the bot.
+- vote_epoch | The redis TTL of the users vote lock. This is not time_to_vote which is the
+elapsed time the user has waited since their last vote.
+- timestamps | A list of timestamps that the user has voted for the bot on that has been recorded.
+- time_to_vote | The time the user has waited since they last voted.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+
+Differences from API v2:
+
+- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future**.
+- ``vts`` has been renamed to ``timestamps``
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::UserVoted {
+            votes: 10,
+            voted: true,
+            vote_epoch: 101,
+            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+            time_to_vote: 0,
+            vote_right_now: false,
+        },
+        equiv_v2_route: "(no longer working) [Get User Votes](https://api.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",
+    });
+
     docs += &doc_category("Auth");
 
+    // Oauth Link API
     docs += &doc( models::Route {
         title: "Get OAuth2 Link",
         method: "GET",

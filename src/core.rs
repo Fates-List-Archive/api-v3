@@ -1,5 +1,5 @@
 // A core endpoint is one that is absolutely essential
-use actix_web::{http, HttpRequest, get, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, get, post, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use log::error;
@@ -245,4 +245,48 @@ async fn random_server(req: HttpRequest) -> Json<models::IndexBot> {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let server = data.database.random_server().await;
     Json(server)
+}
+
+/// Bot: Has User Voted?
+#[get("/users/{user_id}/bots/{bot_id}/votes")]
+async fn has_user_voted(req: HttpRequest, info: web::Path<models::GetUserVotedPath>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = info.user_id;
+    let bot_id = info.bot_id;
+
+    let resp = data.database.get_user_voted(bot_id, user_id).await;
+    HttpResponse::build(http::StatusCode::OK).json(resp)
+}
+
+/// Bot: Post Stats
+#[post("/bots/{bot_id}/stats")] 
+async fn post_stats(req: HttpRequest, bot_id: web::Path<i64>, stats: web::Json<models::BotStats>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let bot_id = bot_id.into_inner();
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    if data.database.authorize_bot(bot_id, &auth).await {
+        let resp = data.database.post_stats(bot_id, stats.into_inner()).await;
+        match resp {
+            Ok(()) => {
+                HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
+                    done: true,
+                    reason: Some("Successfully posted stats to v3 :)".to_string()),
+                    context: None,
+                })
+            }
+            Err(err) => {
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                    done: false,
+                    reason: Some(err.to_string()),
+                    context: None,
+                })
+            }
+        }
+    } else {
+        error!("Stat post auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
 }

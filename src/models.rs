@@ -193,6 +193,12 @@ pub struct IndexQuery {
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct GetUserVotedPath {
+    pub user_id: i64,
+    pub bot_id: i64, 
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct OauthDoQuery {
     pub code: String,
     pub state: Option<String>,
@@ -203,7 +209,7 @@ pub struct OauthUser {
     pub id: String,
     pub username: String,
     pub discriminator: String,
-    pub avatar: String,
+    pub avatar: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -213,6 +219,15 @@ pub struct OauthUserLogin {
     pub user: User,
     pub site_lang: String,
     pub css: Option<String>,
+}
+
+/// Bot Stats
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotStats {
+    pub guild_count: i64,
+    pub shard_count: Option<i64>,
+    pub shards: Option<Vec<i32>>,
+    pub user_count: Option<i64>,
 }
 
 /// The response from the oauth2 endpoint. We do not care about anything but access token
@@ -631,6 +646,16 @@ pub struct Policies {
     privacy_policy: IndexMap<String, IndexMap<String, Vec<String>>>,
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct UserVoted {
+    pub votes: i64,
+    pub voted: bool,
+    pub vote_right_now: bool,
+    pub vote_epoch: i64,
+    pub time_to_vote: i64,
+    pub timestamps: Vec<chrono::DateTime<chrono::Utc>>,
+}
+
 // Error Handling
 #[derive(Error, Debug)]
 pub enum CustomError {
@@ -656,6 +681,20 @@ impl OauthError {
             Self::BadExchangeJson(e) => format!("Bad Exchange JSON: {}", e),
             Self::NoUser(e) => format!("No User: {}", e),
             Self::SQLError(e) => format!("SQL Error: {}", e),
+        }
+    }
+}
+
+pub enum StatsError {
+    BadStats(String),
+    SQLError(sqlx::Error),
+}
+
+impl StatsError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::BadStats(e) => format!("Bad stats caught and flagged: {}", e),
+            Self::SQLError(e) => format!("SQL error: {}", e),
         }
     }
 }

@@ -44,6 +44,5 @@ strip = true  # Automatically strip symbols from the binary.
 lto = "fat"
 codegen-units = 1
 
-
 [profile.release-fast]
 inherits = "release"
