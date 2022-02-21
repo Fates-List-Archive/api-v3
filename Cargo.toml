@@ -41,8 +41,7 @@ indexmap = { version = "1.8.0", features = ["serde"] }
 [profile.release-lto]
 inherits = "release"
 strip = true  # Automatically strip symbols from the binary.
-lto = "fat"
-codegen-units = 1
+lto = "thin"
 
 [profile.release-fast]
 inherits = "release"

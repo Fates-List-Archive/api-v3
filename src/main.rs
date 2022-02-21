@@ -121,6 +121,7 @@ async fn main() -> std::io::Result<()> {
             })    
             .default_service(web::route().to(not_found))
             .service(core::index)
+            .service(core::mini_index) // Add Bot
             .service(core::get_vanity)
             .service(core::docs_tmpl)
             .service(core::policies)
@@ -131,6 +132,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::random_server)
             .service(core::has_user_voted)
             .service(core::post_stats)
+            .service(core::get_bot_settings)
             .service(login::get_oauth2)
             .service(login::del_oauth2)
             .service(login::do_oauth2)

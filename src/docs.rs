@@ -370,7 +370,7 @@ Differences from API v2:
         title: "Get User Votes",
         method: "GET",
         path: "/users/{user_id}/bots/{bot_id}/votes",
-        path_params: &models::GetUserVotedPath {
+        path_params: &models::GetUserBotPath {
             user_id: 0,
             bot_id: 0,
         },

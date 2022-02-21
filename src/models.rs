@@ -193,7 +193,7 @@ pub struct IndexQuery {
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
-pub struct GetUserVotedPath {
+pub struct GetUserBotPath {
     pub user_id: i64,
     pub bot_id: i64, 
 }
@@ -370,32 +370,7 @@ pub struct ActionLog {
     pub action: i32,
     pub action_time: chrono::DateTime<chrono::Utc>,
     pub context: Option<String>,
-}
-
-/*
-class Guild(BaseModel):
-    """
-    Represents a server/guild on Fates List
-    """
-    user: BaseUser
-    description: str | None = None
-    tags: list[dict[str, str]]
-    long_description_type: enums.LongDescType | None = None
-    long_description: str | None = None
-    guild_count: int
-    invite_amount: int
-    total_votes: int
-    state: enums.BotState
-    website: str | None = None
-    css: str | None = None
-    votes: int
-    vanity: str | None = None
-    nsfw: bool
-    banner_card: str | None = None
-    banner_page: str | None = None
-    keep_banner_decor: bool | None = None
-    flags: list[int] | None = []
-*/
+}   
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Server {
@@ -448,6 +423,27 @@ impl Default for Server {
     }
 }
 
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[repr(i32)]
+pub enum WebhookType {
+    #[default]
+    Vote = 0,
+    DiscordIntegration = 1,
+    DeprecatedFatesClient = 2,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotSettingsContext {
+    pub tags: Vec<Tag>,
+    pub features: Vec<Feature>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotSettings {
+    pub bot: Bot,
+    pub context: BotSettingsContext,
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Bot {
     pub user: User,
@@ -492,6 +488,10 @@ pub struct Bot {
     pub uptime_checks_failed: Option<i32>,
     pub commands: HashMap<String, Vec<BotCommand>>,
     pub resources: Vec<Resource>,
+    pub webhook: Option<String>,
+    pub webhook_secret: Option<String>,
+    pub webhook_type: Option<WebhookType>,
+    pub api_token: Option<String>,
 }
 
 impl Default for Bot {
@@ -556,6 +556,10 @@ impl Default for Bot {
                 ("default".to_string(), vec![BotCommand::default()]),
             ]),
             resources: vec![Resource::default()],
+            webhook: Some("This will be redacted for Get Bot endpoint".to_string()),
+            webhook_type: None,
+            webhook_secret: Some("This will be redacted for Get Bot endpoint".to_string()),
+            api_token: Some("This will be redacted for Get Bot endpoint".to_string())
         }
     }
 }
@@ -681,6 +685,20 @@ impl OauthError {
             Self::BadExchangeJson(e) => format!("Bad Exchange JSON: {}", e),
             Self::NoUser(e) => format!("No User: {}", e),
             Self::SQLError(e) => format!("SQL Error: {}", e),
+        }
+    }
+}
+
+pub enum SettingsError {
+    NotFound,
+    SQLError(sqlx::Error)
+}
+
+impl SettingsError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::NotFound => "Not Found".to_string(),
+            Self::SQLError(e) => format!("SQL error: {}", e),
         }
     }
 }

@@ -120,7 +120,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
             HttpResponse::build(http::StatusCode::OK).json(bot)
         }
         None => {
-            let bot = data.database.get_bot(id.id, inner.lang.unwrap_or_else(|| "en".to_string())).await;
+            let bot = data.database.get_bot(id.id).await;
             match bot {
                 Some(bot_data) => {
                     HttpResponse::build(http::StatusCode::OK).json(bot_data)
@@ -195,7 +195,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info:
             HttpResponse::build(http::StatusCode::OK).json(server)
         }
         None => {
-            let server = data.database.get_server(id.id, inner.lang.unwrap_or_else(|| "en".to_string())).await;
+            let server = data.database.get_server(id.id).await;
             match server {
                 Some(server_data) => {
                     HttpResponse::build(http::StatusCode::OK).json(server_data)
@@ -249,13 +249,72 @@ async fn random_server(req: HttpRequest) -> Json<models::IndexBot> {
 
 /// Bot: Has User Voted?
 #[get("/users/{user_id}/bots/{bot_id}/votes")]
-async fn has_user_voted(req: HttpRequest, info: web::Path<models::GetUserVotedPath>) -> HttpResponse {
+async fn has_user_voted(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.user_id;
     let bot_id = info.bot_id;
 
     let resp = data.database.get_user_voted(bot_id, user_id).await;
     HttpResponse::build(http::StatusCode::OK).json(resp)
+}
+
+/// Mini Index: Get Tags And Features 
+#[get("/mini-index")] 
+async fn mini_index(req: HttpRequest) -> Json<models::Index> {
+    let mut mini_index = models::Index::new();
+
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    mini_index.tags = data.database.bot_list_tags().await;
+    mini_index.features = data.database.bot_features().await;
+
+    Json(mini_index)
+}
+
+/// User: Get Bot Settings
+#[get("/users/{user_id}/bots/{bot_id}/settings")] 
+async fn get_bot_settings(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = info.user_id;
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    if data.database.authorize_user(user_id, &auth).await {
+        let resp = data.database.get_bot_settings(info.bot_id).await;
+        match resp {
+            Ok(bot) => {
+                // Check if in owners before returning
+                for owner in &bot.owners {
+                    let id = owner.user.id.parse::<i64>().unwrap_or(0);
+                    if id == user_id {
+                        return HttpResponse::build(http::StatusCode::OK).json(models::BotSettings {
+                            bot,
+                            context: models::BotSettingsContext {
+                                tags: data.database.bot_list_tags().await,
+                                features: data.database.bot_features().await,
+                            }
+                        });
+                    }
+                }
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                    done: false,
+                    reason: Some("You are not allowed to edit this bot!".to_string()),
+                    context: None,
+                })
+            }
+            Err(err) => {
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                    done: false,
+                    reason: Some(err.to_string()),
+                    context: None,
+                })
+            }
+        }
+    } else {
+        error!("Bot Settings Auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
 }
 
 /// Bot: Post Stats

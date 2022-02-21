@@ -344,7 +344,7 @@ impl Database {
     }
 
     // Get bot
-    pub async fn get_bot(&self, bot_id: i64, lang: String) -> Option<models::Bot> {
+    pub async fn get_bot(&self, bot_id: i64) -> Option<models::Bot> {
         let row = sqlx::query!(
             "SELECT bot_id, created_at, last_stats_post, description, 
             css, flags, banner_card, banner_page, guild_count, shard_count, 
@@ -353,7 +353,8 @@ impl Database {
             user_count, votes, total_votes, donate, privacy_policy,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
             page_style, keep_banner_decor, long_description_type, 
-            long_description FROM bots WHERE bot_id = $1 OR client_id = $1", 
+            long_description, webhook_type FROM bots WHERE bot_id = $1 OR 
+            client_id = $1", 
             bot_id
         )
         .fetch_one(&self.pool) 
@@ -503,7 +504,7 @@ impl Database {
                     created_at: data.created_at,
                     last_stats_post: data.last_stats_post,
                     description: data.description.unwrap_or_else(|| "No description set".to_string()),
-                    css: "<style>".to_string() + &data.css.unwrap_or_else(|| "".to_string()) + "</style>",
+                    css: "<style>".to_string() + &data.css.unwrap_or_else(|| "".to_string()).replace("\\n", "\n").replace("\\t", "\t") + "</style>",
                     flags: data.flags.unwrap_or_default(),
                     banner_card: data.banner_card,
                     banner_page: data.banner_page,
@@ -540,6 +541,10 @@ impl Database {
                     uptime_checks_failed: data.uptime_checks_failed,
                     page_style: models::PageStyle::try_from(data.page_style).unwrap_or(models::PageStyle::Tabs),
                     user: ipc::get_user(self.redis.clone(), data.bot_id).await,
+                    webhook: None,
+                    webhook_secret: None,
+                    api_token: None,
+                    webhook_type: Some(models::WebhookType::try_from(data.webhook_type.unwrap_or_default()).unwrap_or(models::WebhookType::Vote)),
                     owners_html,
                     action_logs,
                 };
@@ -555,7 +560,7 @@ impl Database {
     }
 
     // Get Server
-    pub async fn get_server(&self, server_id: i64, lang: String) -> Option<models::Server> {
+    pub async fn get_server(&self, server_id: i64) -> Option<models::Server> {
         let data = sqlx::query!(
             "SELECT description, long_description, long_description_type,
             flags, keep_banner_decor, banner_card, banner_page, guild_count, 
@@ -596,9 +601,6 @@ impl Database {
                         }
                     }
                 }
-
-                // api_ret["tags"] = [dict(await db.fetchrow("SELECT name, id, iconify_data FROM server_tags WHERE id = $1", id)) for id in api_ret["_tags"]]
-
 
                 let res = Some(models::Server {
                     flags: row.flags.unwrap_or_default(),
@@ -1018,5 +1020,29 @@ impl Database {
         .await
         .map_err(models::StatsError::SQLError)?;
         Ok(())
+    }
+
+    /// Calls get bot and then fills in api_token, webhook and webhook_secret
+    pub async fn get_bot_settings(&self, bot_id: i64) -> Result<models::Bot, models::SettingsError> {
+        let bot = self.get_bot(bot_id)
+        .await
+        .ok_or(models::SettingsError::NotFound)?;
+
+        let sensitive = sqlx::query!(
+            "SELECT api_token, webhook, webhook_secret FROM bots WHERE bot_id = $1",
+            bot_id
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(models::SettingsError::SQLError)?;
+
+        let sensitive_bot = models::Bot {
+            api_token: sensitive.api_token,
+            webhook: sensitive.webhook,
+            webhook_secret: sensitive.webhook_secret,
+            ..bot
+        };
+
+        Ok(sensitive_bot)
     }
 }
