@@ -21,7 +21,6 @@ mod core;
 mod login;
 mod docs;
 mod converters;
-mod oauth2;
 
 use crate::models::APIResponse;
 
@@ -124,6 +123,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::index)
             .service(core::get_vanity)
             .service(core::docs_tmpl)
+            .service(core::policies)
             .service(core::get_bot)
             .service(core::get_server)
             .service(core::search)

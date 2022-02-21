@@ -205,7 +205,7 @@ pub struct OauthUser {
     pub avatar: String,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct OauthUserLogin {
     pub state: UserState,
     pub token: String,
@@ -260,6 +260,7 @@ pub struct Secrets {
 
 pub struct AppConfig {
     pub secrets: Secrets,
+    pub policies: Policies,
 }
 
 impl Default for AppConfig {
@@ -273,14 +274,23 @@ impl Default for AppConfig {
 
         debug!("Data dir: {}", data_dir);
 
-        let mut file = File::open(data_dir + "secrets.json").expect("No config file found");
+        // open secrets.json, handle config
+        let mut file = File::open(data_dir.to_owned() + "secrets.json").expect("No config file found");
         let mut data = String::new();
         file.read_to_string(&mut data).unwrap();
 
         let secrets: Secrets = serde_json::from_str(&data).expect("JSON was not well-formatted");
     
+        // open policy.json, handle config
+        let mut file = File::open(data_dir.to_owned() + "policy.json").expect("No policy.json file found");
+        let mut policies = String::new();
+        file.read_to_string(&mut policies).unwrap();
+
+        let policies: Policies = serde_json::from_str(&policies).expect("JSON was not well-formatted");
+
         AppConfig {
             secrets,
+            policies,
         }
     }
 }
@@ -614,6 +624,23 @@ pub struct Event<T: Serialize + Clone + Send> {
     pub props: T,
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct Policies {
+    rules: PolicyRules,
+    privacy_policy: HashMap<String, HashMap<String, Vec<String>>>,
+}
+
+// We want sane ordering so we fix it with a struct
+#[derive(Deserialize, Serialize, Clone, Default)]
+#[repr(C)]
+pub struct PolicyRules {
+    bot_requirements: HashMap<String, Vec<String>>,
+    certification: HashMap<String, Vec<String>>,
+}
+
+
+
+// Error Handling
 #[derive(Error, Debug)]
 pub enum CustomError {
     #[error("Not Found")]

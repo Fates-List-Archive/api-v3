@@ -223,6 +223,19 @@ you prefix the token with `User`
         equiv_v2_route: "(no longer working) [Get Vanity](https://api.fateslist.xyz/docs/redoc#operation/get_vanity)",
     });
 
+    // - Policies route
+    docs += &doc( models::Route {
+        title: "Get Policies",
+        method: "GET",
+        path: "/policies",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        description: "Get policies (rules, privacy policy, terms of service)",
+        request_body: &models::Empty {},
+        response_body: &models::Policies::default(),
+        equiv_v2_route: "(no longer working) [All Policies](https://api.fateslist.xyz/api/docs/redoc#operation/all_policies)",
+    });
+
     // - Fetch Bot route
     docs += &doc( models::Route {
         title: "Get Bot",
@@ -368,6 +381,21 @@ Differences from API v2:
             context: Some("https://discord.com/.........".to_string()),
         },
         equiv_v2_route: "(no longer working) [Get OAuth2 Link](https://api.fateslist.xyz/docs/redoc#operation/get_oauth2_link)",
+    });
+
+    docs += &doc( models::Route {
+        title: "Create OAuth2 Login",
+        method: "POST",
+        path: "/oauth2",
+        description: "Creates a oauth2 login given a code",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::OauthDoQuery {
+            code: "code from discord oauth".to_string(),
+            state: Some("Random UUID right now".to_string())
+        },
+        response_body: &models::OauthUserLogin::default(),
+        equiv_v2_route: "(no longer working) [Login User](https://api.fateslist.xyz/api/docs/redoc#operation/login_user)",
     });
 
     docs += &doc( models::Route {
