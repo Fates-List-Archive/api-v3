@@ -65,6 +65,28 @@ pub async fn ws_event<T: 'static + Serialize + Clone + Send>(redis: deadpool_red
     }
 }
 
+/// Use 0 if user_id is unset
+pub async fn resolve_guild_invite(redis: deadpool_redis::Pool, guild_id: i64, user_id: i64) -> String {
+    let mut call = IpcCall {
+        redis,
+        cmd: "GUILDINVITE".to_string(),
+        args: vec![guild_id.to_string(), user_id.to_string()],
+        message: "".to_string(),
+        timeout: 30,
+    };
+    let res = ipc_call(&mut call).await;
+    match res {
+        Ok(res) => {
+            debug!("GuildInviteResolver Response: {:?}", res);
+            res
+        }
+        Err(err) => {
+            debug!("GuildInviteResolver Response: {:?}", err);
+            format!("{:?}", err)
+        }
+    }
+}
+
 /// Gets a user
 pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User {
     // First check cache

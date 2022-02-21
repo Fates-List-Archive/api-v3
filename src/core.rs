@@ -1,4 +1,4 @@
-// A core endpoint is one that is absolutely essential
+// A core endpoint is one that is absolutely essential for proper list functions
 use actix_web::{http, HttpRequest, get, post, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
@@ -55,7 +55,15 @@ async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
 #[get("/policies")]
 async fn policies(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    HttpResponse::build(http::StatusCode::OK).json(data.config.policies.clone())
+    HttpResponse::build(http::StatusCode::OK).json(&data.config.policies)
+}
+
+// Partners
+
+#[get("/partners")]
+async fn partners(req: HttpRequest) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    HttpResponse::build(http::StatusCode::OK).json(&data.config.partners)
 }
 
 // Bot route
@@ -101,6 +109,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
                         props: models::BotViewProp {
                             vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
                             widget: false,
+                            invite: req.headers().contains_key("Frostpaw-Invite")
                         }
                     }; 
                     data.database.ws_event(event).await;
@@ -139,11 +148,12 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info:
 
     let id = id.into_inner();
 
-    // This code *does not work IPC side yet due to needed flamepaw changes*
+    let mut event_user: Option<String> = None;
+
+    // TODO: This code *does not work IPC side yet due to needed flamepaw changes
     if req.headers().contains_key("Frostpaw") {
         let auth_default = &HeaderValue::from_str("").unwrap();
         let auth = req.headers().get("Frostpaw-Auth").unwrap_or(auth_default);
-        let mut event_user: Option<String> = None;
         if !auth.clone().is_empty() {
             let auth_bytes = auth.to_str();
             match auth_bytes {
@@ -170,11 +180,12 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info:
                         ctx: models::EventContext {
                             target: id.id.to_string(),
                             target_type: models::EventTargetType::Server,
-                            user: event_user,
+                            user: event_user.clone(),
                         },
                         props: models::BotViewProp {
                             vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
                             widget: false,
+                            invite: req.headers().contains_key("Frostpaw-Invite")
                         }
                     }; 
                     data.database.ws_event(event).await;
@@ -186,16 +197,27 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info:
         }
     }
 
+    let mut invite_link: Option<String> = None;
+
+    // Server invite handling using GUILDINVITE ipc
+    if req.headers().contains_key("Frostpaw-Invite") {
+        invite_link = Some(data.database.resolve_guild_invite(
+            id.id, 
+            event_user.unwrap_or_else(|| "0".to_string()).parse::<i64>().unwrap_or(0)
+        ).await);
+    }
 
     let cached_server = data.database.get_server_from_cache(id.id).await;
     match cached_server {
-        Some(server) => {
+        Some(mut server) => {
+            server.invite_link = invite_link;
             HttpResponse::build(http::StatusCode::OK).json(server)
         }
         None => {
             let server = data.database.get_server(id.id).await;
             match server {
-                Some(server_data) => {
+                Some(mut server_data) => {
+                    server_data.invite_link = invite_link;
                     HttpResponse::build(http::StatusCode::OK).json(server_data)
                 }
                 _ => {

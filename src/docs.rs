@@ -258,7 +258,7 @@ Differences from API v2:
 This API returns some empty fields such as ``webhook``, ``webhook_secret``, `api_token`` and more. 
 This is to allow reuse of the Bot struct in Get Bot Settings which does contain this sensitive data. 
 
-**Set the Frostpaw header if you are a custom client**
+**Set the Frostpaw header if you are a custom client. Send Frostpaw-Invite header on invites**
 "#,
     request_body: &models::Empty{},
     response_body: &models::Bot::default(), // TODO
@@ -360,6 +360,8 @@ Differences from API v2:
 - *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
 - All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
 - Some fields have been renamed or removed
+- ``invite_link`` is returned, however is always None unless ``Frostpaw-Invite`` header is set which then pushes you into 
+server privacy restrictions
 
 **Set the Frostpaw header if you are a custom client**
 "#,

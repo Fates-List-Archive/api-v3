@@ -46,7 +46,7 @@ async fn main() -> std::io::Result<()> {
     debug!("Connected to postgres/redis");
 
     let client = reqwest::Client::builder()
-    .user_agent("FatesList-Lightleap-WarriorCats/0.1")
+    .user_agent("DiscordBot (https://fateslist.xyz, 0.1) FatesList-Lightleap-WarriorCats")
     .build()
     .unwrap();
 
@@ -77,6 +77,7 @@ async fn main() -> std::io::Result<()> {
                 http::header::HeaderName::from_bytes(b"Frostpaw-Server").unwrap(),
                 http::header::HeaderName::from_bytes(b"Frostpaw-Token").unwrap(),
                 http::header::HeaderName::from_bytes(b"Frostpaw-Vote-Page").unwrap(),
+                http::header::HeaderName::from_bytes(b"Frostpaw-Invite").unwrap(),
                 http::header::HeaderName::from_bytes(b"Method").unwrap()
             ])
             .supports_credentials()
@@ -124,6 +125,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::get_vanity)
             .service(core::docs_tmpl)
             .service(core::policies)
+            .service(core::partners)
             .service(core::get_bot)
             .service(core::get_server)
             .service(core::search)

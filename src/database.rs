@@ -613,6 +613,7 @@ impl Database {
                     keep_banner_decor: row.keep_banner_decor.unwrap_or_default(),
                     guild_count: row.guild_count.unwrap_or_default(),
                     invite_amount: row.invite_amount.unwrap_or_default(),
+                    invite_link: None,
                     css: "<style>".to_string() + &row.css.unwrap_or_default() + "</style>",
                     state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                     website: row.website,
@@ -1044,5 +1045,19 @@ impl Database {
         };
 
         Ok(sensitive_bot)
+    }
+
+    pub async fn resolve_guild_invite(&self, guild_id: i64, user_id: i64) -> String {
+        ipc::resolve_guild_invite(self.redis.clone(), guild_id, user_id).await
+    }
+
+    pub async fn update_bot_invite_amount(&self, bot_id: i64) {
+        let exec = sqlx::query!(
+            "UPDATE bots SET invite_amount = invite_amount + 1 WHERE bot_id = $1",
+            bot_id
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
     }
 }

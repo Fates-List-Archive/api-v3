@@ -273,9 +273,26 @@ pub struct Secrets {
     pub client_secret: String,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct Partner {
+    pub id: String,
+    pub name: String,
+    pub owner: String,
+    pub image: String,
+    pub description: String,
+    pub links: IndexMap<String, String>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct Partners {
+    pub partners: Vec<Partner>,
+    pub icons: IndexMap<String, String>
+}
+
 pub struct AppConfig {
     pub secrets: Secrets,
     pub policies: Policies,
+    pub partners: Partners,
 }
 
 impl Default for AppConfig {
@@ -297,15 +314,23 @@ impl Default for AppConfig {
         let secrets: Secrets = serde_json::from_str(&data).expect("JSON was not well-formatted");
     
         // open policy.json, handle config
-        let mut file = File::open(data_dir + "policy.json").expect("No policy.json file found");
+        let mut file = File::open(data_dir.to_owned() + "policy.json").expect("No policy.json file found");
         let mut policies = String::new();
         file.read_to_string(&mut policies).unwrap();
 
         let policies: Policies = serde_json::from_str(&policies).expect("JSON was not well-formatted");
 
+        // open partners.json, handle config
+        let mut file = File::open(data_dir.to_owned() + "partners.json").expect("No partners.json file found");
+        let mut partners = String::new();
+        file.read_to_string(&mut partners).unwrap();
+
+        let partners: Partners = serde_json::from_str(&partners).expect("JSON was not well-formatted");
+
         AppConfig {
             secrets,
             policies,
+            partners,
         }
     }
 }
@@ -382,6 +407,7 @@ pub struct Server {
     pub vanity: Option<String>,
     pub guild_count: i64,
     pub invite_amount: i32,
+    pub invite_link: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub state: State,
     pub flags: Vec<i32>,
@@ -407,6 +433,7 @@ impl Default for Server {
             vanity: None,
             guild_count: 0,
             invite_amount: 0,
+            invite_link: None,
             created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             state: State::default(),
             flags: vec![],
@@ -601,10 +628,12 @@ pub enum EventName {
 
 // {"m": {"e": enums.APIEvents.bot_view}, "ctx": {"user": str(user_id), "widget": False, "vote_page": compact}}
 
+// TODO: Make analytics actually work
 #[derive(Deserialize, Serialize, Clone)]
 pub struct BotViewProp {
     pub widget: bool,
-    pub vote_page: bool
+    pub vote_page: bool,
+    pub invite: bool,
 }
 
 #[derive(Eq, Serialize, Deserialize, PartialEq, Clone, Copy, Default)]
