@@ -422,6 +422,10 @@ this however, it is prone to change *anytime* in the future**.
 description: r#"
 Post stats to the list
 
+Example:
+```py
+import requests
+
 # On dpy, guild_count is usually the below
 guild_count = len(client.guilds)
 
@@ -431,11 +435,6 @@ shards = client.shards.keys()
 
 # Optional: User count (this is not accurate for larger bots)
 user_count = len(client.users) 
-
-
-Example:
-```py
-import requests
 
 def post_stats(bot_id: int, guild_count: int):
     res = requests.post(f"{api_url}/bots/{bot_id}/stats", json={"guild_count": guild_count})
