@@ -198,8 +198,8 @@ you prefix the token with `User`
             top_voted: index_bots.clone(),
             certified: index_bots.clone(),
             new: index_bots, // Clone later if needed
-            tags,
-            features,
+            tags: tags.clone(),
+            features: features.clone(),
         },
         equiv_v2_route: "(no longer working) [Get Index](https://legacy.fateslist.xyz/docs/redoc#operation/get_index)",
     });
@@ -254,6 +254,9 @@ Differences from API v2:
 - *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
 - All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
 - Some fields have been renamed or removed (such as ``promos`` which may be readded at a later date)
+
+This API returns some empty fields such as ``webhook``, ``webhook_secret``, `api_token`` and more. 
+This is to allow reuse of the Bot struct in Get Bot Settings which does contain this sensitive data. 
 
 **Set the Frostpaw header if you are a custom client**
 "#,
@@ -446,6 +449,64 @@ def post_stats(bot_id: int, guild_count: int):
 ```
 "#,
             equiv_v2_route: "(no longer working) [Post Stats](https://legacy.fateslist.xyz/api/docs/redoc#operation/set_stats)",
+    });
+
+    docs += &doc( models::Route {
+        title: "Mini Index",
+        method: "GET",
+        path: "/mini-index",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::Index {
+            new: Vec::new(),
+            top_voted: Vec::new(),
+            certified: Vec::new(),
+            tags: tags.clone(),
+            features: features.clone(),
+        },
+description: r#"
+Returns a mini-index which is basically a Index but with only ``tags``
+and ``features`` having any data. Other fields are empty arrays/vectors.
+
+This is used internally by sunbeam for the add bot system where a full bot
+index is too costly and making a new struct is unnecessary.
+"#,
+        equiv_v2_route: "None",
+    });
+
+    docs += &doc( models::Route {
+        title: "Gets Bot Settings",
+        method: "GET",
+        path: "/users/{user_id}/bots/{bot_id}/settings",
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::Index {
+            new: Vec::new(),
+            top_voted: Vec::new(),
+            certified: Vec::new(),
+            tags,
+            features,
+        },
+description: r#"
+Returns the bot settings.
+
+The ``bot`` key here is equivalent to a Get Bot response with the following
+differences:
+
+- Sensitive fields (see examples) like ``webhook``, ``api_token``, 
+``webhook_secret`` and others are filled out here
+- This API only allows bot owners to use it, otherwise it will 400!
+
+Staff members *should* instead use Lynx.
+
+Due to massive changes, this API cannot be mapped onto any v2 API
+"#,
+        equiv_v2_route: "None",
     });
 
     docs += &doc_category("Auth");
