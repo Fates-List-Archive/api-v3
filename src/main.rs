@@ -12,7 +12,6 @@ use actix_web::dev::Service;
 use actix_web::http::Uri;
 use actix_web::http::uri::PathAndQuery;
 use futures::future::FutureExt;
-use reqwest;
 
 mod ipc;
 mod models;

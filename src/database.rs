@@ -533,7 +533,7 @@ impl Database {
                     resources,
                     commands,
                     long_description_type,
-                    long_description: long_description,
+                    long_description,
                     long_description_raw: data.long_description.unwrap_or_default(),
                     owners,
                     vanity: self.get_vanity_from_id(bot_id).await.unwrap_or_else(|| "unknown".to_string()),
@@ -939,7 +939,7 @@ impl Database {
                 }
 
                 models::UserVoted {
-                    votes: votes,
+                    votes,
                     vote_epoch: ttl,
                     vote_right_now: ttl < 0,
                     time_to_vote,

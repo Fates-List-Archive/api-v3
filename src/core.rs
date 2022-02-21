@@ -29,7 +29,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<m
 
 #[get("/code/{vanity}")]
 async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
-    if code.starts_with("_") {
+    if code.starts_with('_') {
         return models::CustomError::NotFoundGeneric.error_response();
     }
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
@@ -63,19 +63,18 @@ async fn policies(req: HttpRequest) -> HttpResponse {
 async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let inner = info.into_inner();
     let id = id.into_inner();
 
     // This code *does not work IPC side yet due to needed flamepaw changes*
     if req.headers().contains_key("Frostpaw") {
         let auth_default = &HeaderValue::from_str("").unwrap();
-        let auth = req.headers().get("Frostpaw-Auth").clone().unwrap_or(auth_default);
+        let auth = req.headers().get("Frostpaw-Auth").unwrap_or(auth_default);
         let mut event_user: Option<String> = None;
         if !auth.clone().is_empty() {
             let auth_bytes = auth.to_str();
             match auth_bytes {
                 Ok(auth_str) => {
-                    let auth_split = auth_str.split("|");
+                    let auth_split = auth_str.split('|');
                     let auth_vec = auth_split.collect::<Vec<&str>>();
 
                     let user_id = auth_vec.get(0).unwrap_or(&"");
@@ -85,7 +84,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
 
                     let user_id_i64 = user_id_str.parse::<i64>().unwrap_or(0);
 
-                    if data.database.authorize_user(user_id_i64, &token.to_string()).await {
+                    if data.database.authorize_user(user_id_i64, token.as_ref()).await {
                         event_user = Some(user_id_str);
                     }
 
@@ -138,19 +137,18 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
 async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let inner = info.into_inner();
     let id = id.into_inner();
 
     // This code *does not work IPC side yet due to needed flamepaw changes*
     if req.headers().contains_key("Frostpaw") {
         let auth_default = &HeaderValue::from_str("").unwrap();
-        let auth = req.headers().get("Frostpaw-Auth").clone().unwrap_or(auth_default);
+        let auth = req.headers().get("Frostpaw-Auth").unwrap_or(auth_default);
         let mut event_user: Option<String> = None;
         if !auth.clone().is_empty() {
             let auth_bytes = auth.to_str();
             match auth_bytes {
                 Ok(auth_str) => {
-                    let auth_split = auth_str.split("|");
+                    let auth_split = auth_str.split('|');
                     let auth_vec = auth_split.collect::<Vec<&str>>();
 
                     let user_id = auth_vec.get(0).unwrap_or(&"");
@@ -160,7 +158,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info:
 
                     let user_id_i64 = user_id_str.parse::<i64>().unwrap_or(0);
 
-                    if data.database.authorize_user(user_id_i64, &token.to_string()).await {
+                    if data.database.authorize_user(user_id_i64, token.as_ref()).await {
                         event_user = Some(user_id_str);
                     }
 
@@ -215,7 +213,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info:
 async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let query = info.q.clone().unwrap_or("fates".to_string());
+    let query = info.q.clone().unwrap_or_else(|| "fates".to_string());
 
     let cached_resp = data.database.get_search_from_cache(query.clone()).await;
     match cached_resp {
@@ -280,7 +278,7 @@ async fn get_bot_settings(req: HttpRequest, info: web::Path<models::GetUserBotPa
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
-    if data.database.authorize_user(user_id, &auth).await {
+    if data.database.authorize_user(user_id, auth).await {
         let resp = data.database.get_bot_settings(info.bot_id).await;
         match resp {
             Ok(bot) => {
@@ -326,7 +324,7 @@ async fn post_stats(req: HttpRequest, bot_id: web::Path<i64>, stats: web::Json<m
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
-    if data.database.authorize_bot(bot_id, &auth).await {
+    if data.database.authorize_bot(bot_id, auth).await {
         let resp = data.database.post_stats(bot_id, stats.into_inner()).await;
         match resp {
             Ok(()) => {

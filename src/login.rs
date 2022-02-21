@@ -41,16 +41,16 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
     let redirect_uri = format!("{}/frostpaw/login", redirect_url_domain);
 
-    let login = login_user(&data, code, redirect_uri).await;
+    let login = login_user(data, code, redirect_uri).await;
 
     match login {
         Err(err) => {
             error!("{:?}", err.to_string());
-            return HttpResponse::BadRequest().json(models::APIResponse {
+            HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
                 reason: Some(err.to_string()),
                 context: None,
-            });
+            })
         },
         Ok(user) => {
             let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());

@@ -11,7 +11,6 @@ use std::io::Read;
 use std::env;
 use std::path::PathBuf;
 use log::debug;
-use reqwest;
 use indexmap::IndexMap;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -298,7 +297,7 @@ impl Default for AppConfig {
         let secrets: Secrets = serde_json::from_str(&data).expect("JSON was not well-formatted");
     
         // open policy.json, handle config
-        let mut file = File::open(data_dir.to_owned() + "policy.json").expect("No policy.json file found");
+        let mut file = File::open(data_dir + "policy.json").expect("No policy.json file found");
         let mut policies = String::new();
         file.read_to_string(&mut policies).unwrap();
 
