@@ -129,7 +129,7 @@ fn doc_category(name: &str) -> String {
 }
 
 pub fn document_routes() -> String {
-    let mut docs: String = "# API v3\n**API URL**: ``https://next.fateslist.xyz`` (for now, can change in future)\n".to_string();
+    let mut docs: String = "# API v3\n**API URL**: ``https://next.fateslist.xyz`` *or* ``https://api.fateslist.xyz`` (for now, can change in future)\n".to_string();
 
     // Add basic auth stuff
     docs += r#"
@@ -201,7 +201,7 @@ you prefix the token with `User`
             tags,
             features,
         },
-        equiv_v2_route: "(no longer working) [Get Index](https://api.fateslist.xyz/docs/redoc#operation/get_index)",
+        equiv_v2_route: "(no longer working) [Get Index](https://legacy.fateslist.xyz/docs/redoc#operation/get_index)",
     });
 
 
@@ -220,7 +220,7 @@ you prefix the token with `User`
             target_id: "0000000000".to_string(),
             target_type: "bot | server".to_string(),
         },
-        equiv_v2_route: "(no longer working) [Get Vanity](https://api.fateslist.xyz/docs/redoc#operation/get_vanity)",
+        equiv_v2_route: "(no longer working) [Get Vanity](https://legacy.fateslist.xyz/docs/redoc#operation/get_vanity)",
     });
 
     // - Policies route
@@ -233,7 +233,7 @@ you prefix the token with `User`
         description: "Get policies (rules, privacy policy, terms of service)",
         request_body: &models::Empty {},
         response_body: &models::Policies::default(),
-        equiv_v2_route: "(no longer working) [All Policies](https://api.fateslist.xyz/api/docs/redoc#operation/all_policies)",
+        equiv_v2_route: "(no longer working) [All Policies](https://legacy.fateslist.xyz/api/docs/redoc#operation/all_policies)",
     });
 
     // - Fetch Bot route
@@ -259,7 +259,7 @@ Differences from API v2:
 "#,
     request_body: &models::Empty{},
     response_body: &models::Bot::default(), // TODO
-    equiv_v2_route: "[Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/fetch_bot)",
+    equiv_v2_route: "[Fetch Bot](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_bot)",
     });
 
     // - Search List route
@@ -283,7 +283,7 @@ Differences from API v2:
                 servers: vec![models::Tag::default()]
             },
         },
-        equiv_v2_route: "(no longer working) [Fetch Bot](https://api.fateslist.xyz/docs/redoc#operation/search_list)",
+        equiv_v2_route: "(no longer working) [Fetch Bot](https://legacy.fateslist.xyz/docs/redoc#operation/search_list)",
     });
 
     docs += &doc(
@@ -311,7 +311,7 @@ def random_bot():
     return json
 ```
 "#,
-            equiv_v2_route: "(no longer working) [Fetch Random Bot](https://api.fateslist.xyz/api/docs/redoc#operation/fetch_random_bot)",
+            equiv_v2_route: "(no longer working) [Fetch Random Bot](https://legacy.fateslist.xyz/api/docs/redoc#operation/fetch_random_bot)",
     });
 
     docs += &doc(
@@ -339,7 +339,7 @@ def random_server():
     return json
 ```
 "#,
-            equiv_v2_route: "(no longer working) [Fetch Random Server](https://api.fateslist.xyz/api/docs/redoc#operation/fetch_random_server)",
+            equiv_v2_route: "(no longer working) [Fetch Random Server](https://legacy.fateslist.xyz/api/docs/redoc#operation/fetch_random_server)",
     });
 
     docs += &doc( models::Route {
@@ -362,7 +362,7 @@ Differences from API v2:
 "#,
     request_body: &models::Empty{},
     response_body: &models::Server::default(),
-    equiv_v2_route: "(no longer working) [Fetch Server](https://api.fateslist.xyz/docs/redoc#operation/fetch_server)",
+    equiv_v2_route: "(no longer working) [Fetch Server](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_server)",
     });
 
     // - Get User Votes
@@ -402,7 +402,51 @@ this however, it is prone to change *anytime* in the future**.
             time_to_vote: 0,
             vote_right_now: false,
         },
-        equiv_v2_route: "(no longer working) [Get User Votes](https://api.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",
+        equiv_v2_route: "(no longer working) [Get User Votes](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",
+    });
+
+    docs += &doc(
+        models::Route {
+            title: "Post Stats",
+            method: "GET",
+            path: "/bots/{bot_id}/stats",
+            path_params: &models::Empty {},
+            query_params: &models::Empty {},
+            request_body: &models::BotStats {
+                guild_count: 3939,
+                shard_count: Some(48484),
+                shards: Some(vec![149, 22020]),
+                user_count: Some(39393),
+            },
+            response_body: &models::IndexBot::default(),
+description: r#"
+Post stats to the list
+
+# On dpy, guild_count is usually the below
+guild_count = len(client.guilds)
+
+# If you are using sharding
+shard_count = len(client.shards)
+shards = client.shards.keys()
+
+# Optional: User count (this is not accurate for larger bots)
+user_count = len(client.users) 
+
+
+Example:
+```py
+import requests
+
+def post_stats(bot_id: int, guild_count: int):
+    res = requests.post(f"{api_url}/bots/{bot_id}/stats", json={"guild_count": guild_count})
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+"#,
+            equiv_v2_route: "(no longer working) [Post Stats](https://legacy.fateslist.xyz/api/docs/redoc#operation/set_stats)",
     });
 
     docs += &doc_category("Auth");
@@ -421,7 +465,7 @@ this however, it is prone to change *anytime* in the future**.
             reason: None,
             context: Some("https://discord.com/.........".to_string()),
         },
-        equiv_v2_route: "(no longer working) [Get OAuth2 Link](https://api.fateslist.xyz/docs/redoc#operation/get_oauth2_link)",
+        equiv_v2_route: "(no longer working) [Get OAuth2 Link](https://legacy.fateslist.xyz/docs/redoc#operation/get_oauth2_link)",
     });
 
     docs += &doc( models::Route {
@@ -436,7 +480,7 @@ this however, it is prone to change *anytime* in the future**.
             state: Some("Random UUID right now".to_string())
         },
         response_body: &models::OauthUserLogin::default(),
-        equiv_v2_route: "(no longer working) [Login User](https://api.fateslist.xyz/api/docs/redoc#operation/login_user)",
+        equiv_v2_route: "(no longer working) [Login User](https://legacy.fateslist.xyz/api/docs/redoc#operation/login_user)",
     });
 
     docs += &doc( models::Route {
@@ -457,7 +501,7 @@ This API is essentially a logout
             reason: None,
             context: None,
         },
-        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://api.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
+        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://legacy.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
     });
 
     // Return docs
