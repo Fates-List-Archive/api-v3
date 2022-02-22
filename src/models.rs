@@ -22,7 +22,7 @@ pub struct User {
     pub bot: bool,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
 #[repr(i32)]
 pub enum State {
     #[default]
@@ -93,12 +93,24 @@ pub struct Tag {
     pub owner_guild: Option<String>,
 }
 
+impl PartialEq for Tag {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Feature {
     pub id: String,
     pub name: String,
     pub viewed_as: String,
     pub description: String,
+}
+
+impl PartialEq for Feature {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -271,6 +283,7 @@ pub struct Vanity {
 pub struct Secrets {
     pub client_id: String,
     pub client_secret: String,
+    pub japi_key: String,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -709,6 +722,29 @@ pub struct UserVoted {
     pub timestamps: Vec<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct JAPIAppDataApp {
+    pub id: String,
+    pub bot_public: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct JAPIAppDataBot {
+    pub id: String,
+    pub approximate_guild_count: i64,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct JAPIAppData {
+    pub application: JAPIAppDataApp,
+    pub bot: JAPIAppDataBot,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct JAPIApplication {
+    pub data: JAPIAppData
+}
+
 // Error Handling
 #[derive(Error, Debug)]
 pub enum CustomError {
@@ -752,8 +788,90 @@ impl SettingsError {
     }
 }
 
+#[derive(PartialEq, Clone)]
+pub enum BotActionMode {
+    Add,
+    Edit,
+}
+
+pub enum CheckBotError {
+    AlreadyExists,
+    BotBannedOrDenied(State),
+    SQLError(sqlx::Error),
+    ClientIDImmutable,
+    PrefixTooLong,
+    NoVanity,
+    VanityTaken,
+    InvalidInvitePermNum,
+    InvalidInvite,
+    ShortDescLengthErr,
+    LongDescLengthErr,
+    BotNotFound,
+    NoTags,
+    TooManyTags,
+    TooManyFeatures,
+    InvalidGithub,
+    InvalidPrivacyPolicy,
+    InvalidDonate,
+    BannerCardError(BannerCheckError),
+    BannerPageError(BannerCheckError),
+    JAPIError(reqwest::Error),
+    JAPIDeserError(reqwest::Error),
+    ClientIDNeeded,
+    InvalidClientID,
+    PrivateBot,
+}
+
+impl CheckBotError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::AlreadyExists => "This bot already exists on Fates List".to_string(),
+            Self::JAPIError(e) => format!("JAPI Error: {}", e),
+            Self::JAPIDeserError(e) => format!("JAPI Deserialize Error: {}", e),
+            Self::PrivateBot => "This bot is private and cannot be added".to_string(),
+            Self::ClientIDNeeded => "Client ID is required for this bot or is incorrect".to_string(),
+            Self::InvalidClientID => "Client ID inputted is invalid for this bot".to_string(),
+            Self::BotBannedOrDenied(state) => format!("This bot is banned or denied: {:?}", state),
+            Self::PrefixTooLong => "Prefix must be shorter than 9 characters".to_string(),
+            Self::ClientIDImmutable => "Client ID cannot be changed once set".to_string(),
+            Self::NoVanity => "You must have a vanity for your bot. This can be your username. You can prefix it with _ (underscore) if you don't want the extra growth from it. For example _mewbot would disable the mewbot vanity".to_string(),
+            Self::VanityTaken => "This vanity has already been taken. Please contact Fates List staff if you wish to report this!".to_string(),
+            Self::InvalidInvitePermNum => "This invite is invalid!".to_string(),
+            Self::InvalidInvite => "Your invite link must start with https://".to_string(),
+            Self::ShortDescLengthErr => "Your description must be at least 10 characters long and must be a maximum of 200 characters".to_string(),
+            Self::LongDescLengthErr => "Your long description must be at least 200 characters long".to_string(),
+            Self::BotNotFound => "According to Discord's API and our cache, your bot does not exist. Please try again after 2 hours.".to_string(),
+            Self::NoTags => "You must select tags for your bot".to_string(),
+            Self::TooManyTags => "You can only select up to 10 tags for your bot".to_string(),
+            Self::TooManyFeatures => "You can only select up to 5 features for your bot".to_string(),
+            Self::BannerCardError(e) => format!("{}. Hint: check your banner card", e.to_string()),
+            Self::BannerPageError(e) => format!("{}. Hint: check your banner page", e.to_string()),
+            Self::InvalidGithub => "Your github must be a valid github link starting with https://www.github.com or https://github.com".to_string(),
+            Self::InvalidPrivacyPolicy => "Your privacy policy must be a valid link starting with https:// (note the s), not http://".to_string(),
+            Self::InvalidDonate => "Your donate must be a valid link starting with https:// (note the s), not http://".to_string(),
+            Self::SQLError(e) => format!("SQL error: {}", e),
+        }
+    }
+}
+
+pub enum BannerCheckError {
+    BadURL(reqwest::Error),
+    StatusError(String), 
+    BadContentType(String),
+}
+
+impl BannerCheckError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::BadURL(e) => format!("Bad banner url: {}", e),
+            Self::StatusError(s) => format!("Got status code: {} when requesting this banner", s),
+            Self::BadContentType(s) => format!("Got invalid content type: {} when requesting this banner", s),
+        }
+    }
+}
+
 pub enum StatsError {
-    BadStats(String),
+    BadStats(String), // TODO
     SQLError(sqlx::Error),
 }
 

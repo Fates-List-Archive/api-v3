@@ -93,8 +93,10 @@ pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User
     let mut conn = redis.get().await.unwrap();
     let data: String = conn.get("user-cache:".to_string() + &user_id.to_string()).await.unwrap_or_else(|_| "".to_string());
     if !data.is_empty() {
-        let user: models::User = serde_json::from_str(&data).unwrap();
-        return user;
+        let user: Option<models::User> = serde_json::from_str(&data).unwrap_or(None);
+        if user.is_some() {
+            return user.unwrap();
+        }
     }
     
     let mut call = IpcCall {
@@ -108,12 +110,22 @@ pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User
     match val {
         Ok(data) => {
             conn.set_ex("user-cache:".to_string() + &user_id.to_string(), data.clone(), 60*60*8).await.unwrap_or_else(|_| "".to_string());
-            let user: models::User = serde_json::from_str(&data).unwrap();
-            user
+            let user: Option<models::User> = serde_json::from_str(&data).unwrap_or(None);
+            if user.is_some() {
+                return user.unwrap();
+            } else {
+                models::User {
+                    id: "".to_string(),
+                    username: "Unknown User".to_string(),
+                    disc: "0000".to_string(),
+                    avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
+                    bot: false,
+                }    
+            }
         },
         Err(_) => {
             models::User {
-                id: "0".to_string(),
+                id: "".to_string(),
                 username: "Unknown User".to_string(),
                 disc: "0000".to_string(),
                 avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),

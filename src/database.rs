@@ -30,6 +30,11 @@ impl Database {
             redis: cfg.create_pool(Some(Runtime::Tokio1)).unwrap(),
         }
     }
+
+    pub async fn get_user(&self, user_id: i64) -> models::User {
+        ipc::get_user(self.redis.clone(), user_id).await
+    }
+
     pub async fn index_bots(&self, state: models::State) -> Vec<models::IndexBot> {
         let mut bots: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
@@ -47,7 +52,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                user: ipc::get_user(self.redis.clone(), row.bot_id).await,
+                user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
         };
@@ -91,7 +96,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                user: ipc::get_user(self.redis.clone(), row.bot_id).await,
+                user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
         };
@@ -433,7 +438,7 @@ impl Database {
                 let mut owners = Vec::new();
                 let mut owners_html = "".to_string();
                 for row in owner_rows.iter() {
-                    let user = ipc::get_user(self.redis.clone(), row.owner).await;
+                    let user = self.get_user(row.owner).await;
                     owners_html += &converters::owner_html(user.id.clone(), user.username.clone());
                     owners.push(models::BotOwner {
                         user: user.clone(),
@@ -558,7 +563,7 @@ impl Database {
                     uptime_checks_total: data.uptime_checks_total,
                     uptime_checks_failed: data.uptime_checks_failed,
                     page_style: models::PageStyle::try_from(data.page_style).unwrap_or(models::PageStyle::Tabs),
-                    user: ipc::get_user(self.redis.clone(), data.bot_id).await,
+                    user: self.get_user(data.bot_id).await,
                     webhook: None,
                     webhook_secret: None,
                     api_token: None,
@@ -668,7 +673,7 @@ impl Database {
             .await
             .unwrap();
             resolved_bots.push(models::ResolvedPackBot {
-                user: ipc::get_user(self.redis.clone(), bot).await,
+                user: self.get_user(bot).await,
                 description: description.description.unwrap_or_default(),
             });
         }
@@ -704,7 +709,7 @@ impl Database {
                 nsfw: bot.nsfw.unwrap_or_default(),
                 votes: bot.votes.unwrap_or_default(),
                 state: models::State::try_from(bot.state).unwrap_or(models::State::Approved),
-                user: ipc::get_user(self.redis.clone(), bot.bot_id).await,
+                user: self.get_user(bot.bot_id).await,
             });
         }
 
@@ -758,7 +763,7 @@ impl Database {
             profiles.push(models::SearchProfile {
                 banner: "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string(),
                 description: profile.description.unwrap_or_default(),
-                user: ipc::get_user(self.redis.clone(), profile.user_id).await,
+                user: self.get_user(profile.user_id).await,
             });
         }
 
@@ -798,7 +803,7 @@ impl Database {
                 description: pack.description.unwrap_or_default(),
                 icon: pack.icon.unwrap_or_default(),
                 banner: pack.banner.unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
-                owner: ipc::get_user(self.redis.clone(), pack.owner.unwrap_or_default()).await,
+                owner: self.get_user(pack.owner.unwrap_or_default()).await,
                 created_at: pack.created_at.unwrap_or_else(|| chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)),
                 resolved_bots: self.resolve_pack_bots(pack.bots.unwrap_or_default()).await,
             });
@@ -833,7 +838,7 @@ impl Database {
             nsfw: false,
             votes: random_row.votes.unwrap_or(0),
             guild_count: random_row.guild_count.unwrap_or(0),
-            user: ipc::get_user(self.redis.clone(), random_row.bot_id).await,
+            user: self.get_user(random_row.bot_id).await,
         };
         if index_bot.user.username.starts_with("Deleted") {
             return self.random_bot().await;
