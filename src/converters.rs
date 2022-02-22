@@ -2,6 +2,8 @@
 use crate::models;
 use pulldown_cmark::{Parser, Options, html::push_html};
 use log::debug;
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 
 pub fn invite_link(client_id: String, invite: String) -> String {
     if invite.starts_with("P:") && invite.len() > 2 {
@@ -52,4 +54,12 @@ pub fn sanitize_description(long_desc_type: models::LongDescriptionType, descrip
     .add_tag_attributes("img", &["src", "alt", "width", "height", "crossorigin", "referrerpolicy", "sizes", "srcset"])
     .clean(&html)
     .to_string()
+}
+
+pub fn create_token(length: usize) -> String {
+    thread_rng()
+    .sample_iter(&Alphanumeric)
+    .take(length)
+    .map(char::from)
+    .collect()
 }

@@ -113,10 +113,29 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
         base_doc += &("\n\n**Query parameters**\n\n".to_string() + &query_params_str);
     }
 
+    let mut auth_needed: String = "".to_string();
+    let mut i = 1;
+    let auth_lengths = route.auth_types.clone().len();
+    for auth in route.auth_types {
+        if auth == models::RouteAuthType::Bot {
+            auth_needed += "[Bot](https://docs.fateslist.xyz/api-v3/#authorization)";
+            if i < auth_lengths {
+                auth_needed += ", ";
+            }
+        } else if auth == models::RouteAuthType::User {
+            auth_needed += "[User](https://docs.fateslist.xyz/api-v3/#authorization)";
+            if i < auth_lengths {
+                auth_needed += ", ";
+            }
+        }
+        i += 1;
+    }
+
     return base_doc + &format!(
-        "\n\n**Request Body**\n\n```json\n{request_body}\n```\n\n**Response Body**\n\n```json\n{response_body}\n```\n\n\n",
+        "\n\n**Request Body**\n\n```json\n{request_body}\n```\n\n**Response Body**\n\n```json\n{response_body}\n```\n**Authorization Needed** | {auth_needed}\n\n\n",
         request_body = String::from_utf8(ser.into_inner()).unwrap(),
         response_body = String::from_utf8(ser2.into_inner()).unwrap(),
+        auth_needed = auth_needed
     );
 }
 
@@ -202,6 +221,7 @@ you prefix the token with `User`
             features: features.clone(),
         },
         equiv_v2_route: "(no longer working) [Get Index](https://legacy.fateslist.xyz/docs/redoc#operation/get_index)",
+        auth_types: vec![]
     });
 
 
@@ -221,6 +241,7 @@ you prefix the token with `User`
             target_type: "bot | server".to_string(),
         },
         equiv_v2_route: "(no longer working) [Get Vanity](https://legacy.fateslist.xyz/docs/redoc#operation/get_vanity)",
+        auth_types: vec![]
     });
 
     // - Policies route
@@ -234,6 +255,21 @@ you prefix the token with `User`
         request_body: &models::Empty {},
         response_body: &models::Policies::default(),
         equiv_v2_route: "(no longer working) [All Policies](https://legacy.fateslist.xyz/api/docs/redoc#operation/all_policies)",
+        auth_types: vec![]
+    });
+
+    // - Partners route
+    docs += &doc( models::Route {
+        title: "Get Partners",
+        method: "GET",
+        path: "/partners",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        description: "Get policies (rules, privacy policy, terms of service)",
+        request_body: &models::Empty {},
+        response_body: &models::Partners::default(),
+        equiv_v2_route: "(no longer working) [Get Partners](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_partners)",
+        auth_types: vec![]
     });
 
     // - Fetch Bot route
@@ -263,6 +299,7 @@ This is to allow reuse of the Bot struct in Get Bot Settings which does contain 
     request_body: &models::Empty{},
     response_body: &models::Bot::default(), // TODO
     equiv_v2_route: "[Fetch Bot](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_bot)",
+    auth_types: vec![]
     });
 
     // - Search List route
@@ -286,7 +323,8 @@ This is to allow reuse of the Bot struct in Get Bot Settings which does contain 
                 servers: vec![models::Tag::default()]
             },
         },
-        equiv_v2_route: "(no longer working) [Fetch Bot](https://legacy.fateslist.xyz/docs/redoc#operation/search_list)",
+        equiv_v2_route: "(no longer working) [Search List](https://legacy.fateslist.xyz/docs/redoc#operation/search_list)",
+        auth_types: vec![]
     });
 
     docs += &doc(
@@ -315,6 +353,7 @@ def random_bot():
 ```
 "#,
             equiv_v2_route: "(no longer working) [Fetch Random Bot](https://legacy.fateslist.xyz/api/docs/redoc#operation/fetch_random_bot)",
+            auth_types: vec![]
     });
 
     docs += &doc(
@@ -343,6 +382,7 @@ def random_server():
 ```
 "#,
             equiv_v2_route: "(no longer working) [Fetch Random Server](https://legacy.fateslist.xyz/api/docs/redoc#operation/fetch_random_server)",
+            auth_types: vec![]
     });
 
     docs += &doc( models::Route {
@@ -365,9 +405,10 @@ server privacy restrictions
 
 **Set the Frostpaw header if you are a custom client**
 "#,
-    request_body: &models::Empty{},
-    response_body: &models::Server::default(),
-    equiv_v2_route: "(no longer working) [Fetch Server](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_server)",
+        request_body: &models::Empty{},
+        response_body: &models::Server::default(),
+        equiv_v2_route: "(no longer working) [Fetch Server](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_server)",
+        auth_types: vec![]
     });
 
     // - Get User Votes
@@ -408,14 +449,17 @@ this however, it is prone to change *anytime* in the future**.
             vote_right_now: false,
         },
         equiv_v2_route: "(no longer working) [Get User Votes](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",
+        auth_types: vec![]
     });
 
     docs += &doc(
         models::Route {
             title: "Post Stats",
             method: "GET",
-            path: "/bots/{bot_id}/stats",
-            path_params: &models::Empty {},
+            path: "/bots/{id}/stats",
+            path_params: &models::FetchBotPath {
+                id: 0,
+            },
             query_params: &models::Empty {},
             request_body: &models::BotStats {
                 guild_count: 3939,
@@ -451,6 +495,7 @@ def post_stats(bot_id: int, guild_count: int):
 ```
 "#,
             equiv_v2_route: "(no longer working) [Post Stats](https://legacy.fateslist.xyz/api/docs/redoc#operation/set_stats)",
+            auth_types: vec![models::RouteAuthType::Bot]
     });
 
     docs += &doc( models::Route {
@@ -475,6 +520,7 @@ This is used internally by sunbeam for the add bot system where a full bot
 index is too costly and making a new struct is unnecessary.
 "#,
         equiv_v2_route: "None",
+        auth_types: vec![]
     });
 
     docs += &doc( models::Route {
@@ -509,6 +555,7 @@ Staff members *should* instead use Lynx.
 Due to massive changes, this API cannot be mapped onto any v2 API
 "#,
         equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
     });
 
     docs += &doc_category("Auth");
@@ -528,6 +575,7 @@ Due to massive changes, this API cannot be mapped onto any v2 API
             context: Some("https://discord.com/.........".to_string()),
         },
         equiv_v2_route: "(no longer working) [Get OAuth2 Link](https://legacy.fateslist.xyz/docs/redoc#operation/get_oauth2_link)",
+        auth_types: vec![]
     });
 
     docs += &doc( models::Route {
@@ -543,6 +591,7 @@ Due to massive changes, this API cannot be mapped onto any v2 API
         },
         response_body: &models::OauthUserLogin::default(),
         equiv_v2_route: "(no longer working) [Login User](https://legacy.fateslist.xyz/api/docs/redoc#operation/login_user)",
+        auth_types: vec![]
     });
 
     docs += &doc( models::Route {
@@ -564,6 +613,55 @@ This API is essentially a logout
             context: None,
         },
         equiv_v2_route: "(no longer working) [Logout Sunbeam](https://legacy.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
+        auth_types: vec![]
+    });
+
+    docs += &doc_category("Security");
+
+    // New Bot Token
+    docs += &doc( models::Route {
+        title: "New Bot Token",
+        method: "DELETE",
+        path: "/bots/{id}/token",
+description: r#"
+'Deletes' a bot token and reissues a new bot token. Use this if your bots
+token ever gets leaked.
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://legacy.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
+        auth_types: vec![models::RouteAuthType::Bot]
+    });
+
+    // New User Token
+    docs += &doc( models::Route {
+        title: "New User Token",
+        method: "DELETE",
+        path: "/users/{id}/token",
+description: r#"
+'Deletes' a user token and reissues a new user token. Use this if your user
+token ever gets leaked.
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://legacy.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
+        auth_types: vec![models::RouteAuthType::User]
     });
 
     // Return docs

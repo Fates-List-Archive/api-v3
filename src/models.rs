@@ -11,7 +11,7 @@ use std::io::Read;
 use std::env;
 use std::path::PathBuf;
 use log::debug;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, indexmap};
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -287,6 +287,27 @@ pub struct Partner {
 pub struct Partners {
     pub partners: Vec<Partner>,
     pub icons: IndexMap<String, String>
+}
+
+impl Default for Partners {
+    fn default() -> Self {
+        Partners {
+            partners: vec![
+                Partner {
+                    id: "0".to_string(),
+                    name: "My development".to_string(),
+                    owner: "12345678901234567".to_string(),
+                    image: "".to_string(),
+                    description: "Some random description".to_string(),
+                    links: indexmap![
+                        "discord".to_string() => "https://discord.com/lmao".to_string(),
+                        "website".to_string() => "https://example.com".to_string(),
+                    ],
+                },
+            ],
+            icons: IndexMap::new(),
+        }
+    }
 }
 
 pub struct AppConfig {
@@ -775,6 +796,13 @@ impl ResponseError for CustomError {
     }
 }  
 
+#[derive(Clone, PartialEq)]
+pub enum RouteAuthType {
+    User,
+    Bot,
+    Server,
+}
+
 pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize> {
     pub title: &'a str,
     pub method: &'a str,
@@ -785,5 +813,6 @@ pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: St
     pub request_body: &'a T,
     pub response_body: &'a T2,
     pub equiv_v2_route: &'a str,
+    pub auth_types: Vec<RouteAuthType>,
 }
 

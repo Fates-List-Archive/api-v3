@@ -11,8 +11,6 @@ use deadpool_redis::redis::AsyncCommands;
 use serde::Serialize;
 use tokio::task;
 use async_recursion::async_recursion;
-use rand::{thread_rng, Rng};
-use rand::distributions::Alphanumeric;
 
 
 pub struct Database {
@@ -871,11 +869,7 @@ impl Database {
                 match err {
                     sqlx::Error::RowNotFound => {
                         // We create the new user
-                        token = thread_rng()
-                        .sample_iter(&Alphanumeric)
-                        .take(128)
-                        .map(char::from)
-                        .collect();
+                        token = converters::create_token(128);
                         sqlx::query!(
                             "INSERT INTO users (id, user_id, username, user_css, site_lang, api_token) VALUES ($1, $1, $2, $3, $4, $5)",
                             user_i64,
@@ -1052,9 +1046,33 @@ impl Database {
     }
 
     pub async fn update_bot_invite_amount(&self, bot_id: i64) {
-        let exec = sqlx::query!(
+        sqlx::query!(
             "UPDATE bots SET invite_amount = invite_amount + 1 WHERE bot_id = $1",
             bot_id
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
+    }
+
+    pub async fn new_bot_token(&self, bot_id: i64) {
+        let new_token = converters::create_token(128);
+        sqlx::query!(
+            "UPDATE bots SET api_token = $1 WHERE bot_id = $2",
+            new_token,
+            bot_id
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
+    }
+
+    pub async fn new_user_token(&self, user_id: i64) {
+        let new_token = converters::create_token(128);
+        sqlx::query!(
+            "UPDATE users SET api_token = $1 WHERE user_id = $2",
+            new_token,
+            user_id
         )
         .execute(&self.pool)
         .await

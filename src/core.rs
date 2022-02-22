@@ -121,6 +121,9 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
         }
     }
 
+    if req.headers().contains_key("Frostpaw-Invite") {
+        data.database.update_bot_invite_amount(id.id).await;
+    }
 
     let cached_bot = data.database.get_bot_from_cache(id.id).await;
     match cached_bot {
@@ -338,10 +341,10 @@ async fn get_bot_settings(req: HttpRequest, info: web::Path<models::GetUserBotPa
 }
 
 /// Bot: Post Stats
-#[post("/bots/{bot_id}/stats")] 
-async fn post_stats(req: HttpRequest, bot_id: web::Path<i64>, stats: web::Json<models::BotStats>) -> HttpResponse {
+#[post("/bots/{id}/stats")] 
+async fn post_stats(req: HttpRequest, id: web::Path<models::FetchBotPath>, stats: web::Json<models::BotStats>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let bot_id = bot_id.into_inner();
+    let bot_id = id.id.clone();
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();

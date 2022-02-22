@@ -20,6 +20,7 @@ mod core;
 mod login;
 mod docs;
 mod converters;
+mod security;
 
 use crate::models::APIResponse;
 
@@ -137,6 +138,8 @@ async fn main() -> std::io::Result<()> {
             .service(login::get_oauth2)
             .service(login::del_oauth2)
             .service(login::do_oauth2)
+            .service(security::new_bot_token)
+            .service(security::new_user_token)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?
