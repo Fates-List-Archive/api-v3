@@ -287,6 +287,26 @@ impl Database {
             }
         }
     }
+    pub async fn authorize_server(&self, server_id: i64, token: &str) -> bool {
+        if token.is_empty() {
+            return false;
+        }
+        let row = sqlx::query!(
+            "SELECT COUNT(1) FROM servers WHERE guild_id = $1 AND api_token = $2",
+            server_id,
+            token.replace("Server ", ""),
+        )
+        .fetch_one(&self.pool)
+        .await;
+        match row {
+            Ok(count) => {
+                count.count.unwrap_or(0) > 0
+            },
+            Err(_) => {
+                false
+            }
+        }
+    }
 
     // Cache functions
     pub async fn get_bot_from_cache(&self, bot_id: i64) -> Option<models::Bot> {
@@ -1073,6 +1093,18 @@ impl Database {
             "UPDATE users SET api_token = $1 WHERE user_id = $2",
             new_token,
             user_id
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
+    }
+
+    pub async fn new_server_token(&self, server_id: i64) {
+        let new_token = converters::create_token(128);
+        sqlx::query!(
+            "UPDATE servers SET api_token = $1 WHERE guild_id = $2",
+            new_token,
+            server_id
         )
         .execute(&self.pool)
         .await

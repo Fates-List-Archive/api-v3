@@ -127,6 +127,11 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
             if i < auth_lengths {
                 auth_needed += ", ";
             }
+        } else if auth == models::RouteAuthType::Server {
+            auth_needed += "[Server](https://docs.fateslist.xyz/api-v3/#authorization)";
+            if i < auth_lengths {
+                auth_needed += ", ";
+            }
         }
         i += 1;
     }
@@ -637,7 +642,7 @@ token ever gets leaked.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://legacy.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
+        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Bot]
     });
 
@@ -660,8 +665,31 @@ token ever gets leaked.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://legacy.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
+        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User]
+    });
+
+    // New Server Token
+    docs += &doc( models::Route {
+        title: "New Server Token",
+        method: "DELETE",
+        path: "/servers/{id}/token",
+description: r#"
+'Deletes' a server token and reissues a new server token. Use this if your server
+token ever gets leaked.
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::Server]
     });
 
     // Return docs

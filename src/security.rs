@@ -27,7 +27,7 @@ async fn new_bot_token(
     }
 }
 
-/// Issues (regenerates) a new bot token
+/// Issues (regenerates) a new user token
 #[delete("/users/{id}/token")]
 async fn new_user_token(
     req: HttpRequest,
@@ -42,6 +42,29 @@ async fn new_user_token(
         HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
             done: true,
             reason: Some("Successfully regenerated user token".to_string()),
+            context: None,
+        })
+    } else {
+        error!("Token auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
+}
+
+/// Issues (regenerates) a new server token
+#[delete("/servers/{id}/token")]
+async fn new_server_token(
+    req: HttpRequest,
+    id: web::Path<models::FetchBotPath>,
+) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let server_id = id.id.clone();
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    if data.database.authorize_server(server_id, auth).await {
+        data.database.new_server_token(server_id).await;
+        HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
+            done: true,
+            reason: Some("Successfully regenerated server token".to_string()),
             context: None,
         })
     } else {

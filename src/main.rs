@@ -140,6 +140,7 @@ async fn main() -> std::io::Result<()> {
             .service(login::do_oauth2)
             .service(security::new_bot_token)
             .service(security::new_user_token)
+            .service(security::new_server_token)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?
