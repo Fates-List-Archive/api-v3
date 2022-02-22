@@ -12,6 +12,7 @@ use std::env;
 use std::path::PathBuf;
 use log::debug;
 use indexmap::{IndexMap, indexmap};
+use serenity::model::id::ChannelId;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -36,6 +37,18 @@ pub enum State {
     Archived = 7,
     PrivateViewable = 8,
     PrivateStaffOnly = 9,
+}
+
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
+#[repr(i32)]
+pub enum Flags {
+    #[default]
+    Unlocked = 0,
+    EditLocked = 1,
+    StaffLocked = 2,
+    StatsLocked = 3,
+    VoteLocked = 4,
+    System = 5,
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
@@ -283,6 +296,7 @@ pub struct Vanity {
 pub struct Secrets {
     pub client_id: String,
     pub client_secret: String,
+    pub token_main: String,
     pub japi_key: String,
 }
 
@@ -323,10 +337,28 @@ impl Default for Partners {
     }
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct DiscordChannels {
+    pub bot_logs: ChannelId,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct DiscordRoles {
+    pub staff_ping_add_role: String,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct DiscordData {
+    pub channels: DiscordChannels,
+    pub roles: DiscordRoles,
+}
+
 pub struct AppConfig {
     pub secrets: Secrets,
     pub policies: Policies,
     pub partners: Partners,
+    pub discord: DiscordData,
+    pub discord_http: serenity::http::Http,
 }
 
 impl Default for AppConfig {
@@ -361,10 +393,21 @@ impl Default for AppConfig {
 
         let partners: Partners = serde_json::from_str(&partners).expect("JSON was not well-formatted");
 
+        // open discord.json, handle config
+        let mut file = File::open(data_dir.to_owned() + "discord.json").expect("No discord.json file found");
+        let mut discord = String::new();
+        file.read_to_string(&mut discord).unwrap();
+
+        let discord: DiscordData = serde_json::from_str(&discord).expect("Discord data is invalid");
+
+        let token_main = secrets.token_main.clone();
+
         AppConfig {
             secrets,
             policies,
             partners,
+            discord,
+            discord_http: serenity::http::Http::new_with_token(&token_main),
         }
     }
 }
@@ -660,6 +703,35 @@ pub enum EventName {
     ServerInvite = 72, 
 }
 
+/*
+
+class UserBotAction(IntEnum):
+    _init_ = "value __doc__"
+    approve = 0, "Approve"
+    deny = 1, "Deny"
+    certify = 2, "Certify"
+    ban = 3, "Ban"
+    claim = 4, "Claim"
+    unclaim = 5, "Unclaim"
+    transfer_ownership = 6, "Transfer Bot Ownership"
+    edit_bot = 7, "Edit Bot"
+*/
+
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
+#[repr(i32)]
+pub enum UserBotAction {
+    #[default]
+    Approve = 0,
+    Deny = 1,
+    Certify = 2,
+    Ban = 3,
+    Claim = 4,
+    Unclaim = 5,
+    TransferOwnership = 6,
+    EditBot = 7,
+}
+
+
 // {"m": {"e": enums.APIEvents.bot_view}, "ctx": {"user": str(user_id), "widget": False, "vote_page": compact}}
 
 // TODO: Make analytics actually work
@@ -820,6 +892,11 @@ pub enum CheckBotError {
     ClientIDNeeded,
     InvalidClientID,
     PrivateBot,
+    EditLocked,
+    OwnerListTooLong,
+    OwnerIDParseError,
+    OwnerNotFound,
+    MainOwnerAddAttempt,
 }
 
 impl CheckBotError {
@@ -850,6 +927,11 @@ impl CheckBotError {
             Self::InvalidPrivacyPolicy => "Your privacy policy must be a valid link starting with https:// (note the s), not http://".to_string(),
             Self::InvalidDonate => "Your donate must be a valid link starting with https:// (note the s), not http://".to_string(),
             Self::SQLError(e) => format!("SQL error: {}", e),
+            Self::EditLocked => "This bot has either been locked by staff or has been edit locked by the main owner of the bot".to_string(),
+            Self::OwnerListTooLong => "The owner list is too long. You may only have a maximum of 5 extra owners".to_string(),
+            Self::OwnerIDParseError => "An owner ID in your owner list is invalid".to_string(),
+            Self::OwnerNotFound => "An owner ID in your owner list does not exist".to_string(),
+            Self::MainOwnerAddAttempt => "You cannot add a main owner as an extra owner".to_string(),
         }
     }
 }

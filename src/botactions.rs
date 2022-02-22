@@ -1,11 +1,10 @@
 /// Handles bot adds
-use actix_web::{http, HttpRequest, get, post, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, post, patch, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use std::time::Duration;
 use log::error;
-
-
+use serenity::model::prelude::*;
 
 /// Simple helper function to check a banner url
 pub async fn check_banner_img(data: &models::AppState, url: &str) -> Result<(), models::BannerCheckError> {
@@ -42,11 +41,6 @@ async fn check_bot(data: &models::AppState, mode: models::BotActionMode, bot: &m
 
     // Before doing anything else, get the bot and actually check basic things
     let bot_dat = data.database.get_bot(bot_id).await;
-    /* state = await self.db.fetchval("SELECT state FROM bots WHERE bot_id = $1", self.bot_id)
-    if state is not None:
-        if state in (enums.BotState.denied, enums.BotState.banned):
-            return f"This bot has been banned or denied from Fates List.<br/><br/>If you own this bot and wish to appeal this, click <a href='/bot/{self.bot_id}/settings#actions-button-fl'>here</a>"
-    */
     if mode == models::BotActionMode::Add {
         if let Some(ref bot_res) = bot_dat {
             if bot_res.state == models::State::Denied || bot_res.state == models::State::Banned {
@@ -88,6 +82,12 @@ async fn check_bot(data: &models::AppState, mode: models::BotActionMode, bot: &m
         if let Some(ref bot_res) = bot_dat {
             if !bot_res.client_id.is_empty() && bot_res.client_id != bot.client_id {
                 return Err(models::CheckBotError::ClientIDImmutable);
+            }
+        }
+
+        for flag in bot.flags.clone() {
+            if flag == (models::Flags::EditLocked as i32) || flag == (models::Flags::StaffLocked as i32) {
+                return Err(models::CheckBotError::EditLocked);
             }
         }
     }
@@ -171,10 +171,12 @@ async fn check_bot(data: &models::AppState, mode: models::BotActionMode, bot: &m
 
     let full_tags = data.database.bot_list_tags().await;
     let mut tag_list = Vec::new();
+    let mut tag_list_raw = Vec::new();
 
     for tag in bot.tags.clone() {
-        if full_tags.contains(&tag) {
-            tag_list.push(tag)
+        if full_tags.contains(&tag) && !tag_list_raw.contains(&tag.id) {
+            tag_list.push(tag.clone());
+            tag_list_raw.push(tag.id);
         }
     }
 
@@ -210,6 +212,38 @@ async fn check_bot(data: &models::AppState, mode: models::BotActionMode, bot: &m
         check_banner_img(&data, banner).await.map_err(models::CheckBotError::BannerPageError)?;
     }
 
+    if bot.owners.len() > 5 {
+        return Err(models::CheckBotError::OwnerListTooLong);
+    }
+
+    let mut done_owners = Vec::new();
+    let mut done_owners_lst = Vec::new();
+
+    for owner in bot.owners.clone() {
+        if owner.main {
+            return Err(models::CheckBotError::MainOwnerAddAttempt)
+        }
+
+        let id = owner.user.id.parse::<i64>().map_err(|_| models::CheckBotError::OwnerIDParseError)?;
+        
+        if done_owners_lst.contains(&id) {
+            continue
+        }
+
+        let user = data.database.get_user(id).await;
+        if user.id.is_empty() {
+            return Err(models::CheckBotError::OwnerNotFound);
+        }
+
+        done_owners.push(models::BotOwner {
+            user: user,
+            main: false
+        });
+        done_owners_lst.push(id);
+    }
+
+    bot.owners = done_owners;
+
     Ok(())
 }
 
@@ -220,8 +254,9 @@ async fn add_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web
     let user_id = id.id.clone();
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let mut bot = bot.into_inner();
     if data.database.authorize_user(user_id, auth).await {
-        let res = check_bot(&data, models::BotActionMode::Add, &mut bot.into_inner()).await;
+        let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
@@ -229,11 +264,131 @@ async fn add_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web
                 context: Some("Check error".to_string())
             });
         } else {
-            return HttpResponse::Ok().json(models::APIResponse {
-                done: true,
-                reason: Some("Check success".to_string()),
+            bot.owners.push(models::BotOwner {
+                user: models::User {
+                    id: user_id.clone().to_string(),
+                    username: "".to_string(),
+                    avatar: "".to_string(),
+                    disc: "0000".to_string(),
+                    bot: false
+                },
+                main: true,
+            });
+            let res = data.database.add_bot(bot.clone()).await;
+            if res.is_err() {
+                return HttpResponse::BadRequest().json(models::APIResponse {
+                    done: false,
+                    reason: Some(res.unwrap_err().to_string()),
+                    context: Some("Add bot error".to_string())
+                });    
+            } else {
+                let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+                    m.content("<@&".to_string()+&data.config.discord.roles.staff_ping_add_role.clone()+">");
+                    m.embed(|mut e| {
+                        e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
+                        e.title("New Bot!");
+                        e.color(0x00ff00 as u64);
+                        e.description(
+                            format!(
+                                "{user} has added {bot} ({bot_name}) to the queue!",
+                                user = UserId(user_id as u64).mention(),
+                                bot_name = bot.user.username,
+                                bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
+                            )
+                        );
+
+                        e.field("Guild Count (approx)", bot.guild_count.to_string(), true);
+
+                        e
+                    });
+                    m
+                }).await;
+
+                return HttpResponse::Ok().json(models::APIResponse {
+                    done: true,
+                    reason: Some("Check success: ".to_string() + &bot.guild_count.to_string()),
+                    context: None
+                });
+            }
+        }
+    } else {
+        error!("Add bot auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
+}
+
+/// Edit bot
+#[patch("/users/{id}/bots")]
+async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web::Json<models::Bot>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = id.id.clone();
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let mut bot = bot.into_inner();
+    if data.database.authorize_user(user_id, auth).await {
+        // Before doing anything else, get the bot from db and check if user is owner
+        let bot_user = data.database.get_bot(bot.user.id.parse::<i64>().unwrap_or(0)).await;
+        if bot_user.is_none() {
+            return models::CustomError::NotFoundGeneric.error_response();
+        } 
+
+        let mut got_owner = false;
+        for owner in bot_user.unwrap().owners {
+            if owner.user.id == user_id.to_string() {
+                got_owner = true;
+                break;
+            }
+        }
+
+        if !got_owner {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("You are not allowed to edit this bot!".to_string()),
                 context: None
             });
+        }
+       
+        let res = check_bot(&data, models::BotActionMode::Edit, &mut bot).await;
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: Some("Check error".to_string())
+            });
+        } else {
+            let res = data.database.edit_bot(user_id, bot.clone()).await;
+            if res.is_err() {
+                return HttpResponse::BadRequest().json(models::APIResponse {
+                    done: false,
+                    reason: Some(res.unwrap_err().to_string()),
+                    context: Some("Edit bot error".to_string())
+                });    
+            } else {
+                let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+                    m.embed(|mut e| {
+                        e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
+                        e.title("Bot Edit!");
+                        e.color(0x00ff00 as u64);
+                        e.description(
+                            format!(
+                                "{user} has editted {bot} ({bot_name})!",
+                                user = UserId(user_id as u64).mention(),
+                                bot_name = bot.user.username,
+                                bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
+                            )
+                        );
+
+                        e
+                    });
+                    m
+                }).await;
+
+                return HttpResponse::Ok().json(models::APIResponse {
+                    done: true,
+                    reason: Some("Check success: ".to_string() + &bot.guild_count.to_string()),
+                    context: None
+                });
+            }
         }
     } else {
         error!("Add bot auth error");

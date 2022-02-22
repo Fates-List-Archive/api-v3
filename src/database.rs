@@ -12,7 +12,6 @@ use serde::Serialize;
 use tokio::task;
 use async_recursion::async_recursion;
 
-
 pub struct Database {
     pool: PgPool,
     redis: deadpool_redis::Pool,
@@ -1114,5 +1113,153 @@ impl Database {
         .execute(&self.pool)
         .await
         .unwrap();
+    }
+
+    pub async fn add_bot(&self, bot: models::Bot) -> Result<(), sqlx::Error>{
+        let id = bot.user.id.parse::<i64>().unwrap();
+        let client_id = bot.client_id.parse::<i64>().unwrap_or(id);
+
+        // Step 1: Delete old stale data
+        let mut tx = self.pool.begin().await?;
+        sqlx::query!("DELETE FROM bots WHERE bot_id = $1", id)
+            .execute(&mut tx)
+            .await?;
+        sqlx::query!("DELETE FROM bot_owner WHERE bot_id = $1", id)
+            .execute(&mut tx)
+            .await?;
+        sqlx::query!("DELETE FROM vanity WHERE redirect = $1", id)
+            .execute(&mut tx)
+            .await?;
+        sqlx::query!("DELETE FROM bot_tags WHERE bot_id = $1", id)
+            .execute(&mut tx)
+            .await?;
+        
+        // Expand features to vec
+        let mut features = Vec::new();
+        for feature in bot.features {
+            features.push(feature.id);
+        }
+
+
+        // Step 2: Insert new data
+        sqlx::query!("INSERT INTO bots (
+            bot_id, prefix, bot_library,
+            invite, website, banner_card, banner_page,
+            discord, long_description, description,
+            api_token, features, long_description_type, 
+            css, donate, github,
+            webhook, webhook_type, webhook_secret,
+            privacy_policy, nsfw, keep_banner_decor, 
+            client_id, guild_count, flags, page_style, id) VALUES(
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 
+            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 
+            $24, $25, $26, $1)", 
+            id, bot.prefix, bot.library, 
+            bot.invite, bot.website, bot.banner_card, bot.banner_page,
+            bot.support, bot.long_description, bot.description,
+            converters::create_token(132), &features, bot.long_description_type as i32,
+            bot.css, bot.donate, bot.github, bot.webhook, bot.webhook_type.unwrap_or(models::WebhookType::Vote) as i32, bot.webhook_secret,
+            bot.privacy_policy, bot.nsfw, bot.keep_banner_decor, client_id, bot.guild_count,
+            &Vec::new(), bot.page_style as i32
+        )
+        .execute(&mut tx)
+        .await?;
+
+        // Handle vanity
+        sqlx::query!("INSERT INTO vanity (type, vanity_url, redirect) VALUES ($1, $2, $3)", 1, bot.vanity, id)
+            .execute(&mut tx)
+            .await?;
+        
+        // Handle bot owners
+        for owner in bot.owners {
+            sqlx::query!("INSERT INTO bot_owner (bot_id, owner, main) VALUES ($1, $2, $3)", id, owner.user.id.parse::<i64>().unwrap(), owner.main)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        // Add bot tags
+        for tag in bot.tags {
+            sqlx::query!("INSERT INTO bot_tags (bot_id, tag) VALUES ($1, $2)", id, tag.id)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(())
+    }
+
+    pub async fn edit_bot(&self, user_id: i64, bot: models::Bot) -> Result<(), sqlx::Error>{
+        let id = bot.user.id.parse::<i64>().unwrap();
+        let client_id = bot.client_id.parse::<i64>().unwrap_or(id);
+
+        let mut tx = self.pool.begin().await?;
+
+        // Expand features to vec
+        let mut features = Vec::new();
+        for feature in bot.features {
+            features.push(feature.id);
+        }
+
+        sqlx::query!(
+            "UPDATE bots SET bot_library=$2, webhook=$3, description=$4, 
+            long_description=$5, prefix=$6, website=$7, discord=$8, 
+            banner_card=$9, invite=$10, github = $11, features = $12, 
+            long_description_type = $13, webhook_type = $14, css = $15, 
+            donate = $16, privacy_policy = $17, nsfw = $18, 
+            webhook_secret = $19, banner_page = $20, keep_banner_decor = $21, 
+            client_id = $22, page_style = $23, long_description_parsed = null 
+            WHERE bot_id = $1",
+            id, bot.library, bot.webhook, bot.description, 
+            bot.long_description, bot.prefix, 
+            bot.website, bot.support, bot.banner_card, bot.invite, 
+            bot.github, &features, bot.long_description_type as i32, 
+            bot.webhook_type.unwrap_or(models::WebhookType::Vote) as i32, bot.css, bot.donate, 
+            bot.privacy_policy, bot.nsfw, bot.webhook_secret, 
+            bot.banner_page, bot.keep_banner_decor, client_id, 
+            bot.page_style as i32
+        )
+        .execute(&mut tx)
+        .await?;
+
+        sqlx::query!(
+            "DELETE FROM bot_owner WHERE bot_id = $1 AND main = false",
+            id
+        )
+        .execute(&mut tx)
+        .await?;
+
+        // Handle bot owners
+        for owner in bot.owners {
+            if owner.main {
+                continue
+            }
+            sqlx::query!("INSERT INTO bot_owner (bot_id, owner, main) VALUES ($1, $2, $3)", id, owner.user.id.parse::<i64>().unwrap(), owner.main)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        sqlx::query!(
+            "DELETE FROM bot_tags WHERE bot_id = $1", 
+            id
+        )
+        .execute(&mut tx)
+        .await?;
+
+        // Add bot tags
+        for tag in bot.tags {
+            sqlx::query!("INSERT INTO bot_tags (bot_id, tag) VALUES ($1, $2)", id, tag.id)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        sqlx::query!("INSERT INTO user_bot_logs (user_id, bot_id, action) VALUES ($1, $2, $3)", 
+        user_id, id, models::UserBotAction::EditBot as i32)
+        .execute(&mut tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(())
     }
 }

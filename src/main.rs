@@ -143,6 +143,7 @@ async fn main() -> std::io::Result<()> {
             .service(security::new_user_token)
             .service(security::new_server_token)
             .service(botactions::add_bot)
+            .service(botactions::edit_bot)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?
