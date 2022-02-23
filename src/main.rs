@@ -132,6 +132,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::get_bot)
             .service(core::get_server)
             .service(core::search)
+            .service(core::search_tags)
             .service(core::random_bot)
             .service(core::random_server)
             .service(core::has_user_voted)

@@ -842,6 +842,71 @@ impl Database {
         
         res
     }
+
+    // Search bot/server tags
+    pub async fn search_tags(&self, tag: String) -> models::Search {
+        let rows = sqlx::query!(
+            "SELECT DISTINCT bots.bot_id, bots.description, bots.state, bots.banner_card 
+            AS banner, bots.votes, bots.guild_count FROM bots INNER JOIN bot_tags 
+            ON bot_tags.bot_id = bots.bot_id WHERE bot_tags.tag = $1 AND 
+            (
+                bots.state = 0 
+                OR bots.state = 6
+            ) ORDER BY bots.votes DESC LIMIT 15",
+            tag
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        let mut bots = Vec::new();
+
+        for row in rows {
+            bots.push(models::IndexBot {
+                guild_count: row.guild_count.unwrap_or(0),
+                description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
+                banner: row.banner.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+                state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
+                nsfw: false,
+                votes: row.votes.unwrap_or(0),
+                user: self.get_user(row.bot_id).await,
+            });
+        }
+
+        let server_rows = sqlx::query!(
+            "SELECT DISTINCT guild_id, description, state, banner_card AS banner, votes, 
+            guild_count FROM servers WHERE state = 0 AND tags && $1",
+            &vec![tag]
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        let mut servers = Vec::new();
+
+        for row in server_rows {
+            servers.push(models::IndexBot {
+                guild_count: row.guild_count.unwrap_or(0),
+                description: row.description.clone().unwrap_or_else(|| "No description set".to_string()),
+                banner: row.banner.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+                state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
+                nsfw: false,
+                votes: row.votes.unwrap_or(0),
+                user: self.get_user(row.guild_id).await,
+            });
+        }
+
+        models::Search {
+            bots,
+            servers,
+            tags: models::SearchTags {
+                bots: self.bot_list_tags().await,
+                servers: self.server_list_tags().await,
+            },
+            profiles: Vec::new(), // Not applicable
+            packs: Vec::new(), // Not applicable
+        }
+    }
  
     #[async_recursion]
     pub async fn random_bot(&self) -> models::IndexBot {

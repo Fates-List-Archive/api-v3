@@ -252,6 +252,15 @@ async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json
     }
 }
 
+// Search Tags
+#[get("/search-tags")]
+async fn search_tags(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let query = info.q.clone().unwrap_or_else(|| "music".to_string());
+    let search_resp = data.database.search_tags(query).await;
+    Json(search_resp)
+}
+
 // Get Random Bot
 
 #[get("/random-bot")]

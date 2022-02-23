@@ -365,7 +365,7 @@ async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: we
                 });    
             } else {
                 let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
-                    m.embed(|mut e| {
+                    m.embed(|e| {
                         e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
                         e.title("Bot Edit!");
                         e.color(0x00ff00 as u64);

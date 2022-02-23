@@ -262,7 +262,7 @@ pub struct OauthAccessTokenResponse {
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct SearchQuery {
-    pub q: Option<String>
+    pub q: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
