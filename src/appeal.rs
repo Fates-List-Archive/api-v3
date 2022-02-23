@@ -1,8 +1,7 @@
 /// Handles bot appeals
-use actix_web::{http, HttpRequest, post, patch, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, post, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
-use std::time::Duration;
 use log::error;
 use serenity::model::prelude::*;
 

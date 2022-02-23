@@ -756,6 +756,38 @@ to false.
         auth_types: vec![models::RouteAuthType::User]
     });
 
+    docs += &doc_category("Appeal");
+
+    // New Appeal
+    docs += &doc( models::Route {
+        title: "New Appeal",
+        method: "POST",
+        path: "/users/{user_id}/bots/{bot_id}/appeal",
+description: r#"
+Creates a appeal/request for a bot.
+
+``request_type`` is a ``BotRequestType``, see [Enum Reference](https://docs.fateslist.xyz/structures/enums.autogen/)
+
+**Ideally should only be used for custom clients**
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::BotRequest {
+            request_type: models::BotRequestType::Appeal,
+            appeal: "This bot deserves to be unbanned because...".to_string(),
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
+    });
+
     // Return docs
     docs
 }
