@@ -11,6 +11,8 @@ use deadpool_redis::redis::AsyncCommands;
 use serde::Serialize;
 use tokio::task;
 use async_recursion::async_recursion;
+use chrono::Utc;
+use chrono::TimeZone;
 
 pub struct Database {
     pool: PgPool,
@@ -520,10 +522,29 @@ impl Database {
                     });
                 }
 
+                // VPM
+                let mut vpm = Vec::new();
+                let vpm_row = sqlx::query!(
+                    "SELECT votes, epoch FROM bot_stats_votes_pm WHERE bot_id = $1",
+                    bot_id
+                )
+                .fetch_all(&self.pool)
+                .await
+                .unwrap();
+
+                for row in vpm_row {
+                    vpm.push(models::VotesPerMonth {
+                        votes: row.votes.unwrap_or(0),
+                        ts: Utc.timestamp_opt(row.epoch.unwrap_or(0), 0)
+                        .latest()
+                        .unwrap_or_else(|| chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)),
+                    });
+                }
 
                 // Make the struct
                 let bot = models::Bot {
                     created_at: data.created_at,
+                    vpm: Some(vpm),
                     last_stats_post: data.last_stats_post,
                     description: data.description.unwrap_or_else(|| "No description set".to_string()),
                     css: "<style>".to_string() + &data.css.unwrap_or_else(|| "".to_string()).replace("\\n", "\n").replace("\\t", "\t") + "</style>",

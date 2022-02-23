@@ -22,6 +22,7 @@ mod docs;
 mod converters;
 mod security;
 mod botactions;
+mod appeal;
 
 use crate::models::APIResponse;
 
@@ -144,6 +145,7 @@ async fn main() -> std::io::Result<()> {
             .service(security::new_server_token)
             .service(botactions::add_bot)
             .service(botactions::edit_bot)
+            .service(appeal::appeal_bot)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

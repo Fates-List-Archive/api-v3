@@ -340,6 +340,7 @@ impl Default for Partners {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct DiscordChannels {
     pub bot_logs: ChannelId,
+    pub appeals_channel: ChannelId,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -587,6 +588,7 @@ pub struct Bot {
     pub client_id: String,
     pub flags: Vec<i32>,
     pub action_logs: Vec<ActionLog>,
+    pub vpm: Option<Vec<VotesPerMonth>>,
     pub uptime_checks_total: Option<i32>,
     pub uptime_checks_failed: Option<i32>,
     pub commands: HashMap<String, Vec<BotCommand>>,
@@ -653,6 +655,7 @@ impl Default for Bot {
             client_id: "".to_string(),
             flags: Vec::new(),
             action_logs,
+            vpm: Some(vec![VotesPerMonth::default()]),
             uptime_checks_total: Some(30),
             uptime_checks_failed: Some(19),
             commands: HashMap::from([
@@ -731,6 +734,14 @@ pub enum UserBotAction {
     EditBot = 7,
 }
 
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
+#[repr(i32)]
+pub enum BotRequestType {
+    #[default]
+    Appeal = 0,
+    Certification = 1,
+}
+
 
 // {"m": {"e": enums.APIEvents.bot_view}, "ctx": {"user": str(user_id), "widget": False, "vote_page": compact}}
 
@@ -785,6 +796,12 @@ pub struct Policies {
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotRequest {
+    pub request_type: BotRequestType,
+    pub appeal: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct UserVoted {
     pub votes: i64,
     pub voted: bool,
@@ -792,6 +809,21 @@ pub struct UserVoted {
     pub vote_epoch: i64,
     pub time_to_vote: i64,
     pub timestamps: Vec<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct VotesPerMonth {
+    pub votes: i64,
+    pub ts: chrono::DateTime<chrono::Utc>,
+}
+
+impl Default for VotesPerMonth {
+    fn default() -> Self {
+        Self {
+            votes: 0,
+            ts: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]

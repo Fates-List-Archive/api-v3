@@ -284,7 +284,7 @@ async fn add_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web
             } else {
                 let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
                     m.content("<@&".to_string()+&data.config.discord.roles.staff_ping_add_role.clone()+">");
-                    m.embed(|mut e| {
+                    m.embed(|e| {
                         e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
                         e.title("New Bot!");
                         e.color(0x00ff00 as u64);

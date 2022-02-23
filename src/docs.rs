@@ -725,6 +725,37 @@ to false.
         auth_types: vec![models::RouteAuthType::User]
     });
 
+    docs += &doc(models::Route {
+        title: "Edit Bot",
+        method: "PATCH",
+        path: "/users/{id}/bots",
+description: r#"
+Edits a existing bot. 
+
+Set ``created_at``, ``last_stats_post`` to sometime in the past
+
+Set ``api_token``, ``guild_count`` etc (unknown/not editable fields) to any 
+random value of the same type
+
+With regards to ``extra_owners``, put all of them as a ``BotOwner`` object
+containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object 
+containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot``
+to false.
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Bot::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
+    });
+
     // Return docs
     docs
 }
