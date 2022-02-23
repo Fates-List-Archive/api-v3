@@ -690,12 +690,14 @@ impl Database {
                 bot
             )
             .fetch_one(&self.pool)
-            .await
-            .unwrap();
-            resolved_bots.push(models::ResolvedPackBot {
-                user: self.get_user(bot).await,
-                description: description.description.unwrap_or_default(),
-            });
+            .await;
+
+            if let Ok(desc) = description {
+                resolved_bots.push(models::ResolvedPackBot {
+                    user: self.get_user(bot).await,
+                    description: desc.description.unwrap_or_default(),
+                });
+            }
         }
         resolved_bots
     }
@@ -1348,4 +1350,62 @@ impl Database {
 
         Ok(())
     }
+    
+    pub async fn transfer_ownership(&self, prev_owner: i64, bot_id: i64, owner: models::BotOwner) {
+        let mut tx = self.pool.begin().await.unwrap();
+
+        // Set old main owner to false
+        sqlx::query!("UPDATE bot_owner SET main = false WHERE bot_id = $1 AND main = true", bot_id)
+            .execute(&mut tx)
+            .await.unwrap();
+        
+        // Delete the owner if it exists
+        sqlx::query!("DELETE FROM bot_owner WHERE bot_id = $1 AND owner = $2", bot_id, owner.user.id.parse::<i64>().unwrap())
+            .execute(&mut tx)
+            .await.unwrap();
+
+        // Insert new main owner
+        sqlx::query!("INSERT INTO bot_owner (bot_id, owner, main) VALUES ($1, $2, $3)", bot_id, owner.user.id.parse::<i64>().unwrap(), owner.main)
+            .execute(&mut tx)
+            .await.unwrap();
+
+        sqlx::query!(
+            "INSERT INTO user_bot_logs (user_id, bot_id, action, context) VALUES ($1, $2, $3, $4)", 
+            prev_owner,
+            bot_id, 
+            models::UserBotAction::TransferOwnership as i32,
+            owner.user.id
+        )
+        .execute(&mut tx)
+        .await.unwrap();
+
+        tx.commit().await.unwrap();
+    }
+
+    pub async fn delete_bot(&self, user_id: i64, bot_id: i64) -> Result<(), sqlx::Error>{
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query!("DELETE FROM bots WHERE bot_id = $1", bot_id)
+            .execute(&mut tx)
+            .await?;
+
+        sqlx::query!("DELETE FROM vanity WHERE redirect = $1 AND type = 1", bot_id)
+            .execute(&mut tx)
+            .await?;
+
+        sqlx::query!(
+            "INSERT INTO user_bot_logs (user_id, bot_id, action, context) VALUES ($1, $2, $3, $4)", 
+            user_id,
+            bot_id, 
+            models::UserBotAction::DeleteBot as i32,
+            "".to_string(),
+        )
+        .execute(&mut tx)
+        .await.unwrap();
+    
+        tx.commit().await?;
+
+        Ok(())
+    }        
+    
 }

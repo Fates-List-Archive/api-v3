@@ -332,6 +332,31 @@ This is to allow reuse of the Bot struct in Get Bot Settings which does contain 
         auth_types: vec![]
     });
 
+    // - Search Tag route
+    docs += &doc(models::Route {
+        title: "Search Tag",
+        method: "GET",
+        path: "/search-tags?q={query}",
+        path_params: &models::Empty {},
+        query_params: &models::SearchQuery {
+            q: Some("music".to_string()),
+        },
+        description: r#"Searches the list for all bots/servers with tag *exactly* specified ``q``"#,
+        request_body: &models::Empty {},
+        response_body: &models::Search {
+            bots: vec![models::IndexBot::default()],
+            servers: vec![models::IndexBot::default()],
+            packs: Vec::new(),
+            profiles: Vec::new(),
+            tags: models::SearchTags {
+                bots: vec![models::Tag::default()],
+                servers: vec![models::Tag::default()]
+            },
+        },
+        equiv_v2_route: "(no longer working) [Search List](https://legacy.fateslist.xyz/docs/redoc#operation/search_list)",
+        auth_types: vec![]
+    });
+
     docs += &doc(
         models::Route {
             title: "Random Bot",

@@ -732,6 +732,7 @@ pub enum UserBotAction {
     Unclaim = 5,
     TransferOwnership = 6,
     EditBot = 7,
+    DeleteBot = 8,
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]

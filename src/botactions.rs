@@ -391,6 +391,107 @@ async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: we
             }
         }
     } else {
+        error!("Edit bot auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
+}
+
+/// Edit bot
+#[patch("/users/{user_id}/bots/{bot_id}/main-owner")]
+async fn transfer_ownership(req: HttpRequest, id: web::Path<models::GetUserBotPath>, owner: web::Json<models::BotOwner>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = id.user_id.clone();
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let bot_id = id.bot_id.clone();
+    if data.database.authorize_user(user_id, auth).await {
+        // Before doing anything else, get the bot from db and check if user is owner
+        let bot_user = data.database.get_bot(bot_id).await;
+        if bot_user.is_none() {
+            return models::CustomError::NotFoundGeneric.error_response();
+        }
+
+        let mut got_owner = false;
+        for owner in bot_user.clone().unwrap().owners {
+            if owner.main && owner.user.id == user_id.to_string(){
+                got_owner = true;
+                break;
+            } 
+        }
+
+        if !got_owner {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("You are not allowed to transfer ownership of bots you are not main owner of!".to_string()),
+                context: None
+            });
+        }
+       
+        // Owner validation
+        let owner_copy = owner.clone();
+
+        if !owner_copy.main {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("The main key must be set to 'true'!".to_string()),
+                context: None
+            });
+        }
+
+        if owner_copy.user.id == user_id.to_string() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("You can't transfer ownership to yourself!".to_string()),
+                context: None
+            });
+        }
+
+        if owner_copy.user.id.parse::<i64>().is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("The user id must be a number fitting in a u64!".to_string()),
+                context: None
+            });
+        }
+
+        // Does the user actually even exist?
+        let owner_user = data.database.get_user(owner_copy.user.id.parse::<i64>().unwrap()).await;
+        if owner_user.id.is_empty() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("The user you wish to transfer ownership to apparently does not exist!".to_string()),
+                context: None
+            });
+        }
+
+            let res = data.database.transfer_ownership(user_id, bot_id, owner.clone()).await;
+            let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+                m.embed(|e| {
+                    e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
+                    e.title("Bot Ownership Transfer!");
+                    e.color(0x00ff00 as u64);
+                    e.description(
+                        format!(
+                            "{user} has transferred ownership of {bot} ({bot_name}) to {new_owner}!",
+                            user = UserId(user_id as u64).mention(),
+                            bot_name = bot_user.unwrap().user.username,
+                            bot = UserId(bot_id as u64).mention(),
+                            new_owner = UserId(owner.user.id.parse::<u64>().unwrap_or(0)).mention()
+                        )
+                    );
+
+                    e
+                });
+                m
+            }).await;
+
+        return HttpResponse::Ok().json(models::APIResponse {
+            done: true,
+            reason: Some("Successfully transferred ownership".to_string()),
+            context: None
+        });
+
+    } else {
         error!("Add bot auth error");
         models::CustomError::ForbiddenGeneric.error_response()
     }
