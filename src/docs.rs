@@ -538,12 +538,12 @@ index is too costly and making a new struct is unnecessary.
         },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
-        response_body: &models::Index {
-            new: Vec::new(),
-            top_voted: Vec::new(),
-            certified: Vec::new(),
-            tags,
-            features,
+        response_body: &models::BotSettings {
+            bot: models::Bot::default(),
+            context: models::BotSettingsContext {
+                tags,
+                features,    
+            },
         },
 description: r#"
 Returns the bot settings.
@@ -690,6 +690,39 @@ token ever gets leaked.
         },
         equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Server]
+    });
+
+    docs += &doc_category("Bot Auth");
+
+    docs += &doc(models::Route {
+        title: "New Bot",
+        method: "POST",
+        path: "/users/{id}/bots",
+description: r#"
+Creates a new bot. 
+
+Set ``created_at``, ``last_stats_post`` to sometime in the past
+
+Set ``api_token``, ``guild_count`` etc (unknown/not editable fields) to any 
+random value of the same type
+
+With regards to ``extra_owners``, put all of them as a ``BotOwner`` object
+containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object 
+containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot``
+to false.
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Bot::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
     });
 
     // Return docs

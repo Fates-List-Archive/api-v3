@@ -753,7 +753,7 @@ impl EventTargetType {
     pub fn to_arg(t: EventTargetType) -> &'static str {
         match t {
             EventTargetType::Bot => "1",
-            EventTargetType::Server => "2",
+            EventTargetType::Server => "0",
         }
     }
 }

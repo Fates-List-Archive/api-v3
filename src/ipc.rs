@@ -98,39 +98,29 @@ pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User
             return user.unwrap();
         }
     }
+
+    // Then call baypaw (http://localhost:1234/getch/928702343732658256)
+    let req = reqwest::Client::builder()
+    .user_agent("DiscordBot (https://fateslist.xyz, 0.1) FatesList-Lightleap-WarriorCats")
+    .build()
+    .unwrap()
+    .get("http://localhost:1234/getch/".to_string() + &user_id.to_string())
+    .timeout(std::time::Duration::from_secs(30));
+
+    let res = req.send().await.unwrap();
+
+    let user: models::User = res.json().await.unwrap_or_else(|_| models::User {
+        id: "".to_string(),
+        username: "Unknown User".to_string(),
+        disc: "0000".to_string(),
+        avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
+        bot: false,
+    });
     
-    let mut call = IpcCall {
-        redis,
-        cmd: "GETCH".to_string(),
-        args: vec![user_id.to_string()],
-        message: "".to_string(),
-        timeout: 30,
-    };
-    let val = ipc_call(&mut call).await;
-    match val {
-        Ok(data) => {
-            conn.set_ex("user-cache:".to_string() + &user_id.to_string(), data.clone(), 60*60*8).await.unwrap_or_else(|_| "".to_string());
-            let user: Option<models::User> = serde_json::from_str(&data).unwrap_or(None);
-            if user.is_some() {
-                return user.unwrap();
-            } else {
-                models::User {
-                    id: "".to_string(),
-                    username: "Unknown User".to_string(),
-                    disc: "0000".to_string(),
-                    avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
-                    bot: false,
-                }    
-            }
-        },
-        Err(_) => {
-            models::User {
-                id: "".to_string(),
-                username: "Unknown User".to_string(),
-                disc: "0000".to_string(),
-                avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
-                bot: false,
-            }
-        }
+    if user.id.is_empty() {
+        conn.set_ex("user-cache:".to_string() + &user_id.to_string(), serde_json::to_string(&user).unwrap(), 60*60*1).await.unwrap_or_else(|_| "".to_string());
+    } else {
+        conn.set_ex("user-cache:".to_string() + &user_id.to_string(), serde_json::to_string(&user).unwrap(), 60*60*8).await.unwrap_or_else(|_| "".to_string());
     }
+    return user;
 }
