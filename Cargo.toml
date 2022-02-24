@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4.0.0-rc.1"
-sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres", "chrono", "uuid" ] }
+sqlx = { version = "0.5", features = [ "runtime-actix-native-tls" , "postgres", "chrono", "uuid", "bigdecimal"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.61", features = ["preserve_order"] }
 serde_repr = "0.1.7"
@@ -38,6 +38,7 @@ rand = "0.8.5"
 base64 = "0.13.0"
 indexmap = { version = "1.8.0", features = ["serde"] }
 serenity = { version = "0.10.10", features = ["model", "http"] }
+bigdecimal = { version = "0.2.2", features = ["serde"] }
 
 [profile.release-lto]
 inherits = "release"

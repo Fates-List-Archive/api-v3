@@ -896,6 +896,25 @@ but must exist in the object
         auth_types: vec![models::RouteAuthType::User]
     });
 
+    docs += &doc_category("Users");
+
+    docs += &doc(models::Route {
+        title: "Get Profile",
+        method: "GET",
+        path: "/profiles/{id}",
+description: r#"
+Gets a user profile.
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::Profile::default(),
+        equiv_v2_route: "None",
+        auth_types: vec![]
+    });
+
     // Return docs
     docs
 }

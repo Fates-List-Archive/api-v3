@@ -25,6 +25,7 @@ mod botactions;
 mod appeal;
 mod packs;
 mod user;
+mod reviews;
 
 use crate::models::APIResponse;
 
@@ -155,6 +156,7 @@ async fn main() -> std::io::Result<()> {
             .service(packs::edit_pack)
             .service(packs::delete_pack)
             .service(user::get_profile)
+            .service(reviews::get_reviews)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

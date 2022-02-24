@@ -6,7 +6,7 @@ use crate::converters;
 use deadpool_redis::{Config, Runtime};
 use crate::inflector::Inflector;
 use log::{error, debug};
-use std::collections::HashMap;
+use indexmap::{IndexMap, indexmap};
 use deadpool_redis::redis::AsyncCommands;
 use serde::Serialize;
 use tokio::task;
@@ -262,7 +262,7 @@ impl Database {
         }
 
         let row = sqlx::query!(
-            "SELECT COUNT(1) FROM users WHERE user_id = $1 AND api_token = $2",
+            "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2",
             user_id,
             token.replace("User ", ""),
         )
@@ -282,7 +282,7 @@ impl Database {
             return false;
         }
         let row = sqlx::query!(
-            "SELECT COUNT(1) FROM bots WHERE bot_id = $1 AND api_token = $2",
+            "SELECT COUNT(*) FROM bots WHERE bot_id = $1 AND api_token = $2",
             bot_id,
             token.replace("Bot ", ""),
         )
@@ -302,7 +302,7 @@ impl Database {
             return false;
         }
         let row = sqlx::query!(
-            "SELECT COUNT(1) FROM servers WHERE guild_id = $1 AND api_token = $2",
+            "SELECT COUNT(*) FROM servers WHERE guild_id = $1 AND api_token = $2",
             server_id,
             token.replace("Server ", ""),
         )
@@ -472,7 +472,7 @@ impl Database {
                 }
 
                 // Commands
-                let mut commands = HashMap::new();
+                let mut commands = IndexMap::new();
 
                 let commands_rows = sqlx::query!(
                     "SELECT id, cmd_type, description, args, examples, premium_only, notes, doc_link, cmd_groups, cmd_name, vote_locked FROM bot_commands WHERE bot_id = $1",
@@ -485,26 +485,25 @@ impl Database {
                 debug!("Commands: {:?}", commands_rows);
 
                 for command in commands_rows.iter() {
-                    let groups = command.cmd_groups.clone().unwrap_or_default();
-                    for group in groups.iter() {
-                        let group_ref = group.clone();
-                        if let std::collections::hash_map::Entry::Vacant(e) = commands.entry(group_ref.clone()) {
-                            e.insert(Vec::new());
-                        } else {
-                            commands.get_mut(&group_ref).unwrap().push(models::BotCommand {
-                                id: command.id.to_string(),
-                                cmd_type: models::CommandType::try_from(command.cmd_type).unwrap_or(models::CommandType::SlashCommandGlobal),
-                                description: command.description.clone().unwrap_or_default(),
-                                args: command.args.clone().unwrap_or_default(),
-                                examples: command.examples.clone().unwrap_or_default(),
-                                premium_only: command.premium_only.unwrap_or_default(),
-                                notes: command.notes.clone().unwrap_or_default(),
-                                doc_link: command.doc_link.clone().unwrap_or_default(),
-                                cmd_name: command.cmd_name.clone(),
-                                vote_locked: command.vote_locked.unwrap_or_default(),
-                                cmd_groups: command.cmd_groups.clone().unwrap_or_default(),
-                            });
+                    let groups = command.cmd_groups.clone();
+                    for group in groups {
+                        if !commands.contains_key(&group) {
+                            debug!("Dropping command key {key}", key = &group.to_string());
+                            commands.insert(group.clone(), Vec::new());
                         }
+                        commands.get_mut(&group.clone()).unwrap().push(models::BotCommand {
+                            id: command.id.to_string(),
+                            cmd_type: models::CommandType::try_from(command.cmd_type).unwrap_or(models::CommandType::SlashCommandGlobal),
+                            description: command.description.clone().unwrap_or_default(),
+                            args: command.args.clone().unwrap_or_default(),
+                            examples: command.examples.clone().unwrap_or_default(),
+                            premium_only: command.premium_only.unwrap_or_default(),
+                            notes: command.notes.clone().unwrap_or_default(),
+                            doc_link: command.doc_link.clone().unwrap_or_default(),
+                            cmd_name: command.cmd_name.clone(),
+                            vote_locked: command.vote_locked.unwrap_or_default(),
+                            cmd_groups: command.cmd_groups.clone(),
+                        });
                     }
                 }
 
@@ -1601,4 +1600,98 @@ impl Database {
             user: self.get_user(user_id).await
         })
     }
+
+    #[async_recursion]
+    pub async fn get_replies(&self, parent_id: uuid::Uuid) -> Vec<models::Review> {
+        let rows = sqlx::query!(
+            "SELECT id, user_id, star_rating, epoch, review_upvotes::text[], 
+            review_downvotes::text[], review_text, flagged FROM reviews 
+            WHERE parent_id = $1",
+            parent_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        let mut reviews = Vec::new();
+
+        for row in rows {
+            reviews.push(models::Review {
+                id: row.id,
+                user: self.get_user(row.user_id).await,
+                star_rating: row.star_rating,
+                epoch: row.epoch,
+                review_upvotes: row.review_upvotes.unwrap_or_default(),
+                review_downvotes: row.review_downvotes.unwrap_or_default(),
+                review_text: row.review_text,
+                flagged: row.flagged,
+                replies: self.get_replies(row.id).await,
+                reply: true,
+            });
+        }
+
+        reviews
+    }
+
+    pub async fn get_reviews(&self, target_id: i64, target_type: models::ReviewType, limit: i64, offset: i64) -> Vec<models::Review> {
+        let mut reviews = Vec::new();
+
+        let target_type_num = match target_type {
+            models::ReviewType::Bot => 0,
+            models::ReviewType::Server => 1,
+        };
+
+        let rows = sqlx::query!(
+            "SELECT id, user_id, star_rating, epoch, review_upvotes::text[], 
+            review_downvotes::text[], review_text, flagged FROM reviews WHERE 
+            target_id = $1 AND target_type = $2 AND parent_id IS NULL 
+            LIMIT $3 OFFSET $4",
+            target_id,
+            target_type_num,
+            limit,
+            offset
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        for row in rows {
+            reviews.push(models::Review {
+                id: row.id,
+                user: self.get_user(row.user_id).await,
+                review_text: row.review_text,
+                epoch: row.epoch,
+                flagged: row.flagged,
+                review_upvotes: row.review_upvotes.unwrap_or_default(),
+                review_downvotes: row.review_downvotes.unwrap_or_default(),
+                star_rating: row.star_rating,
+                replies: self.get_replies(row.id).await,
+                reply: false,
+            });
+        }
+
+        reviews
+    }
+
+    pub async fn get_reviews_count(&self, target_id: i64, target_type: models::ReviewType) -> i64 {
+        let target_type_num = match target_type {
+            models::ReviewType::Bot => 0,
+            models::ReviewType::Server => 1,
+        };
+
+        let count = sqlx::query!(
+            "SELECT COUNT(*) FROM reviews WHERE target_id = $1 AND target_type = $2 AND parent_id IS NULL",
+            target_id,
+            target_type_num
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if count.is_err() {
+            return 0;
+        }
+
+        count.unwrap().count.unwrap_or_default()
+    }
+
 }

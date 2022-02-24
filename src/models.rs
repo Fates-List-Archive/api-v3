@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use bevy_reflect::{Reflect, Struct};
 use num_enum::TryFromPrimitive;
 use serde_repr::*;
-use std::collections::HashMap;
 use thiserror::Error;
 use crate::database;
 use actix_web::{http, HttpResponse, error::ResponseError};
@@ -13,6 +12,7 @@ use std::path::PathBuf;
 use log::debug;
 use indexmap::{IndexMap, indexmap};
 use serenity::model::id::ChannelId;
+use bigdecimal;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -589,7 +589,7 @@ pub struct Bot {
     pub vpm: Option<Vec<VotesPerMonth>>,
     pub uptime_checks_total: Option<i32>,
     pub uptime_checks_failed: Option<i32>,
-    pub commands: HashMap<String, Vec<BotCommand>>,
+    pub commands: IndexMap<String, Vec<BotCommand>>,
     pub resources: Vec<Resource>,
     pub webhook: Option<String>,
     pub webhook_secret: Option<String>,
@@ -657,7 +657,7 @@ impl Default for Bot {
             vpm: Some(vec![VotesPerMonth::default()]),
             uptime_checks_total: Some(30),
             uptime_checks_failed: Some(19),
-            commands: HashMap::from([
+            commands: IndexMap::from([
                 ("default".to_string(), vec![BotCommand::default()]),
             ]),
             resources: vec![Resource::default()],
@@ -732,6 +732,14 @@ pub enum UserBotAction {
     TransferOwnership = 6,
     EditBot = 7,
     DeleteBot = 8,
+}
+
+#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, Reflect)]
+#[repr(i32)]
+pub enum ReviewType {
+    #[default]
+    Bot = 0,
+    Server = 1,
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
@@ -858,6 +866,35 @@ pub struct Profile {
     pub packs: Vec<BotPack>,
     pub state: UserState,
     pub action_logs: Vec<ActionLog>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct Review {
+    pub id: uuid::Uuid,
+    pub reply: bool,
+    pub star_rating: bigdecimal::BigDecimal,
+    pub review_text: String,
+    pub review_upvotes: Vec<String>,
+    pub review_downvotes: Vec<String>,
+    pub flagged: bool,
+    pub user: User,
+    pub epoch: Vec<i64>,
+    pub replies: Vec<Review>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ParsedReview {
+    pub reviews: Vec<Review>,
+    pub per_page: i64,
+    pub from: i64,
+    pub average_stars: bigdecimal::BigDecimal,
+    pub total: i64,
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct ReviewQuery {
+    pub target_type: ReviewType,
+    pub page: i32,
 }
 
 // Error Handling
