@@ -870,6 +870,32 @@ Creates a appeal/request for a bot.
         auth_types: vec![models::RouteAuthType::User]
     });
 
+    docs += &doc_category("Packs");
+
+    docs += &doc(models::Route {
+        title: "Add Packs",
+        method: "GET",
+        path: "/users/{id}/packs",
+description: r#"
+Creates a bot pack. 
+
+- Set ``id`` to empty string, 
+- Set ``created_at`` to any datetime
+- In user and bot, only ``id`` must be filled, all others can be left empty string
+but must exist in the object
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::BotPack::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
+    });
+
     // Return docs
     docs
 }

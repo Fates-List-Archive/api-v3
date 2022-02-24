@@ -96,6 +96,7 @@ pub struct IndexBot {
     pub votes: i64,
     pub state: State,
     pub user: User,
+    pub flags: Vec<i32>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -844,6 +845,16 @@ pub struct JAPIAppData {
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct JAPIApplication {
     pub data: JAPIAppData
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct Profile {
+    pub user: User,
+    pub bots: Vec<IndexBot>,
+    pub description: String,
+    pub vote_reminder_channel: Option<String>,
+    pub packs: Vec<BotPack>,
+    pub state: UserState,
 }
 
 // Error Handling
