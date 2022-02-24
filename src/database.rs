@@ -464,6 +464,7 @@ impl Database {
                 for action_row in action_log_rows.iter() {
                     action_logs.push(models::ActionLog {
                         user_id: action_row.user_id.to_string(), 
+                        bot_id: bot_id.to_string(),
                         action: action_row.action,
                         action_time: action_row.action_time, 
                         context: action_row.context.clone(),
@@ -1570,10 +1571,30 @@ impl Database {
             bots.push(bot);
         }
 
+        // Action logs
+        let mut action_logs = Vec::new();
+        let action_log_rows = sqlx::query!(
+            "SELECT action, bot_id, action_time, context FROM user_bot_logs WHERE user_id = $1",
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        for action_row in action_log_rows.iter() {
+            action_logs.push(models::ActionLog {
+                user_id: user_id.to_string(), 
+                bot_id: action_row.bot_id.to_string(),
+                action: action_row.action,
+                action_time: action_row.action_time, 
+                context: action_row.context.clone(),
+            })
+        }
 
         Some(models::Profile {
             bots,
             packs,
+            action_logs,
             description: row.description.unwrap_or_else(|| "This user prefers to be an enigma".to_string()),
             vote_reminder_channel: row.vote_reminder_channel,
             state: models::UserState::try_from(row.state).unwrap_or(models::UserState::Normal),

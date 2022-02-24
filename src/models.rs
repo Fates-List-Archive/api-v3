@@ -466,6 +466,7 @@ pub struct BotOwner {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ActionLog {
     pub user_id: String,
+    pub bot_id: String,
     pub action: i32,
     pub action_time: chrono::DateTime<chrono::Utc>,
     pub context: Option<String>,
@@ -608,6 +609,7 @@ impl Default for Bot {
 
         let action_logs = vec![ActionLog {
             user_id: "".to_string(),
+            bot_id: "".to_string(),
             action: 0,
             action_time: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             context: None,
@@ -855,6 +857,7 @@ pub struct Profile {
     pub vote_reminder_channel: Option<String>,
     pub packs: Vec<BotPack>,
     pub state: UserState,
+    pub action_logs: Vec<ActionLog>,
 }
 
 // Error Handling
