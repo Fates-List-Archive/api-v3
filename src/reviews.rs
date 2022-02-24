@@ -4,7 +4,6 @@ use actix_web::http::header::HeaderValue;
 use crate::models;
 use log::error;
 use serenity::model::prelude::*;
-use bigdecimal::FromPrimitive;
 
 #[get("/reviews/{id}")]
 async fn get_reviews(req: HttpRequest, info: web::Path<models::FetchBotPath>, query: web::Query<models::ReviewQuery>) -> HttpResponse {
@@ -27,7 +26,6 @@ async fn get_reviews(req: HttpRequest, info: web::Path<models::FetchBotPath>, qu
         reviews,
         per_page,
         from: offset,
-        average_stars: bigdecimal::BigDecimal::from_i64(0).unwrap(), // TODO
-        total: data.database.get_reviews_count(info.id, query.target_type).await,
+        stats: data.database.get_review_stats(info.id, query.target_type).await
     });
 }

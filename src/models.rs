@@ -862,6 +862,8 @@ pub struct Profile {
     pub user: User,
     pub bots: Vec<IndexBot>,
     pub description: String,
+    pub profile_css: String,
+    pub user_css: String,
     pub vote_reminder_channel: Option<String>,
     pub packs: Vec<BotPack>,
     pub state: UserState,
@@ -880,6 +882,13 @@ pub struct Review {
     pub user: User,
     pub epoch: Vec<i64>,
     pub replies: Vec<Review>,
+    pub parent_id: Option<uuid::Uuid>
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ReviewStats {
+    pub average_stars: bigdecimal::BigDecimal,
+    pub total: i64,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -887,8 +896,7 @@ pub struct ParsedReview {
     pub reviews: Vec<Review>,
     pub per_page: i64,
     pub from: i64,
-    pub average_stars: bigdecimal::BigDecimal,
-    pub total: i64,
+    pub stats: ReviewStats,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]

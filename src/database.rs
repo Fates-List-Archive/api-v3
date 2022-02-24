@@ -13,6 +13,7 @@ use tokio::task;
 use async_recursion::async_recursion;
 use chrono::Utc;
 use chrono::TimeZone;
+use bigdecimal::FromPrimitive;
 
 pub struct Database {
     pool: PgPool,
@@ -1509,7 +1510,8 @@ impl Database {
 
     pub async fn get_profile(&self, user_id: i64) -> Option<models::Profile> {        
         let row = sqlx::query!(
-            "SELECT description, site_lang, state, user_css, profile_css, vote_reminder_channel::text FROM users WHERE user_id = $1",
+            "SELECT description, site_lang, state, user_css, profile_css, 
+            vote_reminder_channel::text FROM users WHERE user_id = $1",
             user_id
         )
         .fetch_one(&self.pool)
@@ -1597,7 +1599,9 @@ impl Database {
             description: row.description.unwrap_or_else(|| "This user prefers to be an enigma".to_string()),
             vote_reminder_channel: row.vote_reminder_channel,
             state: models::UserState::try_from(row.state).unwrap_or(models::UserState::Normal),
-            user: self.get_user(user_id).await
+            user: self.get_user(user_id).await,
+            user_css: row.user_css.unwrap_or_default(),
+            profile_css: row.profile_css,
         })
     }
 
@@ -1626,6 +1630,7 @@ impl Database {
                 review_text: row.review_text,
                 flagged: row.flagged,
                 replies: self.get_replies(row.id).await,
+                parent_id: Some(parent_id),
                 reply: true,
             });
         }
@@ -1641,6 +1646,7 @@ impl Database {
             models::ReviewType::Server => 1,
         };
 
+        // trim(stringexpression) != ''
         let rows = sqlx::query!(
             "SELECT id, user_id, star_rating, epoch, review_upvotes::text[], 
             review_downvotes::text[], review_text, flagged FROM reviews WHERE 
@@ -1667,31 +1673,41 @@ impl Database {
                 star_rating: row.star_rating,
                 replies: self.get_replies(row.id).await,
                 reply: false,
+                parent_id: None,
             });
         }
 
         reviews
     }
 
-    pub async fn get_reviews_count(&self, target_id: i64, target_type: models::ReviewType) -> i64 {
+    pub async fn get_review_stats(&self, target_id: i64, target_type: models::ReviewType) -> models::ReviewStats {
         let target_type_num = match target_type {
             models::ReviewType::Bot => 0,
             models::ReviewType::Server => 1,
         };
 
-        let count = sqlx::query!(
-            "SELECT COUNT(*) FROM reviews WHERE target_id = $1 AND target_type = $2 AND parent_id IS NULL",
+        let stats = sqlx::query!(
+            "SELECT COUNT(*), AVG(star_rating) AS average_stars FROM reviews WHERE target_id = $1 AND target_type = $2 AND parent_id IS NULL",
             target_id,
             target_type_num
         )
         .fetch_one(&self.pool)
         .await;
 
-        if count.is_err() {
-            return 0;
+        if stats.is_err() {
+            error!("Error getting review stats: {}", stats.err().unwrap());
+            return models::ReviewStats {
+                total: 0,
+                average_stars: bigdecimal::BigDecimal::from_i64(0).unwrap(),
+            };
         }
 
-        count.unwrap().count.unwrap_or_default()
+        let stats = stats.unwrap();
+
+        models::ReviewStats {
+            total: stats.count.unwrap_or_default(),
+            average_stars: stats.average_stars.unwrap_or_default(),
+        }
     }
 
 }
