@@ -1,5 +1,5 @@
 /// Handles bot adds
-use actix_web::{http, HttpRequest, post, patch, delete, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{HttpRequest, post, patch, delete, web, HttpResponse, ResponseError};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use std::time::Duration;
@@ -306,7 +306,7 @@ async fn add_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web
 
                 return HttpResponse::Ok().json(models::APIResponse {
                     done: true,
-                    reason: Some("Check success: ".to_string() + &bot.guild_count.to_string()),
+                    reason: Some("Added bot successfully!".to_string()),
                     context: None
                 });
             }
@@ -371,7 +371,7 @@ async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: we
                         e.color(0x00ff00 as u64);
                         e.description(
                             format!(
-                                "{user} has editted {bot} ({bot_name})!",
+                                "{user} has edited {bot} ({bot_name})!",
                                 user = UserId(user_id as u64).mention(),
                                 bot_name = bot.user.username,
                                 bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
@@ -385,7 +385,7 @@ async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: we
 
                 return HttpResponse::Ok().json(models::APIResponse {
                     done: true,
-                    reason: Some("Check success: ".to_string() + &bot.guild_count.to_string()),
+                    reason: Some("Edited bot successfully!".to_string()),
                     context: None
                 });
             }

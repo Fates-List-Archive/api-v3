@@ -23,6 +23,7 @@ mod converters;
 mod security;
 mod botactions;
 mod appeal;
+mod packs;
 
 use crate::models::APIResponse;
 
@@ -149,6 +150,9 @@ async fn main() -> std::io::Result<()> {
             .service(botactions::transfer_ownership)
             .service(botactions::delete_bot)
             .service(appeal::appeal_bot)
+            .service(packs::add_pack)
+            .service(packs::edit_pack)
+            .service(packs::delete_pack)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

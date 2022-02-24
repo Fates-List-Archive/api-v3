@@ -180,16 +180,6 @@ pub struct ResolvedPackBot {
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
-pub struct BotPackCreate {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub icon: String,
-    pub banner: String,
-    pub bots: Vec<String>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct SearchProfile {
     pub banner: String,
     pub description: String,
@@ -220,6 +210,12 @@ pub struct IndexQuery {
 pub struct GetUserBotPath {
     pub user_id: i64,
     pub bot_id: i64, 
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct GetUserPackPath {
+    pub user_id: i64,
+    pub pack_id: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
@@ -965,6 +961,32 @@ impl CheckBotError {
             Self::OwnerIDParseError => "An owner ID in your owner list is invalid".to_string(),
             Self::OwnerNotFound => "An owner ID in your owner list does not exist".to_string(),
             Self::MainOwnerAddAttempt => "You cannot add a main owner as an extra owner".to_string(),
+        }
+    }
+}
+
+pub enum PackCheckError {
+    TooManyBots,
+    InvalidBotId,
+    TooFewBots,
+    InvalidIcon,
+    InvalidBanner,
+    SQLError(sqlx::Error),
+    InvalidPackId,
+    DescriptionTooShort,
+}
+
+impl PackCheckError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::TooManyBots => "You cannot have more than 7 bots in a pack".to_string(),
+            Self::InvalidBotId => "One of your bot IDs is invalid".to_string(),
+            Self::TooFewBots => "You must have at least 2 bots in a pack. Recheck the Bot IDs?".to_string(),
+            Self::InvalidIcon => "Your icon must start with https://".to_string(),
+            Self::InvalidBanner => "Your icon must start with https://".to_string(),
+            Self::SQLError(err) => format!("SQL error: {}", err),
+            Self::InvalidPackId => "Your pack ID is invalid. This error should *never* be seen".to_string(),
+            Self::DescriptionTooShort => "Your description must be at least 10 characters long".to_string(),
         }
     }
 }

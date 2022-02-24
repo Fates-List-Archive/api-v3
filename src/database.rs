@@ -791,7 +791,6 @@ impl Database {
             });
         }
 
-
         // Tags
         let tags = models::SearchTags {
             bots: self.bot_list_tags().await,
@@ -1408,6 +1407,93 @@ impl Database {
         tx.commit().await?;
 
         Ok(())
-    }        
+    }
     
+    pub async fn get_pack_owners(&self, pack_id: String) -> Option<i64> {
+        let pack_id_uuid = uuid::Uuid::parse_str(&pack_id);
+
+        if let Ok(id) = pack_id_uuid {
+            let owners = sqlx::query!(
+                "SELECT owner FROM bot_packs WHERE id = $1",
+                id
+            )
+            .fetch_one(&self.pool)
+            .await;
+            
+            if let Ok(owners) = owners {
+                return owners.owner;
+            } else {
+                return None;
+            }
+        }
+        None
+    }
+    
+    pub async fn add_pack(&self, pack: models::BotPack) -> Result<(), models::PackCheckError> {
+        // Get bots from the pack
+        let mut bots = Vec::new();
+        for bot in pack.resolved_bots {
+            let parsed_id = bot.user.id.parse::<i64>();
+            if parsed_id.is_err() {
+                return Err(models::PackCheckError::InvalidBotId);
+            }
+            bots.push(parsed_id.unwrap())
+        }
+
+        sqlx::query!(
+            "INSERT INTO bot_packs (icon, banner, owner, bots, description, name) VALUES ($1, $2, $3, $4, $5, $6)",
+            pack.icon, pack.banner, 
+            pack.owner.id.parse::<i64>().unwrap(), &bots, 
+            pack.description, pack.name
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::PackCheckError::SQLError)?;
+
+        Ok(())   
+    }
+
+    pub async fn edit_pack(&self, pack: models::BotPack) -> Result<(), models::PackCheckError> {
+        // Get bots from the pack
+        let mut bots = Vec::new();
+        for bot in pack.resolved_bots {
+            let parsed_id = bot.user.id.parse::<i64>();
+            if parsed_id.is_err() {
+                return Err(models::PackCheckError::InvalidBotId);
+            }
+            bots.push(parsed_id.unwrap())
+        }
+
+        let pack_id_uuid = uuid::Uuid::parse_str(&pack.id);
+
+        if let Ok(id) = pack_id_uuid {
+            sqlx::query!(
+                "UPDATE bot_packs SET icon = $1, banner = $2, bots = $3, description = $4, name = $5 WHERE id = $6",
+                pack.icon, pack.banner, 
+                &bots, pack.description, 
+                pack.name, id
+            )
+            .execute(&self.pool)
+            .await
+            .map_err(models::PackCheckError::SQLError)?;
+
+            Ok(())   
+        } else {
+            Err(models::PackCheckError::InvalidPackId)
+        }
+    }
+
+    pub async fn delete_pack(&self, pack_id: String) {
+        let pack_id_uuid = uuid::Uuid::parse_str(&pack_id);
+
+        if let Ok(id) = pack_id_uuid {
+            sqlx::query!(
+                "DELETE FROM bot_packs WHERE id = $1",
+                id
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap();
+        }
+    }
 }
