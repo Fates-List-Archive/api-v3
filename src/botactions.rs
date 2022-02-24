@@ -1,5 +1,5 @@
 /// Handles bot adds
-use actix_web::{http, HttpRequest, post, patch, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, post, patch, delete, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use std::time::Duration;
@@ -396,7 +396,7 @@ async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: we
     }
 }
 
-/// Edit bot
+/// Transfer ownership
 #[patch("/users/{user_id}/bots/{bot_id}/main-owner")]
 async fn transfer_ownership(req: HttpRequest, id: web::Path<models::GetUserBotPath>, owner: web::Json<models::BotOwner>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
@@ -492,7 +492,81 @@ async fn transfer_ownership(req: HttpRequest, id: web::Path<models::GetUserBotPa
         });
 
     } else {
-        error!("Add bot auth error");
+        error!("Transfer bot auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
+}
+
+/// Delete bot
+#[delete("/users/{user_id}/bots/{bot_id}")]
+async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+        
+    let user_id = id.user_id.clone();
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let bot_id = id.bot_id.clone();
+
+    if data.database.authorize_user(user_id, auth).await {
+        // Before doing anything else, get the bot from db and check if user is owner
+        let bot_user = data.database.get_bot(bot_id).await;
+        if bot_user.is_none() {
+            return models::CustomError::NotFoundGeneric.error_response();
+        }
+
+        let mut got_owner = false;
+        for owner in bot_user.clone().unwrap().owners {
+            if owner.main && owner.user.id == user_id.to_string(){
+                got_owner = true;
+                break;
+            } 
+        }
+
+        if !got_owner {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("You are not allowed to delete bots you are not main owner of!".to_string()),
+                context: None
+            });
+        }
+
+        // Delete the bot
+        let res = data.database.delete_bot(user_id, bot_id).await;
+
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("Something went wrong while deleting the bot!".to_string() + &res.unwrap_err().to_string()),
+                context: None
+            });
+        } else {
+            let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+                m.embed(|e| {
+                    e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
+                    e.title("Bot Deleted :(");
+                    e.color(0x00ff00 as u64);
+                    e.description(
+                        format!(
+                            "{user} has deleted {bot} ({bot_name})",
+                            user = UserId(user_id as u64).mention(),
+                            bot_name = bot_user.unwrap().user.username,
+                            bot = UserId(bot_id as u64).mention(),
+                        )
+                    );
+
+                    e
+                });
+                m
+            }).await;
+
+            return HttpResponse::Ok().json(models::APIResponse {
+                done: true,
+                reason: Some("Successfully transferred ownership".to_string()),
+                context: None
+            });    
+        }
+    } else {
+        error!("Delete bot auth error");
         models::CustomError::ForbiddenGeneric.error_response()
     }
 }

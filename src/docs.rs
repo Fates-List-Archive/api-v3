@@ -717,7 +717,7 @@ token ever gets leaked.
         auth_types: vec![models::RouteAuthType::Server]
     });
 
-    docs += &doc_category("Bot Auth");
+    docs += &doc_category("Bot Actions");
 
     docs += &doc(models::Route {
         title: "New Bot",
@@ -772,6 +772,63 @@ to false.
         },
         query_params: &models::Empty {},
         request_body: &models::Bot::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
+    });
+
+    docs += &doc(models::Route {
+        title: "Transfer Ownership",
+        method: "PATCH",
+        path: "/users/{user_id}/bots/{bot_id}/main-owner",
+description: r#"
+Transfers bot ownership.
+
+You **must** be main owner to use this endpoint.
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::BotOwner {
+            main: true,
+            user: models::User {
+                id: "id here".to_string(),
+                username: "Leave blank".to_string(),
+                disc: "Leave blank".to_string(),
+                avatar: "Leave blank".to_string(),
+                bot: false
+            }
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
+    });
+
+    docs += &doc(models::Route {
+        title: "Delete Bot",
+        method: "DELETE",
+        path: "/users/{user_id}/bots/{bot_id}",
+description: r#"
+Deletes a bot.
+
+You **must** be main owner to use this endpoint.
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
         response_body: &models::APIResponse {
             done: true,
             reason: None,

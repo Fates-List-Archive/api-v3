@@ -147,6 +147,7 @@ async fn main() -> std::io::Result<()> {
             .service(botactions::add_bot)
             .service(botactions::edit_bot)
             .service(botactions::transfer_ownership)
+            .service(botactions::delete_bot)
             .service(appeal::appeal_bot)
     })
     .workers(6)

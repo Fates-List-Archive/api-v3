@@ -697,6 +697,8 @@ impl Database {
                     user: self.get_user(bot).await,
                     description: desc.description.unwrap_or_default(),
                 });
+            } else {
+                // The bot does not exist, maybe deleted? TODO: Delete
             }
         }
         resolved_bots
