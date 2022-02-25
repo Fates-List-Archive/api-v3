@@ -1818,4 +1818,13 @@ impl Database {
             parent_id: row.parent_id,
         });
     }
+
+    pub async fn delete_review(&self, review_id: uuid::Uuid) -> Result<(), models::ReviewAddError> {
+        sqlx::query!("DELETE FROM reviews WHERE id = $1", review_id)
+            .execute(&self.pool)
+            .await
+            .map_err(models::ReviewAddError::SQLError)?;
+        
+        Ok(())
+    }
 }

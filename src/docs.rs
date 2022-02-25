@@ -1051,7 +1051,7 @@ also match the user token sent in the ``Authorization`` header
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![]
+        auth_types: vec![models::RouteAuthType::User]
     });
 
     // Return docs

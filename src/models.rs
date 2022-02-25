@@ -892,6 +892,11 @@ pub struct ReviewStats {
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ReviewDeletePath {
+    pub rid: uuid::Uuid,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct ParsedReview {
     pub reviews: Vec<Review>,
     pub per_page: i64,

@@ -1,6 +1,6 @@
 /// Handles reviews
 /// TODO, add websocket events
-use actix_web::{http, HttpRequest, get, post, patch, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, get, post, patch, delete, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use log::error;
@@ -245,6 +245,72 @@ async fn edit_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, qu
     return HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Successfully edited review".to_string()),
+        context: None,
+    });
+}
+
+#[delete("/reviews/{rid}")]
+async fn delete_review(req: HttpRequest, info: web::Path<models::ReviewDeletePath>, query: web::Query<models::ReviewQuery>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    let user_id = query.user_id;
+
+    if user_id.is_none() {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("User ID must be an i64".to_string()),
+            context: None,
+        });
+    }
+
+    let user_id = user_id.unwrap();
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    if !data.database.authorize_user(user_id, auth).await {
+        error!("Review Add Auth error");
+        return models::CustomError::ForbiddenGeneric.error_response();
+    }
+
+    let review_id = info.rid;
+
+    // Verify review ownership
+    let review_orig = data.database.get_single_review(review_id).await;
+
+    if review_orig.is_none() {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("Review does not exist".to_string()),
+            context: None,
+        });
+    }
+
+    let review_orig = review_orig.unwrap();
+
+    if review_orig.user.id != user_id.to_string() {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("You do not own this review".to_string()),
+            context: None,
+        });
+    }
+
+    let res = data.database.delete_review(review_id).await;
+
+    if res.is_err() {
+        let err = res.err().unwrap().to_string();
+        error!("Error deleting review: {:?}", err);
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some(err),
+            context: None,
+        });
+    }
+
+    return HttpResponse::Ok().json(models::APIResponse {
+        done: true,
+        reason: Some("Successfully deleted review".to_string()),
         context: None,
     });
 }
