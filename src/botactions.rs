@@ -274,7 +274,7 @@ async fn add_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web
                 },
                 main: true,
             });
-            let res = data.database.add_bot(bot.clone()).await;
+            let res = data.database.add_bot(&bot).await;
             if res.is_err() {
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,
@@ -356,7 +356,7 @@ async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: we
                 context: Some("Check error".to_string())
             });
         } else {
-            let res = data.database.edit_bot(user_id, bot.clone()).await;
+            let res = data.database.edit_bot(user_id, &bot).await;
             if res.is_err() {
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,

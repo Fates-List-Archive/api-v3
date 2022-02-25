@@ -872,7 +872,7 @@ pub struct Profile {
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Review {
-    pub id: uuid::Uuid,
+    pub id: Option<uuid::Uuid>,
     pub reply: bool,
     pub star_rating: bigdecimal::BigDecimal,
     pub review_text: String,
@@ -897,12 +897,14 @@ pub struct ParsedReview {
     pub per_page: i64,
     pub from: i64,
     pub stats: ReviewStats,
+    pub user_review: Option<Review>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct ReviewQuery {
     pub target_type: ReviewType,
-    pub page: i32,
+    pub page: Option<i32>,
+    pub user_id: Option<i64>,
 }
 
 // Error Handling

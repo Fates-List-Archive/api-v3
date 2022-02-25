@@ -1215,7 +1215,7 @@ impl Database {
         .unwrap();
     }
 
-    pub async fn add_bot(&self, bot: models::Bot) -> Result<(), sqlx::Error>{
+    pub async fn add_bot(&self, bot: &models::Bot) -> Result<(), sqlx::Error>{
         let id = bot.user.id.parse::<i64>().unwrap();
         let client_id = bot.client_id.parse::<i64>().unwrap_or(id);
 
@@ -1235,9 +1235,9 @@ impl Database {
             .await?;
         
         // Expand features to vec
-        let mut features = Vec::new();
-        for feature in bot.features {
-            features.push(feature.id);
+        let mut features: Vec<String> = Vec::new();
+        for feature in &bot.features {
+            features.push(feature.id.clone());
         }
 
 
@@ -1271,14 +1271,14 @@ impl Database {
             .await?;
         
         // Handle bot owners
-        for owner in bot.owners {
+        for owner in &bot.owners {
             sqlx::query!("INSERT INTO bot_owner (bot_id, owner, main) VALUES ($1, $2, $3)", id, owner.user.id.parse::<i64>().unwrap(), owner.main)
                 .execute(&mut tx)
                 .await?;
         }
 
         // Add bot tags
-        for tag in bot.tags {
+        for tag in &bot.tags {
             sqlx::query!("INSERT INTO bot_tags (bot_id, tag) VALUES ($1, $2)", id, tag.id)
                 .execute(&mut tx)
                 .await?;
@@ -1289,7 +1289,7 @@ impl Database {
         Ok(())
     }
 
-    pub async fn edit_bot(&self, user_id: i64, bot: models::Bot) -> Result<(), sqlx::Error>{
+    pub async fn edit_bot(&self, user_id: i64, bot: &models::Bot) -> Result<(), sqlx::Error>{
         let id = bot.user.id.parse::<i64>().unwrap();
         let client_id = bot.client_id.parse::<i64>().unwrap_or(id);
 
@@ -1297,8 +1297,8 @@ impl Database {
 
         // Expand features to vec
         let mut features = Vec::new();
-        for feature in bot.features {
-            features.push(feature.id);
+        for feature in &bot.features {
+            features.push(feature.id.clone());
         }
 
         sqlx::query!(
@@ -1330,7 +1330,7 @@ impl Database {
         .await?;
 
         // Handle bot owners
-        for owner in bot.owners {
+        for owner in &bot.owners {
             if owner.main {
                 continue
             }
@@ -1347,7 +1347,7 @@ impl Database {
         .await?;
 
         // Add bot tags
-        for tag in bot.tags {
+        for tag in &bot.tags {
             sqlx::query!("INSERT INTO bot_tags (bot_id, tag) VALUES ($1, $2)", id, tag.id)
                 .execute(&mut tx)
                 .await?;
@@ -1621,7 +1621,7 @@ impl Database {
 
         for row in rows {
             reviews.push(models::Review {
-                id: row.id,
+                id: Some(row.id),
                 user: self.get_user(row.user_id).await,
                 star_rating: row.star_rating,
                 epoch: row.epoch,
@@ -1663,7 +1663,7 @@ impl Database {
 
         for row in rows {
             reviews.push(models::Review {
-                id: row.id,
+                id: Some(row.id),
                 user: self.get_user(row.user_id).await,
                 review_text: row.review_text,
                 epoch: row.epoch,
@@ -1710,4 +1710,37 @@ impl Database {
         }
     }
 
+    /// Get reviews for *a* user (not replies)
+    pub async fn get_reviews_for_user(&self, user_id: i64, target_id: i64, target_type: models::ReviewType) -> Option<models::Review> {
+        let review = sqlx::query!(
+            "SELECT id, review_text, epoch, star_rating, review_upvotes::text[],
+            review_downvotes::text[], flagged FROM reviews WHERE target_id = $1 
+            AND target_type = $2 AND user_id = $3 AND parent_id IS NULL",
+            target_id,
+            target_type as i32,
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if review.is_err() {
+            return None;
+        }
+
+        let row = review.unwrap();
+
+        return Some(models::Review {
+            id: Some(row.id),
+            user: self.get_user(user_id).await,
+            review_text: row.review_text,
+            epoch: row.epoch,
+            flagged: row.flagged,
+            review_upvotes: row.review_upvotes.unwrap_or_default(),
+            review_downvotes: row.review_downvotes.unwrap_or_default(),
+            star_rating: row.star_rating,
+            replies: Vec::new(),
+            reply: false,
+            parent_id: None,
+        });
+    } 
 }

@@ -42,7 +42,7 @@ bigdecimal = { version = "0.2.2", features = ["serde"] }
 
 [profile.release-lto]
 inherits = "release"
-strip = true  # Automatically strip symbols from the binary.
+strip = "debuginfo"  # Automatically strip symbols from the binary.
 lto = "thin"
 
 [profile.release-fast]
