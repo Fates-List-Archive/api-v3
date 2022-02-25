@@ -674,8 +674,8 @@ impl Default for Bot {
 pub enum EventName {
     #[default]
     BotVote = 0,
-    BotEdit = 2,
-    BotDelete = 3,
+    BotEdit = 2, // Not sent anymore
+    BotDelete = 3, // Not sent anymore
     BotClaim = 4,
     BotApprove = 5, 
     BotDeny = 6, 
@@ -693,7 +693,7 @@ pub enum EventName {
     BotLock = 22, 
     BotUnlock = 23,
     ReviewVote = 30, 
-    ReviewAdd = 31, 
+    ReviewAdd = 31,
     ReviewEdit = 32, 
     ReviewDelete = 33,
     ResourceAdd = 40, 
@@ -954,6 +954,18 @@ impl SettingsError {
 pub enum BotActionMode {
     Add,
     Edit,
+}
+
+pub enum ReviewAddError {
+    SQLError(sqlx::Error)
+}
+
+impl ReviewAddError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::SQLError(e) => format!("SQL error: {}", e),
+        }
+    }
 }
 
 pub enum CheckBotError {

@@ -1605,8 +1605,10 @@ impl Database {
         })
     }
 
+    // Reviews
+
     #[async_recursion]
-    pub async fn get_replies(&self, parent_id: uuid::Uuid) -> Vec<models::Review> {
+    async fn get_review_replies(&self, parent_id: uuid::Uuid) -> Vec<models::Review> {
         let rows = sqlx::query!(
             "SELECT id, user_id, star_rating, epoch, review_upvotes::text[], 
             review_downvotes::text[], review_text, flagged FROM reviews 
@@ -1629,7 +1631,7 @@ impl Database {
                 review_downvotes: row.review_downvotes.unwrap_or_default(),
                 review_text: row.review_text,
                 flagged: row.flagged,
-                replies: self.get_replies(row.id).await,
+                replies: self.get_review_replies(row.id).await,
                 parent_id: Some(parent_id),
                 reply: true,
             });
@@ -1671,7 +1673,7 @@ impl Database {
                 review_upvotes: row.review_upvotes.unwrap_or_default(),
                 review_downvotes: row.review_downvotes.unwrap_or_default(),
                 star_rating: row.star_rating,
-                replies: self.get_replies(row.id).await,
+                replies: self.get_review_replies(row.id).await,
                 reply: false,
                 parent_id: None,
             });
@@ -1738,9 +1740,82 @@ impl Database {
             review_upvotes: row.review_upvotes.unwrap_or_default(),
             review_downvotes: row.review_downvotes.unwrap_or_default(),
             star_rating: row.star_rating,
-            replies: Vec::new(),
+            replies: self.get_review_replies(row.id).await,
             reply: false,
             parent_id: None,
         });
     } 
+
+    pub async fn add_review(&self, review: models::Review, user_id: i64, target_id: i64, target_type: models::ReviewType) -> Result<(), models::ReviewAddError> {
+        let review_id = uuid::Uuid::new_v4();
+
+        let review_type = match target_type {
+            models::ReviewType::Bot => 0,
+            models::ReviewType::Server => 1,
+        };
+
+        let review_insert = sqlx::query!(
+            "INSERT INTO reviews (id, user_id, target_id, target_type, parent_id, 
+            star_rating, review_text, flagged) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            review_id,
+            user_id,
+            target_id,
+            review_type,
+            review.parent_id,
+            review.star_rating,
+            review.review_text,
+            review.flagged
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::ReviewAddError::SQLError)?;
+
+        Ok(())
+    }
+
+    pub async fn edit_review(&self, review: models::Review, review_id: uuid::Uuid) -> Result<(), models::ReviewAddError> {
+        let review_insert = sqlx::query!(
+            "UPDATE reviews SET star_rating = $1, review_text = $2 WHERE id = $3",
+            review.star_rating,
+            review.review_text,
+            review.id,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::ReviewAddError::SQLError)?;
+
+        Ok(())
+    }
+
+    /// Gets a single review (including replies)
+    pub async fn get_single_review(&self, review_id: uuid::Uuid) -> Option<models::Review> {
+        let row = sqlx::query!(
+            "SELECT id, user_id, review_text, epoch, star_rating, review_upvotes::text[],
+            review_downvotes::text[], flagged, parent_id FROM reviews WHERE id = $1",
+            review_id,
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return None;
+        }
+
+        let row = row.unwrap();
+
+        return Some(models::Review {
+            id: Some(row.id),
+            user: self.get_user(row.user_id).await,
+            review_text: row.review_text,
+            epoch: row.epoch,
+            flagged: row.flagged,
+            review_upvotes: row.review_upvotes.unwrap_or_default(),
+            review_downvotes: row.review_downvotes.unwrap_or_default(),
+            star_rating: row.star_rating,
+            replies: Vec::new(),
+            reply: false,
+            parent_id: row.parent_id,
+        });
+    }
 }
