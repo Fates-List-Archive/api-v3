@@ -1,6 +1,8 @@
 use serde::Serialize;
 use crate::models;
 use bevy_reflect::{Reflect, Struct};
+use bigdecimal::FromPrimitive;
+
 
 fn _get_value_from(
     value: &dyn Reflect,
@@ -873,7 +875,7 @@ Creates a appeal/request for a bot.
     docs += &doc_category("Packs");
 
     docs += &doc(models::Route {
-        title: "Add Packs",
+        title: "Add Pack",
         method: "GET",
         path: "/users/{id}/packs",
 description: r#"
@@ -911,6 +913,58 @@ Gets a user profile.
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::Profile::default(),
+        equiv_v2_route: "None",
+        auth_types: vec![]
+    });
+
+    // TODO: User Preferences
+
+    docs += &doc_category("Reviews");
+
+    docs += &doc(models::Route {
+        title: "Get Reviews",
+        method: "GET",
+        path: "/reviews/{id}",
+description: r#"
+Gets reviews for a reviewable entity.
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+
+This reviewable entities id which is a ``i64`` is the id that is specifed in the
+path.
+
+``page`` must be greater than 0 or omitted (which will default to page 1).
+
+``user_id`` is optional for this endpoint but specifying it will provide ``user_reviews`` if
+the user has made a review. This will tell you the users review for the entity.
+
+``per_page`` (amount of root/non-reply reviews per page) is currently set to 9. 
+This may change in the future and is given by ``per_page`` key.
+
+``from`` contains the index/count of the first review of the page.
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::ReviewQuery {
+            page: Some(1),
+            user_id: Some(0),
+            target_type: models::ReviewType::Bot,
+        },
+        request_body: &models::Empty {},
+        response_body: &models::ParsedReview {
+            reviews: vec![models::Review::default()],
+            user_review: Some(models::Review::default()),
+            per_page: 9,
+            from: 0,
+            stats: models::ReviewStats {
+                total: 78,
+                average_stars: bigdecimal::BigDecimal::from_f32(8.8).unwrap()
+            },
+        },
         equiv_v2_route: "None",
         auth_types: vec![]
     });
