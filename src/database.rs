@@ -1610,8 +1610,7 @@ impl Database {
     #[async_recursion]
     async fn get_review_replies(&self, parent_id: uuid::Uuid) -> Vec<models::Review> {
         let rows = sqlx::query!(
-            "SELECT id, user_id, star_rating, epoch, review_upvotes::text[], 
-            review_downvotes::text[], review_text, flagged FROM reviews 
+            "SELECT id, user_id, star_rating, epoch, review_text, flagged FROM reviews 
             WHERE parent_id = $1",
             parent_id,
         )
@@ -1627,8 +1626,7 @@ impl Database {
                 user: self.get_user(row.user_id).await,
                 star_rating: row.star_rating,
                 epoch: row.epoch,
-                review_upvotes: row.review_upvotes.unwrap_or_default(),
-                review_downvotes: row.review_downvotes.unwrap_or_default(),
+                votes: self.get_review_votes(row.id).await,
                 review_text: row.review_text,
                 flagged: row.flagged,
                 replies: self.get_review_replies(row.id).await,
@@ -1650,9 +1648,8 @@ impl Database {
 
         // trim(stringexpression) != ''
         let rows = sqlx::query!(
-            "SELECT id, user_id, star_rating, epoch, review_upvotes::text[], 
-            review_downvotes::text[], review_text, flagged FROM reviews WHERE 
-            target_id = $1 AND target_type = $2 AND parent_id IS NULL 
+            "SELECT id, user_id, star_rating, epoch, review_text, flagged FROM reviews 
+            WHERE target_id = $1 AND target_type = $2 AND parent_id IS NULL 
             LIMIT $3 OFFSET $4",
             target_id,
             target_type_num,
@@ -1670,8 +1667,7 @@ impl Database {
                 review_text: row.review_text,
                 epoch: row.epoch,
                 flagged: row.flagged,
-                review_upvotes: row.review_upvotes.unwrap_or_default(),
-                review_downvotes: row.review_downvotes.unwrap_or_default(),
+                votes: self.get_review_votes(row.id).await,
                 star_rating: row.star_rating,
                 replies: self.get_review_replies(row.id).await,
                 reply: false,
@@ -1715,9 +1711,9 @@ impl Database {
     /// Get reviews for *a* user (not replies)
     pub async fn get_reviews_for_user(&self, user_id: i64, target_id: i64, target_type: models::ReviewType) -> Option<models::Review> {
         let review = sqlx::query!(
-            "SELECT id, review_text, epoch, star_rating, review_upvotes::text[],
-            review_downvotes::text[], flagged FROM reviews WHERE target_id = $1 
-            AND target_type = $2 AND user_id = $3 AND parent_id IS NULL",
+            "SELECT id, review_text, epoch, star_rating, flagged FROM reviews 
+            WHERE target_id = $1 AND target_type = $2 AND user_id = $3 AND parent_id 
+            IS NULL",
             target_id,
             target_type as i32,
             user_id
@@ -1737,8 +1733,7 @@ impl Database {
             review_text: row.review_text,
             epoch: row.epoch,
             flagged: row.flagged,
-            review_upvotes: row.review_upvotes.unwrap_or_default(),
-            review_downvotes: row.review_downvotes.unwrap_or_default(),
+            votes: self.get_review_votes(row.id).await,
             star_rating: row.star_rating,
             replies: self.get_review_replies(row.id).await,
             reply: false,
@@ -1788,11 +1783,53 @@ impl Database {
         Ok(())
     }
 
+    /// Get review votes for a review
+    pub async fn get_review_votes(&self, review_id: uuid::Uuid) -> models::ParsedReviewVotes {
+        let votes = sqlx::query!(
+            "SELECT user_id::text, upvote FROM review_votes WHERE id = $1",
+            review_id
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if votes.is_err() {
+            error!("Error getting review votes: {}", votes.err().unwrap());
+            return models::ParsedReviewVotes {
+                upvotes: Vec::new(),
+                downvotes: Vec::new(),
+                votes: Vec::new(),
+            };
+        } 
+        let votes = votes.unwrap();
+
+        let mut upvotes: Vec<String> = Vec::new();
+        let mut downvotes: Vec<String> = Vec::new();
+        let mut review_votes = Vec::new();
+        for vote in votes {
+            let id = vote.user_id.unwrap_or_default();
+            if vote.upvote {
+                upvotes.push(id.to_string());
+            } else {
+                downvotes.push(id.to_string());
+            }
+            review_votes.push(models::ReviewVote {
+                user_id: id.to_string(),
+                upvote: vote.upvote,
+            });
+        }
+
+        models::ParsedReviewVotes {
+            votes: review_votes,
+            upvotes,
+            downvotes,
+        }
+    }
+
     /// Gets a single review (including replies)
     pub async fn get_single_review(&self, review_id: uuid::Uuid) -> Option<models::Review> {
         let row = sqlx::query!(
-            "SELECT id, user_id, review_text, epoch, star_rating, review_upvotes::text[],
-            review_downvotes::text[], flagged, parent_id FROM reviews WHERE id = $1",
+            "SELECT id, user_id, review_text, epoch, star_rating, flagged, parent_id 
+            FROM reviews WHERE id = $1",
             review_id,
         )
         .fetch_one(&self.pool)
@@ -1810,8 +1847,7 @@ impl Database {
             review_text: row.review_text,
             epoch: row.epoch,
             flagged: row.flagged,
-            review_upvotes: row.review_upvotes.unwrap_or_default(),
-            review_downvotes: row.review_downvotes.unwrap_or_default(),
+            votes: self.get_review_votes(row.id).await,
             star_rating: row.star_rating,
             replies: Vec::new(),
             reply: false,
@@ -1825,6 +1861,22 @@ impl Database {
             .await
             .map_err(models::ReviewAddError::SQLError)?;
         
+        Ok(())
+    }
+
+    pub async fn add_review_vote(&self, review_id: uuid::Uuid, user_id: i64, upvote: bool) -> Result<(), models::ReviewAddError> {
+        sqlx::query!(
+            "INSERT INTO review_votes (user_id, upvote, id) 
+            VALUES ($1, $2, $3) ON CONFLICT (user_id, id) 
+            DO UPDATE SET upvote = excluded.upvote;
+            ",
+            user_id,
+            upvote,
+            review_id
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::ReviewAddError::SQLError)?;
         Ok(())
     }
 }

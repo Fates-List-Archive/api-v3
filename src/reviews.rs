@@ -1,5 +1,5 @@
 /// Handles reviews
-/// TODO, add websocket events
+/// TODO, add websocket events *if desired*
 use actix_web::{http, HttpRequest, get, post, patch, delete, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
@@ -273,7 +273,15 @@ async fn delete_review(req: HttpRequest, info: web::Path<models::ReviewDeletePat
         return models::CustomError::ForbiddenGeneric.error_response();
     }
 
-    let review_id = info.rid;
+    let review_id = uuid::Uuid::parse_str(&info.rid);
+    if review_id.is_err() {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("Review ID must be a valid UUID".to_string()),
+            context: None,
+        });
+    }
+    let review_id = review_id.unwrap();
 
     // Verify review ownership
     let review_orig = data.database.get_single_review(review_id).await;
@@ -311,6 +319,76 @@ async fn delete_review(req: HttpRequest, info: web::Path<models::ReviewDeletePat
     return HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Successfully deleted review".to_string()),
+        context: None,
+    });
+}
+
+
+#[patch("/reviews/{rid}/votes")]
+async fn vote_review(req: HttpRequest, info: web::Path<models::ReviewDeletePath>, vote: web::Json<models::ReviewVote>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    let user_id = vote.user_id.parse::<i64>();
+
+    if user_id.is_err() {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("User ID must be an i64".to_string()),
+            context: None,
+        });
+    }
+
+    let user_id = user_id.unwrap();
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    if !data.database.authorize_user(user_id, auth).await {
+        error!("Review Vote Auth error");
+        return models::CustomError::ForbiddenGeneric.error_response();
+    }
+
+    let review_id = uuid::Uuid::parse_str(&info.rid);
+    if review_id.is_err() {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("Review ID must be a valid UUID".to_string()),
+            context: None,
+        });
+    }
+    let review_id = review_id.unwrap();
+
+    let upvote = vote.upvote;
+
+    let res = data.database.get_review_votes(review_id).await;
+
+    if (upvote && res.upvotes.contains(&vote.user_id)) || (!upvote && res.downvotes.contains(&vote.user_id)) {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some(
+                format!(
+                    "You have already voted on this review. Click the {button} to {button} it.",
+                    button = if upvote { "upvote" } else { "downvote" }
+                )
+            ),
+            context: None,
+        });
+    }
+
+    let res = data.database.add_review_vote(review_id, user_id, upvote).await;
+    if res.is_err() {
+        let err = res.err().unwrap().to_string();
+        error!("Error adding review vote: {:?}", err);
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some(err),
+            context: None,
+        });
+    }
+
+    return HttpResponse::Ok().json(models::APIResponse {
+        done: true,
+        reason: Some("Successfully voted for this review".to_string()),
         context: None,
     });
 }

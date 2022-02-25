@@ -1054,6 +1054,82 @@ also match the user token sent in the ``Authorization`` header
         auth_types: vec![models::RouteAuthType::User]
     });
 
+    docs += &doc(models::Route {
+        title: "Delete Review",
+        method: "DELETE",
+        path: "/reviews/{rid}",
+description: r#"
+Deletes a review
+
+``rid`` must be a valid uuid.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+
+``target_type`` is not currently checked but it is a good idea to set it anyways. You must
+set this a ReviewType anyways so you might as well set it correctly.
+"#,
+        path_params: &models::ReviewDeletePath {
+            rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
+        },
+        query_params: &models::ReviewQuery {
+            page: None,
+            user_id: Some(0),
+            target_type: models::ReviewType::Bot,
+        },
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
+    });
+
+    docs += &doc(models::Route {
+        title: "Vote Review",
+        method: "PATCH",
+        path: "/reviews/{rid}/votes",
+description: r#"
+Creates a vote for a review
+
+``rid`` must be a valid uuid.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header. 
+
+**Unlike other review APIs, ``user_id`` here is in request body as ReviewVote object**
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+
+**This endpoint does not require ``target_type`` at all. You can safely omit it**
+"#,
+        path_params: &models::ReviewDeletePath {
+            rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
+        },
+        query_params: &models::Empty {},
+        request_body: &models::ReviewVote {
+            user_id: "user id here".to_string(),
+            upvote: true,
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
+    });
+
     // Return docs
     docs
 }

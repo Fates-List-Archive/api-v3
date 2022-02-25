@@ -160,6 +160,7 @@ async fn main() -> std::io::Result<()> {
             .service(reviews::add_review)
             .service(reviews::edit_review)
             .service(reviews::delete_review)
+            .service(reviews::vote_review)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?
