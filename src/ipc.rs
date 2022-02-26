@@ -45,26 +45,6 @@ async fn ipc_call(call: &mut IpcCall) -> Result<String, IpcErr> {
     }
 }
 
-pub async fn ws_event<T: 'static + Serialize + Clone + Send>(redis: deadpool_redis::Pool, event: models::Event<T>) {
-    let cloned_event = event.clone();
-    let mut call = IpcCall {
-        redis,
-        cmd: "WSEVENT".to_string(),
-        args: vec![cloned_event.ctx.target.to_string(), cloned_event.m.eid, models::EventTargetType::to_arg(event.ctx.target_type).to_string()],
-        message: serde_json::to_string(&event).unwrap(),
-        timeout: 30,
-    };
-    let res = ipc_call(&mut call).await;
-    match res {
-        Ok(res) => {
-            debug!("WSEvent Response: {:?}", res);
-        }
-        Err(err) => {
-            debug!("WSEvent Response: {:?}", err);
-        }
-    }
-}
-
 /// Use 0 if user_id is unset
 pub async fn resolve_guild_invite(redis: deadpool_redis::Pool, guild_id: i64, user_id: i64) -> String {
     let mut call = IpcCall {

@@ -776,8 +776,8 @@ pub enum EventTargetType {
 impl EventTargetType {
     pub fn to_arg(t: EventTargetType) -> &'static str {
         match t {
-            EventTargetType::Bot => "1",
-            EventTargetType::Server => "0",
+            EventTargetType::Bot => "bot",
+            EventTargetType::Server => "server",
         }
     }
 }

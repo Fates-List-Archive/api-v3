@@ -965,7 +965,17 @@ impl Database {
     }
 
     pub async fn ws_event<T: 'static + Serialize + Clone + Send>(&self, event: models::Event<T>) {
-        task::spawn(ipc::ws_event(self.redis.clone(), event));
+        let mut conn = self.redis.get().await.unwrap();
+        // Push to required channel
+        let hashmap = indexmap![
+            event.m.eid.clone() => &event
+        ];
+        let message: String = serde_json::to_string(&hashmap).unwrap();
+        let channel: String = models::EventTargetType::to_arg(event.ctx.target_type).to_owned() + "-" + &event.ctx.target;
+        let _: () = conn.publish(
+            channel,
+            message,
+        ).await.unwrap();
     }
 
     pub async fn create_user_oauth(&self, user: models::OauthUser) -> Result<models::OauthUserLogin, sqlx::Error> {

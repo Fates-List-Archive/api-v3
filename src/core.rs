@@ -95,30 +95,29 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
                     if data.database.authorize_user(user_id_i64, token.as_ref()).await {
                         event_user = Some(user_id_str);
                     }
-
-                    let event = models::Event {
-                        m: models::EventMeta {
-                            e: models::EventName::BotView,
-                            eid: Uuid::new_v4().to_hyphenated().to_string(),
-                        },
-                        ctx: models::EventContext {
-                            target: id.id.to_string(),
-                            target_type: models::EventTargetType::Bot,
-                            user: event_user,
-                        },
-                        props: models::BotViewProp {
-                            vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
-                            widget: false,
-                            invite: req.headers().contains_key("Frostpaw-Invite")
-                        }
-                    }; 
-                    data.database.ws_event(event).await;
                 }
                 Err(err) => {
                     error!("{}", err);
                 }
             }
         }
+        let event = models::Event {
+            m: models::EventMeta {
+                e: models::EventName::BotView,
+                eid: Uuid::new_v4().to_hyphenated().to_string(),
+            },
+            ctx: models::EventContext {
+                target: id.id.to_string(),
+                target_type: models::EventTargetType::Bot,
+                user: event_user,
+            },
+            props: models::BotViewProp {
+                vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
+                widget: false,
+                invite: req.headers().contains_key("Frostpaw-Invite")
+            }
+        }; 
+        data.database.ws_event(event).await;
     }
 
     if req.headers().contains_key("Frostpaw-Invite") {
@@ -174,30 +173,29 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info:
                     if data.database.authorize_user(user_id_i64, token.as_ref()).await {
                         event_user = Some(user_id_str);
                     }
-
-                    let event = models::Event {
-                        m: models::EventMeta {
-                            e: models::EventName::ServerView,
-                            eid: Uuid::new_v4().to_hyphenated().to_string(),
-                        },
-                        ctx: models::EventContext {
-                            target: id.id.to_string(),
-                            target_type: models::EventTargetType::Server,
-                            user: event_user.clone(),
-                        },
-                        props: models::BotViewProp {
-                            vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
-                            widget: false,
-                            invite: req.headers().contains_key("Frostpaw-Invite")
-                        }
-                    }; 
-                    data.database.ws_event(event).await;
                 }
                 Err(err) => {
                     error!("{}", err);
                 }
             }
         }
+        let event = models::Event {
+            m: models::EventMeta {
+                e: models::EventName::ServerView,
+                eid: Uuid::new_v4().to_hyphenated().to_string(),
+            },
+            ctx: models::EventContext {
+                target: id.id.to_string(),
+                target_type: models::EventTargetType::Server,
+                user: event_user.clone(),
+            },
+            props: models::BotViewProp {
+                vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
+                widget: false,
+                invite: req.headers().contains_key("Frostpaw-Invite")
+            }
+        }; 
+        data.database.ws_event(event).await;
     }
 
     let mut invite_link: Option<String> = None;
