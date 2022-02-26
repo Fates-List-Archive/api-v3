@@ -798,11 +798,12 @@ pub struct BotViewProp {
     pub invite: bool,
 }
 
-#[derive(Eq, Serialize, Deserialize, PartialEq, Clone, Copy, Default, Reflect)]
+#[derive(Eq, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Reflect)]
+#[repr(i32)]
 pub enum TargetType {
     #[default]
-    Bot,
-    Server,
+    Bot = 0,
+    Server = 1,
 }
 
 impl TargetType {

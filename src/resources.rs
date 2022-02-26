@@ -24,11 +24,20 @@ async fn add_resource(
     ) {
         // Add resource
         let res = res.into_inner();
+
+        if !res.resource_link.starts_with("https://") {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("Resource link must start with https://".to_string()),
+                context: Some("Check error".to_string())
+            });        
+        }
+
         let res = data.database.add_resource(id, target_type.target_type, res).await;
         if res.is_ok() {
             return HttpResponse::Ok().json(models::APIResponse {
                 done: true,
-                reason: Some("Successfully added review to v3 :)".to_string()),
+                reason: Some("Successfully added resource to v3 :)".to_string()),
                 context: None,
             });
         } else {
