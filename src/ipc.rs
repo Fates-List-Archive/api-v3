@@ -1,6 +1,5 @@
 use uuid::Uuid;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::models;
 use deadpool_redis::redis::AsyncCommands;
 use serde::Serialize;
 use log::{error, debug};
@@ -65,42 +64,4 @@ pub async fn resolve_guild_invite(redis: deadpool_redis::Pool, guild_id: i64, us
             format!("{:?}", err)
         }
     }
-}
-
-/// Gets a user
-pub async fn get_user(redis: deadpool_redis::Pool, user_id: i64) -> models::User {
-    // First check cache
-    let mut conn = redis.get().await.unwrap();
-    let data: String = conn.get("user-cache:".to_string() + &user_id.to_string()).await.unwrap_or_else(|_| "".to_string());
-    if !data.is_empty() {
-        let user: Option<models::User> = serde_json::from_str(&data).unwrap_or(None);
-        if user.is_some() {
-            return user.unwrap();
-        }
-    }
-
-    // Then call baypaw (http://localhost:1234/getch/928702343732658256)
-    let req = reqwest::Client::builder()
-    .user_agent("DiscordBot (https://fateslist.xyz, 0.1) FatesList-Lightleap-WarriorCats")
-    .build()
-    .unwrap()
-    .get("http://localhost:1234/getch/".to_string() + &user_id.to_string())
-    .timeout(std::time::Duration::from_secs(30));
-
-    let res = req.send().await.unwrap();
-
-    let user: models::User = res.json().await.unwrap_or_else(|_| models::User {
-        id: "".to_string(),
-        username: "Unknown User".to_string(),
-        disc: "0000".to_string(),
-        avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
-        bot: false,
-    });
-    
-    if user.id.is_empty() {
-        conn.set_ex("user-cache:".to_string() + &user_id.to_string(), serde_json::to_string(&user).unwrap(), 60*60*1).await.unwrap_or_else(|_| "".to_string());
-    } else {
-        conn.set_ex("user-cache:".to_string() + &user_id.to_string(), serde_json::to_string(&user).unwrap(), 60*60*8).await.unwrap_or_else(|_| "".to_string());
-    }
-    return user;
 }

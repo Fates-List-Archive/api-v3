@@ -68,12 +68,11 @@ async fn partners(req: HttpRequest) -> HttpResponse {
 
 // Bot route
 #[get("/bots/{id}")]
-async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
+async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let id = id.into_inner();
 
-    // This code *does not work IPC side yet due to needed flamepaw changes*
     if req.headers().contains_key("Frostpaw") {
         let auth_default = &HeaderValue::from_str("").unwrap();
         let auth = req.headers().get("Frostpaw-Auth").unwrap_or(auth_default);
@@ -145,14 +144,13 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: we
 
 // Server route
 #[get("/servers/{id}")]
-async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>, info: web::Query<models::FetchBotQuery>) -> HttpResponse {
+async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let id = id.into_inner();
 
     let mut event_user: Option<String> = None;
 
-    // TODO: This code *does not work IPC side yet due to needed flamepaw changes
     if req.headers().contains_key("Frostpaw") {
         let auth_default = &HeaderValue::from_str("").unwrap();
         let auth = req.headers().get("Frostpaw-Auth").unwrap_or(auth_default);

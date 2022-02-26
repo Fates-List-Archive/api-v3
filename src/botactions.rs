@@ -464,26 +464,26 @@ async fn transfer_ownership(req: HttpRequest, id: web::Path<models::GetUserBotPa
             });
         }
 
-            let res = data.database.transfer_ownership(user_id, bot_id, owner.clone()).await;
-            let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
-                m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
-                    e.title("Bot Ownership Transfer!");
-                    e.color(0x00ff00 as u64);
-                    e.description(
-                        format!(
-                            "{user} has transferred ownership of {bot} ({bot_name}) to {new_owner}!",
-                            user = UserId(user_id as u64).mention(),
-                            bot_name = bot_user.unwrap().user.username,
-                            bot = UserId(bot_id as u64).mention(),
-                            new_owner = UserId(owner.user.id.parse::<u64>().unwrap_or(0)).mention()
-                        )
-                    );
+        data.database.transfer_ownership(user_id, bot_id, owner.clone()).await;
+        let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+            m.embed(|e| {
+                e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
+                e.title("Bot Ownership Transfer!");
+                e.color(0x00ff00 as u64);
+                e.description(
+                    format!(
+                        "{user} has transferred ownership of {bot} ({bot_name}) to {new_owner}!",
+                        user = UserId(user_id as u64).mention(),
+                        bot_name = bot_user.unwrap().user.username,
+                        bot = UserId(bot_id as u64).mention(),
+                        new_owner = UserId(owner.user.id.parse::<u64>().unwrap_or(0)).mention()
+                    )
+                );
 
-                    e
-                });
-                m
-            }).await;
+                e
+            });
+            m
+        }).await;
 
         return HttpResponse::Ok().json(models::APIResponse {
             done: true,

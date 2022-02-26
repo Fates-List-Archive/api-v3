@@ -1004,7 +1004,6 @@ impl ReviewAddError {
 pub enum CheckBotError {
     AlreadyExists,
     BotBannedOrDenied(State),
-    SQLError(sqlx::Error),
     ClientIDImmutable,
     PrefixTooLong,
     NoVanity,
@@ -1061,7 +1060,6 @@ impl CheckBotError {
             Self::InvalidGithub => "Your github must be a valid github link starting with https://www.github.com or https://github.com".to_string(),
             Self::InvalidPrivacyPolicy => "Your privacy policy must be a valid link starting with https:// (note the s), not http://".to_string(),
             Self::InvalidDonate => "Your donate must be a valid link starting with https:// (note the s), not http://".to_string(),
-            Self::SQLError(e) => format!("SQL error: {}", e),
             Self::EditLocked => "This bot has either been locked by staff or has been edit locked by the main owner of the bot".to_string(),
             Self::OwnerListTooLong => "The owner list is too long. You may only have a maximum of 5 extra owners".to_string(),
             Self::OwnerIDParseError => "An owner ID in your owner list is invalid".to_string(),

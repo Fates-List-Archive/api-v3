@@ -1,5 +1,5 @@
 /// Endpoints to manage security related features such as token regeneration
-use actix_web::{http, HttpRequest, delete, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, delete, web, HttpResponse, ResponseError};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use log::error;

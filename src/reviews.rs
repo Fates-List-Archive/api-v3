@@ -158,8 +158,9 @@ async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, que
     });
 }
 
+/// The FetchBotPath is not needed but we need to maintain a uniform API
 #[patch("/reviews/{id}")]
-async fn edit_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, query: web::Query<models::ReviewQuery>, review: web::Json<models::Review>) -> HttpResponse {
+async fn edit_review(req: HttpRequest, _: web::Path<models::FetchBotPath>, query: web::Query<models::ReviewQuery>, review: web::Json<models::Review>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let user_id = query.user_id;
@@ -230,7 +231,7 @@ async fn edit_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, qu
         });
     }
 
-    let res = data.database.edit_review(review.into_inner(), review_id).await;
+    let res = data.database.edit_review(review.into_inner()).await;
 
     if res.is_err() {
         let err = res.err().unwrap().to_string();

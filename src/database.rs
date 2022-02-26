@@ -34,7 +34,40 @@ impl Database {
     }
 
     pub async fn get_user(&self, user_id: i64) -> models::User {
-        ipc::get_user(self.redis.clone(), user_id).await
+        // First check cache
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn.get("user-cache:".to_string() + &user_id.to_string()).await.unwrap_or_else(|_| "".to_string());
+        if !data.is_empty() {
+            let user: Option<models::User> = serde_json::from_str(&data).unwrap_or(None);
+            if user.is_some() {
+                return user.unwrap();
+            }
+        }
+
+        // Then call baypaw (http://localhost:1234/getch/928702343732658256)
+        let req = reqwest::Client::builder()
+        .user_agent("DiscordBot (https://fateslist.xyz, 0.1) FatesList-Lightleap-WarriorCats")
+        .build()
+        .unwrap()
+        .get("http://localhost:1234/getch/".to_string() + &user_id.to_string())
+        .timeout(std::time::Duration::from_secs(30));
+
+        let res = req.send().await.unwrap();
+
+        let user: models::User = res.json().await.unwrap_or_else(|_| models::User {
+            id: "".to_string(),
+            username: "Unknown User".to_string(),
+            disc: "0000".to_string(),
+            avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
+            bot: false,
+        });
+        
+        if user.id.is_empty() {
+            conn.set_ex("user-cache:".to_string() + &user_id.to_string(), serde_json::to_string(&user).unwrap(), 60*60*1).await.unwrap_or_else(|_| "".to_string());
+        } else {
+            conn.set_ex("user-cache:".to_string() + &user_id.to_string(), serde_json::to_string(&user).unwrap(), 60*60*8).await.unwrap_or_else(|_| "".to_string());
+        }
+        return user;
     }
 
     pub async fn index_bots(&self, state: models::State) -> Vec<models::IndexBot> {
@@ -1791,7 +1824,7 @@ impl Database {
             models::ReviewType::Server => 1,
         };
 
-        let review_insert = sqlx::query!(
+        sqlx::query!(
             "INSERT INTO reviews (id, user_id, target_id, target_type, parent_id, 
             star_rating, review_text, flagged) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
@@ -1811,8 +1844,8 @@ impl Database {
         Ok(())
     }
 
-    pub async fn edit_review(&self, review: models::Review, review_id: uuid::Uuid) -> Result<(), models::ReviewAddError> {
-        let review_insert = sqlx::query!(
+    pub async fn edit_review(&self, review: models::Review) -> Result<(), models::ReviewAddError> {
+        sqlx::query!(
             "UPDATE reviews SET star_rating = $1, review_text = $2 WHERE id = $3",
             review.star_rating,
             review.review_text,
