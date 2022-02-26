@@ -156,6 +156,7 @@ async fn main() -> std::io::Result<()> {
             .service(packs::edit_pack)
             .service(packs::delete_pack)
             .service(user::get_profile)
+            .service(user::update_profile)
             .service(reviews::get_reviews)
             .service(reviews::add_review)
             .service(reviews::edit_review)

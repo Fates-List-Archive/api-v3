@@ -57,7 +57,7 @@ pub enum UserState {
     #[default]
     Normal = 0,
     GlobalBan = 1,
-    ProfileBan = 2,
+    ProfileEditBan = 2,
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
@@ -872,6 +872,7 @@ pub struct Profile {
     pub vote_reminder_channel: Option<String>,
     pub packs: Vec<BotPack>,
     pub state: UserState,
+    pub site_lang: String,
     pub action_logs: Vec<ActionLog>,
 }
 
@@ -925,6 +926,21 @@ pub struct ReviewQuery {
 }
 
 // Error Handling
+pub enum ProfileCheckError {
+    SQLError(sqlx::Error),
+    InvalidVoteReminderChannel
+}
+
+impl ProfileCheckError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::SQLError(e) => format!("SQL Error: {}", e),
+            Self::InvalidVoteReminderChannel => "Invalid vote reminder channel. Are you sure its a valid channel ID?".to_string(),
+        }
+    }
+}
+
+
 #[derive(Error, Debug)]
 pub enum CustomError {
     #[error("Not Found")]

@@ -1602,11 +1602,43 @@ impl Database {
             user: self.get_user(user_id).await,
             user_css: row.user_css.unwrap_or_default(),
             profile_css: row.profile_css,
+            site_lang: row.site_lang.unwrap_or_else(|| "en".to_string())
         })
     }
 
-    // Reviews
+    pub async fn update_profile(&self, user_id: i64, profile: models::Profile) -> Result<(), models::ProfileCheckError> {
+        // This only updates profile-editable fields, it does not create packs etc.
+        let vote_reminder_channel: Option<i64>;
+        if let Some(vrc) = profile.vote_reminder_channel {
+            if vrc.is_empty() {
+                vote_reminder_channel = None;
+            } else {
+                let parsed = vrc.parse::<i64>();
 
+                if parsed.is_err() {
+                    return Err(models::ProfileCheckError::InvalidVoteReminderChannel);
+                }
+                vote_reminder_channel = Some(parsed.unwrap());
+            }
+        } else {
+            vote_reminder_channel = None;
+        }
+        
+        sqlx::query!(
+            "UPDATE users SET description = $1, site_lang = $2, 
+            user_css = $3, profile_css = $4, vote_reminder_channel = $5 
+            WHERE user_id = $6",
+            profile.description, profile.site_lang, profile.user_css, profile.profile_css, 
+            vote_reminder_channel, user_id
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::ProfileCheckError::SQLError)?;
+
+        Ok(())
+    }
+
+    // Reviews
     #[async_recursion]
     async fn get_review_replies(&self, parent_id: uuid::Uuid) -> Vec<models::Review> {
         let rows = sqlx::query!(

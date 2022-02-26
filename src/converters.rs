@@ -63,3 +63,12 @@ pub fn create_token(length: usize) -> String {
     .map(char::from)
     .collect()
 }
+
+pub fn flags_check(flag_list: Vec<models::Flags>, flag_vec: Vec<models::Flags>) -> bool{
+    for flag in flag_vec {
+        if !flag_list.contains(&flag) {
+            return true;
+        }
+    }
+    return false;
+}
