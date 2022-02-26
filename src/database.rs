@@ -553,7 +553,7 @@ impl Database {
 
                 for resource in resources_row.iter() {
                     resources.push(models::Resource {
-                        id: resource.id.to_string(),
+                        id: Some(resource.id.to_string()),
                         resource_title: resource.resource_title.clone(),
                         resource_link: resource.resource_link.clone(),
                         resource_description: resource.resource_description.clone(),
@@ -629,6 +629,17 @@ impl Database {
                     owners_html,
                     action_logs,
                 };
+
+                // This is a good time to update the db's username_cached
+                sqlx::query!(
+                    "UPDATE bots SET username_cached = $1 WHERE bot_id = $2",
+                    bot.user.username.clone(),
+                    bot_id
+                )
+                .execute(&self.pool)
+                .await
+                .unwrap();
+
                 let mut conn = self.redis.get().await.unwrap();
                 conn.set_ex("bot:".to_string() + &bot_id.to_string(), serde_json::to_string(&bot).unwrap(), 60).await.unwrap_or_else(|_| "".to_string());        
                 Some(bot)
@@ -1004,7 +1015,7 @@ impl Database {
             event.m.eid.clone() => &event
         ];
         let message: String = serde_json::to_string(&hashmap).unwrap();
-        let channel: String = models::EventTargetType::to_arg(event.ctx.target_type).to_owned() + "-" + &event.ctx.target;
+        let channel: String = models::TargetType::to_arg(event.ctx.target_type).to_owned() + "-" + &event.ctx.target;
         let _: () = conn.publish(
             channel,
             message,
@@ -1953,5 +1964,190 @@ impl Database {
         .await
         .map_err(models::ReviewAddError::SQLError)?;
         Ok(())
+    }
+
+    // Stats functions
+    pub async fn get_bot_count(&self) -> i64 {
+        let row = sqlx::query!(
+            "SELECT COUNT(*) FROM bots"
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return 0;
+        }
+
+        let row = row.unwrap();
+
+        return row.count.unwrap();
+    }
+
+    pub async fn get_user_count(&self) -> i64 {
+        let row = sqlx::query!(
+            "SELECT COUNT(*) FROM users"
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return 0;
+        }
+
+        let row = row.unwrap();
+
+        return row.count.unwrap();
+    }
+    pub async fn get_server_count(&self) -> i64 {
+        let row = sqlx::query!(
+            "SELECT COUNT(*) FROM servers"
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return 0;
+        }
+
+        let row = row.unwrap();
+
+        return row.count.unwrap();
+    }
+
+    pub async fn get_all_bots(&self) -> Vec<models::IndexBot> {
+        let rows = sqlx::query!(
+            "SELECT bot_id, username_cached, guild_count, banner_card, 
+            description, votes, state, nsfw, flags FROM bots ORDER BY
+            votes DESC"
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if rows.is_err() {
+            return Vec::new();
+        }
+
+        let rows = rows.unwrap();
+
+        let mut list = Vec::new();
+
+        for row in rows {
+            let state = models::State::try_from(row.state).unwrap_or(models::State::Banned);
+
+            let mut avatar: String = "https://api.fateslist.xyz/static/botlisticon.webp".to_string();
+
+            if state == models::State::Certified {
+                let user = self.get_user(row.bot_id).await;
+                avatar = user.avatar;
+            }
+
+            list.push(models::IndexBot {
+                user: models::User {
+                    id: row.bot_id.to_string(),
+                    username: row.username_cached.unwrap_or_else(|| "Unknown User".to_string()),
+                    disc: "0000".to_string(), // This is unknown
+                    avatar: avatar, // This is unknown
+                    bot: true,
+                },
+                state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
+                description: row.description.unwrap_or_else(|| "No description found!".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+                guild_count: row.guild_count.unwrap_or_default(),
+                votes: row.votes.unwrap_or_default(),
+                nsfw: row.nsfw.unwrap_or_default(),
+                flags: row.flags.unwrap_or_default(),
+            });
+        }
+
+        list
+    }
+
+    pub async fn get_all_servers(&self) -> Vec<models::IndexBot> {
+        let rows = sqlx::query!(
+            "SELECT guild_id, name_cached, guild_count, banner_card, 
+            description, votes, state, nsfw, flags FROM servers"
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if rows.is_err() {
+            return Vec::new();
+        }
+
+        let rows = rows.unwrap();
+
+        let mut list = Vec::new();
+
+        for row in rows {
+            list.push(models::IndexBot {
+                user: models::User {
+                    id: row.guild_id.to_string(),
+                    username: row.name_cached,
+                    disc: "0000".to_string(), // This is unknown
+                    avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(), // This is unknown
+                    bot: true,
+                },
+                state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
+                description: row.description.unwrap_or_else(|| "No description found!".to_string()),
+                banner: row.banner_card.clone().unwrap_or_else(|| "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()),
+                guild_count: row.guild_count.unwrap_or_default(),
+                votes: row.votes.unwrap_or_default(),
+                nsfw: row.nsfw.unwrap_or_default(),
+                flags: row.flags.unwrap_or_default(),
+            });
+        }
+
+        list
+    }
+
+    // Resources
+    pub async fn add_resource(&self, target_id: i64, target_type: models::TargetType, resource: models::Resource) -> Result<(), models::ResourceAddError> {
+        sqlx::query!(
+            "INSERT INTO resources (target_id, target_type, 
+            resource_title, resource_link, resource_description) 
+            VALUES ($1, $2, $3, $4, $5)",
+            target_id,
+            target_type as i32,
+            resource.resource_title,
+            resource.resource_link,
+            resource.resource_description,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::ResourceAddError::SQLError)?;
+
+        Ok(())
+    }
+
+    pub async fn delete_resource(&self, resource_id: uuid::Uuid) -> Result<(), models::ResourceAddError> {
+        sqlx::query!(
+            "DELETE FROM resources WHERE id = $1",
+            resource_id,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::ResourceAddError::SQLError)?;
+
+        Ok(())
+    }
+
+    pub async fn resource_exists(&self, resource_id: uuid::Uuid, target_id: i64, target_type: models::TargetType) -> bool {
+        let row = sqlx::query!(
+            "SELECT COUNT(*) FROM resources WHERE
+            id = $1 AND target_id = $2 AND target_type = $3",
+            resource_id,
+            target_id,
+            target_type as i32,
+        )
+        .fetch_one(&self.pool)
+        .await;
+        
+        if row.is_err() {
+            return false;
+        }
+
+        let row = row.unwrap();
+
+        return row.count.unwrap_or_default() >= 1;
     }
 }

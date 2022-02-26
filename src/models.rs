@@ -297,6 +297,27 @@ pub struct Secrets {
     pub japi_key: String,
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ListStats {
+    pub total_bots: i64,
+    pub total_servers: i64,
+    pub total_users: i64,
+    pub bots: Vec<IndexBot>,
+    pub servers: Vec<IndexBot>,
+    pub uptime: f64,
+    pub cpu_idle: f64,
+    pub mem_total: u64,
+    pub mem_free: u64,
+    pub mem_available: u64,
+    pub swap_total: u64,
+    pub swap_free: u64,
+    pub mem_dirty: u64,
+    pub mem_active: u64,
+    pub mem_inactive: u64,
+    pub mem_buffers: u64,
+    pub mem_committed: u64,
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Partner {
     pub id: String,
@@ -456,10 +477,21 @@ pub struct BotCommand {
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Resource {
-    pub id: String,
+    pub id: Option<String>,
     pub resource_title: String,
     pub resource_link: String,
     pub resource_description: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
+pub struct ResourceDeleteQuery {
+    pub id: String,
+    pub target_type: TargetType
+}
+
+#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
+pub struct TargetQuery {
+    pub target_type: TargetType,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -766,18 +798,18 @@ pub struct BotViewProp {
     pub invite: bool,
 }
 
-#[derive(Eq, Serialize, Deserialize, PartialEq, Clone, Copy, Default)]
-pub enum EventTargetType {
+#[derive(Eq, Serialize, Deserialize, PartialEq, Clone, Copy, Default, Reflect)]
+pub enum TargetType {
     #[default]
     Bot,
     Server,
 }
 
-impl EventTargetType {
-    pub fn to_arg(t: EventTargetType) -> &'static str {
+impl TargetType {
+    pub fn to_arg(t: TargetType) -> &'static str {
         match t {
-            EventTargetType::Bot => "bot",
-            EventTargetType::Server => "server",
+            TargetType::Bot => "bot",
+            TargetType::Server => "server",
         }
     }
 }
@@ -786,7 +818,7 @@ impl EventTargetType {
 pub struct EventContext {
     pub user: Option<String>,
     pub target: String,
-    pub target_type: EventTargetType,
+    pub target_type: TargetType,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -936,6 +968,18 @@ impl ProfileCheckError {
         match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
             Self::InvalidVoteReminderChannel => "Invalid vote reminder channel. Are you sure its a valid channel ID?".to_string(),
+        }
+    }
+}
+
+pub enum ResourceAddError {
+    SQLError(sqlx::Error),
+}
+
+impl ResourceAddError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::SQLError(e) => format!("SQL Error: {}", e),
         }
     }
 }

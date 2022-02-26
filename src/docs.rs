@@ -223,7 +223,7 @@ you prefix the token with `User`
         response_body: &models::Index {
             top_voted: index_bots.clone(),
             certified: index_bots.clone(),
-            new: index_bots, // Clone later if needed
+            new: index_bots.clone(),
             tags: tags.clone(),
             features: features.clone(),
         },
@@ -917,7 +917,29 @@ Gets a user profile.
         auth_types: vec![]
     });
 
-    // TODO: User Preferences
+    docs += &doc(models::Route {
+        title: "Edit Profile",
+        method: "PATCH",
+        path: "/profiles/{id}",
+description: r#"
+Edits a user profile.
+
+``user`` can be completely empty valued but the keys present in a User must
+be present
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Profile::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![]
+    });
 
     docs += &doc_category("Reviews");
 
@@ -1128,6 +1150,30 @@ A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``
         },
         equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User]
+    });
+
+    docs += &doc_category("Stats");
+
+    docs += &doc(models::Route {
+        title: "Get List Stats",
+        method: "GET",
+        path: "/stats",
+description: r#"
+Returns the bot list stats. This currently returns the full list of all bots
+as a vector/list of IndexBot structs.
+
+As a client, it is your responsibility, to parse this. Pagination may be added
+if the list grows and then requires it.
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::ListStats {
+            bots: index_bots.clone(),
+            ..models::ListStats::default()
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![]
     });
 
     // Return docs

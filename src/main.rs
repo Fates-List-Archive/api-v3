@@ -26,6 +26,8 @@ mod appeal;
 mod packs;
 mod user;
 mod reviews;
+mod stats;
+mod resources;
 
 use crate::models::APIResponse;
 
@@ -162,6 +164,9 @@ async fn main() -> std::io::Result<()> {
             .service(reviews::edit_review)
             .service(reviews::delete_review)
             .service(reviews::vote_review)
+            .service(stats::get_botlist_stats)
+            .service(resources::add_resource)
+            .service(resources::delete_resource)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

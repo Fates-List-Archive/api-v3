@@ -107,7 +107,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
             },
             ctx: models::EventContext {
                 target: id.id.to_string(),
-                target_type: models::EventTargetType::Bot,
+                target_type: models::TargetType::Bot,
                 user: event_user,
             },
             props: models::BotViewProp {
@@ -184,7 +184,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
             },
             ctx: models::EventContext {
                 target: id.id.to_string(),
-                target_type: models::EventTargetType::Server,
+                target_type: models::TargetType::Server,
                 user: event_user.clone(),
             },
             props: models::BotViewProp {
