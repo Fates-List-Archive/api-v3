@@ -1,4 +1,4 @@
-// Add, remove and delete resources from bots
+// Add, remove and delete resources from bots/servers
 use actix_web::{http, HttpRequest, post, delete, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
@@ -29,6 +29,22 @@ async fn add_resource(
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
                 reason: Some("Resource link must start with https://".to_string()),
+                context: Some("Check error".to_string())
+            });        
+        }
+
+        if res.resource_description.len() < 5 {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("Resource description must be at least 5 characters long".to_string()),
+                context: Some("Check error".to_string())
+            });        
+        }
+
+        if res.resource_title.len() < 5 {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("Resource title must be at least 5 characters long".to_string()),
                 context: Some("Check error".to_string())
             });        
         }

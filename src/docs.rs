@@ -953,7 +953,7 @@ Gets reviews for a reviewable entity.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -974,7 +974,7 @@ This may change in the future and is given by ``per_page`` key.
         query_params: &models::ReviewQuery {
             page: Some(1),
             user_id: Some(0),
-            target_type: models::ReviewType::Bot,
+            target_type: models::TargetType::Bot,
         },
         request_body: &models::Empty {},
         response_body: &models::ParsedReview {
@@ -1004,7 +1004,7 @@ so there should not be an error even if provided.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1018,7 +1018,7 @@ also match the user token sent in the ``Authorization`` header
         query_params: &models::ReviewQuery {
             page: None,
             user_id: Some(0),
-            target_type: models::ReviewType::Bot,
+            target_type: models::TargetType::Bot,
         },
         request_body: &models::Review::default(),
         response_body: &models::APIResponse {
@@ -1043,7 +1043,7 @@ so there should not be an error even if provided.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1061,7 +1061,7 @@ also match the user token sent in the ``Authorization`` header
         query_params: &models::ReviewQuery {
             page: None,
             user_id: Some(0),
-            target_type: models::ReviewType::Bot,
+            target_type: models::TargetType::Bot,
         },
         request_body: &models::Review {
             id: Some(uuid::Uuid::new_v4()),
@@ -1091,10 +1091,10 @@ also match the user token sent in the ``Authorization`` header
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
 
 ``target_type`` is not currently checked but it is a good idea to set it anyways. You must
-set this a ReviewType anyways so you might as well set it correctly.
+set this a TargetType anyways so you might as well set it correctly.
 "#,
         path_params: &models::ReviewDeletePath {
             rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
@@ -1102,7 +1102,7 @@ set this a ReviewType anyways so you might as well set it correctly.
         query_params: &models::ReviewQuery {
             page: None,
             user_id: Some(0),
-            target_type: models::ReviewType::Bot,
+            target_type: models::TargetType::Bot,
         },
         request_body: &models::Empty {},
         response_body: &models::APIResponse {
@@ -1131,7 +1131,7 @@ also match the user token sent in the ``Authorization`` header.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a ReviewType of 0 while a server has a ReviewType of 1. This is the ``target_type``
+A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
 
 **This endpoint does not require ``target_type`` at all. You can safely omit it**
 "#,
@@ -1174,6 +1174,97 @@ if the list grows and then requires it.
         },
         equiv_v2_route: "None",
         auth_types: vec![]
+    });
+
+    docs += &doc_category("Resources");
+
+    docs += &doc(models::Route {
+        title: "Create Resource",
+        method: "POST",
+        path: "/resources/{id}",
+description: r#"
+Creates a resource. Both bots and servers support these however only bots 
+support the frontend resource creator in Bot Settings as of right now.
+
+The ``id`` here must be the resource id
+
+A bot has a TargetType of 0 while a server has a TargetType of 1. 
+This is the ``target_type``
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0
+        },
+        query_params: &models::TargetQuery {
+            target_type: models::TargetType::Bot
+        },
+        request_body: &models::Resource::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server]
+    });
+
+    docs += &doc(models::Route {
+        title: "Delete Resource",
+        method: "DELETE",
+        path: "/resources/{id}",
+description: r#"
+Deletes a resource. Both bots and servers support these however only bots 
+support the frontend resource creator in Bot Settings as of right now.
+
+The ``id`` here must be the resource id
+
+A bot has a TargetType of 0 while a server has a TargetType of 1. 
+This is the ``target_type``
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0
+        },
+        query_params: &models::ResourceDeleteQuery {
+            id: uuid::Uuid::new_v4().to_hyphenated().to_string(),
+            target_type: models::TargetType::Bot
+        },
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server]
+    });
+
+    docs += &doc_category("Commands");
+
+    docs += &doc(models::Route {
+        title: "Create Bot Command",
+        method: "POST",
+        path: "/bots/{id}/commands",
+description: r#"
+Creates a command.
+
+The ``id`` here must be the bot id you wish to add the command for
+
+**This command is a *upsert* meaning it will either create or update 
+the command depending on its ``name``.**
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0
+        },
+        query_params: &models::TargetQuery {
+            target_type: models::TargetType::Bot
+        },
+        request_body: &models::Resource::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::Bot]
     });
 
     // Return docs

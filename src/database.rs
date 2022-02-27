@@ -509,7 +509,9 @@ impl Database {
                 let mut commands = IndexMap::new();
 
                 let commands_rows = sqlx::query!(
-                    "SELECT id, cmd_type, description, args, examples, premium_only, notes, doc_link, cmd_groups, cmd_name, vote_locked FROM bot_commands WHERE bot_id = $1",
+                    "SELECT id, cmd_type, description, args, examples, 
+                    premium_only, notes, doc_link, groups, name, 
+                    vote_locked, nsfw FROM bot_commands WHERE bot_id = $1",
                     bot_id
                 )
                 .fetch_all(&self.pool)
@@ -519,14 +521,15 @@ impl Database {
                 debug!("Commands: {:?}", commands_rows);
 
                 for command in commands_rows.iter() {
-                    let groups = command.cmd_groups.clone();
+                    let groups = command.groups.clone();
                     for group in groups {
                         if !commands.contains_key(&group) {
                             debug!("Dropping command key {key}", key = &group.to_string());
                             commands.insert(group.clone(), Vec::new());
                         }
                         commands.get_mut(&group.clone()).unwrap().push(models::BotCommand {
-                            id: command.id.to_string(),
+                            id: Some(command.id.to_string()),
+                            nsfw: command.nsfw.unwrap_or(false),
                             cmd_type: models::CommandType::try_from(command.cmd_type).unwrap_or(models::CommandType::SlashCommandGlobal),
                             description: command.description.clone().unwrap_or_default(),
                             args: command.args.clone().unwrap_or_default(),
@@ -534,9 +537,9 @@ impl Database {
                             premium_only: command.premium_only.unwrap_or_default(),
                             notes: command.notes.clone().unwrap_or_default(),
                             doc_link: command.doc_link.clone().unwrap_or_default(),
-                            cmd_name: command.cmd_name.clone(),
+                            name: command.name.clone(),
                             vote_locked: command.vote_locked.unwrap_or_default(),
-                            cmd_groups: command.cmd_groups.clone(),
+                            groups: command.groups.clone(),
                         });
                     }
                 }
@@ -1724,12 +1727,12 @@ impl Database {
         reviews
     }
 
-    pub async fn get_reviews(&self, target_id: i64, target_type: models::ReviewType, limit: i64, offset: i64) -> Vec<models::Review> {
+    pub async fn get_reviews(&self, target_id: i64, target_type: models::TargetType, limit: i64, offset: i64) -> Vec<models::Review> {
         let mut reviews = Vec::new();
 
         let target_type_num = match target_type {
-            models::ReviewType::Bot => 0,
-            models::ReviewType::Server => 1,
+            models::TargetType::Bot => 0,
+            models::TargetType::Server => 1,
         };
 
         // trim(stringexpression) != ''
@@ -1764,10 +1767,10 @@ impl Database {
         reviews
     }
 
-    pub async fn get_review_stats(&self, target_id: i64, target_type: models::ReviewType) -> models::ReviewStats {
+    pub async fn get_review_stats(&self, target_id: i64, target_type: models::TargetType) -> models::ReviewStats {
         let target_type_num = match target_type {
-            models::ReviewType::Bot => 0,
-            models::ReviewType::Server => 1,
+            models::TargetType::Bot => 0,
+            models::TargetType::Server => 1,
         };
 
         let stats = sqlx::query!(
@@ -1795,7 +1798,7 @@ impl Database {
     }
 
     /// Get reviews for *a* user (not replies)
-    pub async fn get_reviews_for_user(&self, user_id: i64, target_id: i64, target_type: models::ReviewType) -> Option<models::Review> {
+    pub async fn get_reviews_for_user(&self, user_id: i64, target_id: i64, target_type: models::TargetType) -> Option<models::Review> {
         let review = sqlx::query!(
             "SELECT id, review_text, epoch, star_rating, flagged FROM reviews 
             WHERE target_id = $1 AND target_type = $2 AND user_id = $3 AND parent_id 
@@ -1827,12 +1830,12 @@ impl Database {
         });
     } 
 
-    pub async fn add_review(&self, review: models::Review, user_id: i64, target_id: i64, target_type: models::ReviewType) -> Result<(), models::ReviewAddError> {
+    pub async fn add_review(&self, review: models::Review, user_id: i64, target_id: i64, target_type: models::TargetType) -> Result<(), models::ReviewAddError> {
         let review_id = uuid::Uuid::new_v4();
 
         let review_type = match target_type {
-            models::ReviewType::Bot => 0,
-            models::ReviewType::Server => 1,
+            models::TargetType::Bot => 0,
+            models::TargetType::Server => 1,
         };
 
         sqlx::query!(
@@ -2149,5 +2152,63 @@ impl Database {
         let row = row.unwrap();
 
         return row.count.unwrap_or_default() >= 1;
+    }
+
+    // Commands
+
+    /// This takes a &models::BotCommand as we do not need ownership
+    pub async fn add_command(&self, bot_id: i64, command: &models::BotCommand) -> Result<(), models::CommandAddError> {
+        sqlx::query!(
+            "INSERT INTO bot_commands (bot_id, cmd_type, name, 
+            description, args, examples, premium_only, notes, doc_link,
+            groups, vote_locked, nsfw) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            ON CONFLICT (id, name) DO UPDATE SET cmd_type = 
+            excluded.cmd_type, description = excluded.description,
+            args = excluded.args, examples = excluded.examples,
+            premium_only = excluded.premium_only, notes = excluded.notes,
+            doc_link = excluded.doc_link, groups = excluded.groups,
+            vote_locked = excluded.vote_locked, nsfw = excluded.nsfw",
+            bot_id,
+            command.cmd_type as i32,
+            command.name,
+            command.description,
+            &command.args,
+            &command.examples,
+            command.premium_only,
+            &command.notes,
+            command.doc_link,
+            &command.groups,
+            command.vote_locked,
+            command.nsfw,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(models::CommandAddError::SQLError)?;
+
+        Ok(())
+    }
+
+    pub async fn delete_all_commands(&self, id: i64) {
+        sqlx::query!(
+            "DELETE FROM bot_commands WHERE bot_id = $1",
+            id,
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
+    }
+
+    pub async fn delete_commands_by_name(&self, id: i64, name: &str) {
+        let err = sqlx::query!(
+            "DELETE FROM bot_commands WHERE bot_id = $1 AND name = $2",
+            id,
+            name
+        )
+        .execute(&self.pool)
+        .await;
+        if err.is_err() {
+            error!("Failed to delete command {}", name);
+        }
     }
 }

@@ -111,7 +111,7 @@ async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, que
         });
     }
 
-    if query.target_type == models::ReviewType::Bot {
+    if query.target_type == models::TargetType::Bot {
         let bot = data.database.get_bot(info.id).await;
 
         if bot.is_none() {
@@ -121,7 +121,7 @@ async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, que
                 context: None,
             });
         }
-    } else if query.target_type == models::ReviewType::Server {
+    } else if query.target_type == models::TargetType::Server {
         let server = data.database.get_server(info.id).await;
 
         if server.is_none() {

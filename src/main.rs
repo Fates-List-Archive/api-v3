@@ -28,6 +28,7 @@ mod user;
 mod reviews;
 mod stats;
 mod resources;
+mod commands;
 
 use crate::models::APIResponse;
 
@@ -167,6 +168,8 @@ async fn main() -> std::io::Result<()> {
             .service(stats::get_botlist_stats)
             .service(resources::add_resource)
             .service(resources::delete_resource)
+            .service(commands::add_command)
+            .service(commands::delete_commands)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

@@ -463,8 +463,8 @@ pub struct FetchBotPath {
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct BotCommand {
     pub cmd_type: CommandType,
-    pub cmd_groups: Vec<String>,
-    pub cmd_name: String,
+    pub groups: Vec<String>,
+    pub name: String,
     pub vote_locked: bool,
     pub description: String,
     pub args: Vec<String>,
@@ -472,7 +472,19 @@ pub struct BotCommand {
     pub premium_only: bool,
     pub notes: Vec<String>,
     pub doc_link: String,
-    pub id: String,    
+    pub id: Option<String>,    
+    pub nsfw: bool,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct BotCommandVec {
+    pub commands: Vec<BotCommand>,
+}
+
+#[derive(Deserialize, Serialize, Default, Reflect, Clone)]
+pub struct CommandDeleteQuery {
+    pub nuke: Option<bool>,
+    pub names: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -771,14 +783,6 @@ pub enum UserBotAction {
     DeleteBot = 8,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, Reflect)]
-#[repr(i32)]
-pub enum ReviewType {
-    #[default]
-    Bot = 0,
-    Server = 1,
-}
-
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
 #[repr(i32)]
 pub enum BotRequestType {
@@ -953,7 +957,7 @@ pub struct ParsedReview {
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct ReviewQuery {
-    pub target_type: ReviewType,
+    pub target_type: TargetType,
     pub page: Option<i32>,
     pub user_id: Option<i64>,
 }
@@ -985,6 +989,17 @@ impl ResourceAddError {
     }
 }
 
+pub enum CommandAddError {
+    SQLError(sqlx::Error),
+}
+
+impl CommandAddError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::SQLError(e) => format!("SQL Error: {}", e),
+        }
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum CustomError {
