@@ -2224,4 +2224,57 @@ impl Database {
             error!("Failed to delete command {}", cmd_id);
         }
     }
+
+    // Vote bot
+    #[async_recursion]
+    pub async fn vote_bot(&self, user_id: i64, bot_id: i64) -> Result<(), models::VoteBotError> {
+        // Let errors be the thing that tells if a vote has happened
+        let check = sqlx::query!(
+            "INSERT INTO user_vote_table (user_id, bot_id) VALUES ($1, $2)",
+            user_id,
+            bot_id,
+        )
+        .execute(&self.pool)
+        .await;
+
+        if check.is_err() {
+            error!("Failed to insert vote: {}", check.unwrap_err());
+            // Check that we actually have a expired vote or not
+            let expiry_time = sqlx::query!(
+                "SELECT expires_on FROM user_vote_table WHERE user_id = $1 
+                AND expires_on < NOW()",
+                user_id
+            )
+            .fetch_one(&self.pool)
+            .await;
+
+            if !expiry_time.is_err() {
+                sqlx::query!(
+                    "DELETE FROM user_vote_table WHERE user_id = $1",
+                    user_id
+                )
+                .execute(&self.pool)
+                .await
+                .unwrap();
+                return self.vote_bot(user_id, bot_id).await;
+            } else {
+                let expiry_time = sqlx::query!(
+                    "SELECT expires_on FROM user_vote_table WHERE user_id = $1",
+                    user_id
+                )
+                .fetch_one(&self.pool)
+                .await;
+                if expiry_time.is_err() {
+                    return Err(models::VoteBotError::UnknownError);
+                }
+                let expiry_time = expiry_time.unwrap().expires_on.unwrap();
+                let time_left = expiry_time.timestamp() - chrono::offset::Utc::now().timestamp();
+                let seconds = time_left % 60;
+                let minutes = (time_left / 60) % 60;
+                let hours = (time_left / 60) / 60;
+                return Err(models::VoteBotError::Wait(format!("{} hours, {} minutes, {} seconds", hours, minutes, seconds)));
+            }
+        }
+        Ok(())
+    }
 }

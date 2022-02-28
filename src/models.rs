@@ -683,7 +683,7 @@ impl Default for Bot {
             last_stats_post: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             long_description: "blah blah blah".to_string(),
             long_description_raw: "blah blah blah unsanitized".to_string(),
-            long_description_type: LongDescriptionType::MarkdownMarked,
+            long_description_type: LongDescriptionType::MarkdownServerSide,
             page_style: PageStyle::SingleScroll,
             guild_count: 0,
             shard_count: 493,
@@ -1181,6 +1181,21 @@ impl BannerCheckError {
         }
     }
 }
+
+pub enum VoteBotError {
+    Wait(String),
+    UnknownError,
+}
+
+impl VoteBotError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::Wait(s) => format!("You must wait {} before voting again", s),
+            Self::UnknownError => "An unknown error occurred. Please ask on the Fates List support server".to_string(),
+        }
+    }
+}
+
 
 pub enum StatsError {
     BadStats(String), // TODO

@@ -1,5 +1,5 @@
 // A core endpoint is one that is absolutely essential for proper list functions
-use actix_web::{http, HttpRequest, get, post, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, get, post, patch, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use crate::converters;
@@ -293,6 +293,32 @@ async fn has_user_voted(req: HttpRequest, info: web::Path<models::GetUserBotPath
 
     let resp = data.database.get_user_voted(bot_id, user_id).await;
     HttpResponse::build(http::StatusCode::OK).json(resp)
+}
+
+/// Bot: Create User Vote?
+#[patch("/users/{user_id}/bots/{bot_id}/votes")]
+async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = info.user_id;
+    let bot_id = info.bot_id;
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    if data.database.authorize_user(user_id, auth).await {
+        let res = data.database.vote_bot(user_id, bot_id).await;
+        if res.is_err() {
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: None,
+            });
+        }
+        return HttpResponse::build(http::StatusCode::OK).finish();
+    } else {
+        error!("Vote Bot Auth error");
+        return models::CustomError::ForbiddenGeneric.error_response();
+    }
 }
 
 /// Mini Index: Get Tags And Features 
