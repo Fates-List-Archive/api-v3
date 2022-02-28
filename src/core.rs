@@ -2,6 +2,7 @@
 use actix_web::{http, HttpRequest, get, post, web, HttpResponse, ResponseError, web::Json};
 use actix_web::http::header::HeaderValue;
 use crate::models;
+use crate::converters;
 use log::error;
 use uuid::Uuid;
 
@@ -59,11 +60,19 @@ async fn policies(req: HttpRequest) -> HttpResponse {
 }
 
 // Partners
-
 #[get("/partners")]
 async fn partners(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     HttpResponse::build(http::StatusCode::OK).json(&data.config.partners)
+}
+
+// Preview API
+#[post("/preview")]
+async fn preview_description(req: HttpRequest, preview: web::Json<models::PreviewRequest>) -> HttpResponse {
+    let preview = preview.into_inner();
+    HttpResponse::Ok().json(models::PreviewResponse {
+        preview: converters::sanitize_description(preview.long_description_type, preview.text)
+    })
 }
 
 // Bot route

@@ -279,6 +279,20 @@ you prefix the token with `User`
         auth_types: vec![]
     });
 
+    // - Preview route
+    docs += &doc( models::Route {
+        title: "Preview Description",
+        method: "POST",
+        path: "/partners",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        description: "Given the preview and long description, parse it and give the sanitized output",
+        request_body: &models::PreviewRequest::default(),
+        response_body: &models::PreviewResponse::default(),
+        equiv_v2_route: "None",
+        auth_types: vec![]
+    });    
+
     // - Fetch Bot route
     docs += &doc( models::Route {
         title: "Get Bot",
@@ -1248,7 +1262,7 @@ Creates a command.
 
 The ``id`` here must be the bot id you wish to add the command for
 
-**This command is a *upsert* meaning it will either create or update 
+**This performs a *upsert* meaning it will either create or update 
 the command depending on its ``name``.**
 "#,
         path_params: &models::FetchBotPath {
@@ -1258,6 +1272,36 @@ the command depending on its ``name``.**
             target_type: models::TargetType::Bot
         },
         request_body: &models::Resource::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::Bot]
+    });
+
+    docs += &doc(models::Route {
+        title: "Delete Bot Command",
+        method: "DELETE",
+        path: "/bots/{id}/commands",
+description: r#"
+DELETE a command.
+
+The ``id`` here must be the bot id you wish to add the command for
+
+``names`` and ``ids`` must be a ``|`` seperated list of ``names`` or valid
+UUIDs in the case of ids. Bad names/ids will be ignored
+"#,
+        path_params: &models::FetchBotPath {
+            id: 0
+        },
+        query_params: &models::CommandDeleteQuery {
+            nuke: Some(false),
+            names: Some("command name|command name 2".to_string()),
+            ids: Some("id 1|id 2".to_string()),
+        },
+        request_body: &models::Empty {},
         response_body: &models::APIResponse {
             done: true,
             reason: None,

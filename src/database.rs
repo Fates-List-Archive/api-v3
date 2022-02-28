@@ -435,7 +435,7 @@ impl Database {
                 };
 
                 // Sanitize long description
-                let long_description_type = models::LongDescriptionType::try_from(data.long_description_type).unwrap_or(models::LongDescriptionType::Html);
+                let long_description_type = models::LongDescriptionType::try_from(data.long_description_type).unwrap_or(models::LongDescriptionType::MarkdownServerSide);
                 let long_description = converters::sanitize_description(long_description_type, data.long_description.clone().unwrap_or_default());
 
                 // Tags
@@ -669,7 +669,7 @@ impl Database {
         match data {
             Ok(row) => {
                 // Sanitize long description
-                let long_description_type = models::LongDescriptionType::try_from(row.long_description_type.unwrap_or(models::LongDescriptionType::Html as i32)).unwrap_or(models::LongDescriptionType::Html);
+                let long_description_type = models::LongDescriptionType::try_from(row.long_description_type.unwrap_or(models::LongDescriptionType::MarkdownServerSide as i32)).unwrap_or(models::LongDescriptionType::MarkdownServerSide);
                 let long_description = converters::sanitize_description(long_description_type, row.long_description.clone().unwrap_or_default());
 
                 // Tags
@@ -2209,6 +2209,19 @@ impl Database {
         .await;
         if err.is_err() {
             error!("Failed to delete command {}", name);
+        }
+    }
+
+    pub async fn delete_commands_by_id(&self, id: i64, cmd_id: uuid::Uuid) {
+        let err = sqlx::query!(
+            "DELETE FROM bot_commands WHERE bot_id = $1 AND id = $2",
+            id,
+            cmd_id
+        )
+        .execute(&self.pool)
+        .await;
+        if err.is_err() {
+            error!("Failed to delete command {}", cmd_id);
         }
     }
 }

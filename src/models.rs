@@ -72,10 +72,9 @@ pub enum CommandType {
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
 #[repr(i32)]
 pub enum LongDescriptionType {
-    #[default]
     Html = 0,
-    MarkdownServerSide = 1, // COMPAT: Maybe make this a subprocess of some form for now if too much breaks or just push to marked?
-    MarkdownMarked = 2,
+    #[default]
+    MarkdownServerSide = 1,
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
@@ -217,6 +216,17 @@ pub struct GetUserBotPath {
 pub struct GetUserPackPath {
     pub user_id: i64,
     pub pack_id: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct PreviewRequest {
+    pub text: String,
+    pub long_description_type: LongDescriptionType
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct PreviewResponse {
+    pub preview: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
@@ -485,6 +495,7 @@ pub struct BotCommandVec {
 pub struct CommandDeleteQuery {
     pub nuke: Option<bool>,
     pub names: Option<String>,
+    pub ids: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]

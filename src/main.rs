@@ -135,6 +135,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::docs_tmpl)
             .service(core::policies)
             .service(core::partners)
+            .service(core::preview_description)
             .service(core::get_bot)
             .service(core::get_server)
             .service(core::search)

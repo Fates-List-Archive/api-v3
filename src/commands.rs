@@ -73,8 +73,21 @@ async fn delete_commands(
         // If names, delete each command by name,
         if query.names.is_some() {
             let names = query.names.as_ref().unwrap();
-            for cmd in names.split(",").collect::<Vec<&str>>() {
+            for cmd in names.split("|").collect::<Vec<&str>>() {
                 data.database.delete_commands_by_name(id, cmd).await;
+            }
+        }
+
+        // If ids, delete each command by id
+        if query.ids.is_some() {
+            let ids = query.ids.as_ref().unwrap();
+            for cmd in ids.split("|").collect::<Vec<&str>>() {
+                let id_parse = uuid::Uuid::parse_str(&cmd);
+                if id_parse.is_err() {
+                    continue
+                }
+                let cmd_id = id_parse.unwrap();
+                data.database.delete_commands_by_id(id, cmd_id).await;
             }
         }
 
