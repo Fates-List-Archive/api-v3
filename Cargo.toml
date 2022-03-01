@@ -40,11 +40,13 @@ indexmap = { version = "1.8.0", features = ["serde"] }
 serenity = { version = "0.10.10", features = ["model", "http"] }
 bigdecimal = { version = "0.2.2", features = ["serde"] }
 procfs = { version = "0.12.0" }
+sha2 = { version = "0.10.2" }
+hmac = { version = "0.12.1" }
+hex = "0.4.3"
 
 [profile.release-lto]
 inherits = "release"
 strip = "debuginfo"  # Automatically strip symbols from the binary.
-lto = "thin"
 
 [profile.release-fast]
 inherits = "release"

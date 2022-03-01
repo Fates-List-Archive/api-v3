@@ -14,16 +14,32 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<m
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     if info.target_type.as_ref().unwrap_or(&"bot".to_string()) == "bot" {
+        let cache = data.database.get_index_bots_from_cache().await;
+        
+        if cache.is_some() {
+            return Json(cache.unwrap());
+        }
+
         index.top_voted = data.database.index_bots(models::State::Approved).await;
         index.certified = data.database.index_bots(models::State::Certified).await;
         index.tags = data.database.bot_list_tags().await;
         index.new = data.database.index_new_bots().await;
         index.features = data.database.bot_features().await;
+
+        data.database.set_index_bots_to_cache(&index).await;
     } else {
+        let cache = data.database.get_index_servers_from_cache().await;
+        
+        if cache.is_some() {
+            return Json(cache.unwrap());
+        }
+
         index.top_voted = data.database.index_servers(models::State::Approved).await;
         index.certified = data.database.index_servers(models::State::Certified).await;
         index.new = data.database.index_new_servers().await;
         index.tags = data.database.server_list_tags().await;
+
+        data.database.set_index_servers_to_cache(&index).await;
     }
     Json(index)
 }

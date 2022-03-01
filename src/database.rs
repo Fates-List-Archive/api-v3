@@ -74,6 +74,50 @@ impl Database {
         return user;
     }
 
+    // Index cache functions
+    pub async fn set_index_bots_to_cache(&self, cache: &models::Index) {
+        let mut conn = self.redis.get().await.unwrap();
+        conn.set_ex("index-bots".to_string(), serde_json::to_string(cache).unwrap(), 60).await.unwrap_or_else(|_| "".to_string());        
+    }
+    pub async fn set_index_servers_to_cache(&self, cache: &models::Index) {
+        let mut conn = self.redis.get().await.unwrap();
+        conn.set_ex("index-servers".to_string(), serde_json::to_string(cache).unwrap(), 60).await.unwrap_or_else(|_| "".to_string());        
+    }
+
+    pub async fn get_index_bots_from_cache(&self) -> Option<models::Index> {
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn.get("index-bots".to_string()).await.unwrap_or_else(|_| "".to_string());
+        if !data.is_empty() {
+            let bot: Result<models::Index, serde_json::error::Error> = serde_json::from_str(&data);
+            match bot {
+                Ok(data) => {
+                    return Some(data);
+                }
+                Err(_) => {
+                    return None;
+                }
+            }
+        }
+        None
+    }
+
+    pub async fn get_index_servers_from_cache(&self) -> Option<models::Index> {
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn.get("index-servers".to_string()).await.unwrap_or_else(|_| "".to_string());
+        if !data.is_empty() {
+            let bot: Result<models::Index, serde_json::error::Error> = serde_json::from_str(&data);
+            match bot {
+                Ok(data) => {
+                    return Some(data);
+                }
+                Err(_) => {
+                    return None;
+                }
+            }
+        }
+        None
+    }
+
     pub async fn index_bots(&self, state: models::State) -> Vec<models::IndexBot> {
         let mut bots: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
@@ -632,6 +676,7 @@ impl Database {
                     webhook: None,
                     webhook_secret: None,
                     api_token: None,
+                    webhook_hmac_only: None,
                     webhook_type: Some(models::WebhookType::try_from(data.webhook_type.unwrap_or_default()).unwrap_or(models::WebhookType::Vote)),
                     owners_html,
                     action_logs,
@@ -1209,7 +1254,8 @@ impl Database {
         .ok_or(models::SettingsError::NotFound)?;
 
         let sensitive = sqlx::query!(
-            "SELECT api_token, webhook, webhook_secret FROM bots WHERE bot_id = $1",
+            "SELECT api_token, webhook, webhook_secret, webhook_hmac_only
+             FROM bots WHERE bot_id = $1",
             bot_id
         )
         .fetch_one(&self.pool)
@@ -1220,6 +1266,7 @@ impl Database {
             api_token: sensitive.api_token,
             webhook: sensitive.webhook,
             webhook_secret: sensitive.webhook_secret,
+            webhook_hmac_only: Some(sensitive.webhook_hmac_only.unwrap_or(false)),
             ..bot
         };
 
@@ -1309,19 +1356,20 @@ impl Database {
             discord, long_description, description,
             api_token, features, long_description_type, 
             css, donate, github,
-            webhook, webhook_type, webhook_secret,
+            webhook, webhook_type, webhook_secret, webhook_hmac_only,
             privacy_policy, nsfw, keep_banner_decor, 
             client_id, guild_count, flags, page_style, id) VALUES(
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 
             $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 
-            $24, $25, $26, $1)", 
+            $24, $25, $26, $27, $1)", 
             id, bot.prefix, bot.library, 
             bot.invite, bot.website, bot.banner_card, bot.banner_page,
             bot.support, bot.long_description, bot.description,
             converters::create_token(132), &features, bot.long_description_type as i32,
-            bot.css, bot.donate, bot.github, bot.webhook, bot.webhook_type.unwrap_or(models::WebhookType::Vote) as i32, bot.webhook_secret,
-            bot.privacy_policy, bot.nsfw, bot.keep_banner_decor, client_id, bot.guild_count,
-            &Vec::new(), bot.page_style as i32
+            bot.css, bot.donate, bot.github, bot.webhook, bot.webhook_type.unwrap_or(models::WebhookType::Vote) as i32, 
+            bot.webhook_secret, bot.webhook_hmac_only.unwrap_or(false),
+            bot.privacy_policy, bot.nsfw, bot.keep_banner_decor, 
+            client_id, bot.guild_count, &Vec::new(), bot.page_style as i32
         )
         .execute(&mut tx)
         .await?;
@@ -1368,15 +1416,16 @@ impl Database {
             banner_card=$9, invite=$10, github = $11, features = $12, 
             long_description_type = $13, webhook_type = $14, css = $15, 
             donate = $16, privacy_policy = $17, nsfw = $18, 
-            webhook_secret = $19, banner_page = $20, keep_banner_decor = $21, 
-            client_id = $22, page_style = $23, long_description_parsed = null 
+            webhook_secret = $19, webhook_hmac_only = $20,
+            banner_page = $21, keep_banner_decor = $22, 
+            client_id = $23, page_style = $24, long_description_parsed = null 
             WHERE bot_id = $1",
             id, bot.library, bot.webhook, bot.description, 
             bot.long_description, bot.prefix, 
             bot.website, bot.support, bot.banner_card, bot.invite, 
             bot.github, &features, bot.long_description_type as i32, 
             bot.webhook_type.unwrap_or(models::WebhookType::Vote) as i32, bot.css, bot.donate, 
-            bot.privacy_policy, bot.nsfw, bot.webhook_secret, 
+            bot.privacy_policy, bot.nsfw, bot.webhook_secret, bot.webhook_hmac_only.unwrap_or(false),
             bot.banner_page, bot.keep_banner_decor, client_id, 
             bot.page_style as i32
         )
@@ -2302,25 +2351,27 @@ impl Database {
         let mut tx = self.pool.begin().await.map_err(models::VoteBotError::SQLError)?;
 
         // Add votes
-        sqlx::query!(
-            "UPDATE bots SET votes = votes + 1, 
-            total_votes = total_votes + 1 WHERE bot_id = $1",
-            bot_id,
-        )
-        .execute(&mut tx)
-        .await
-        .map_err(models::VoteBotError::SQLError)?;
+        if !test {
+            sqlx::query!(
+                "UPDATE bots SET votes = votes + 1, 
+                total_votes = total_votes + 1 WHERE bot_id = $1",
+                bot_id,
+            )
+            .execute(&mut tx)
+            .await
+            .map_err(models::VoteBotError::SQLError)?;
 
-        sqlx::query!(
-            "INSERT INTO bot_voters (user_id, bot_id) VALUES ($1, $2)
-            ON CONFLICT (user_id, bot_id) DO UPDATE SET timestamps =
-            array_append(bot_voters.timestamps, NOW())",
-            user_id,
-            bot_id
-        )
-        .execute(&mut tx)
-        .await
-        .map_err(models::VoteBotError::SQLError)?;
+            sqlx::query!(
+                "INSERT INTO bot_voters (user_id, bot_id) VALUES ($1, $2)
+                ON CONFLICT (user_id, bot_id) DO UPDATE SET timestamps =
+                array_append(bot_voters.timestamps, NOW())",
+                user_id,
+                bot_id
+            )
+            .execute(&mut tx)
+            .await
+            .map_err(models::VoteBotError::SQLError)?;
+        }
 
         tx.commit().await.map_err(models::VoteBotError::SQLError)?;
 
@@ -2329,8 +2380,8 @@ impl Database {
 
         // Current votes
         let row = sqlx::query!(
-            "SELECT votes, webhook, webhook_secret, webhook_type, 
-            api_token FROM bots WHERE bot_id = $1",
+            "SELECT votes, webhook, webhook_secret, webhook_type,
+            webhook_hmac_only, api_token FROM bots WHERE bot_id = $1",
             bot_id
         )
         .fetch_one(&self.pool)
@@ -2394,6 +2445,7 @@ impl Database {
                     self.requests.clone(),
                     webhook,
                     webhook_token,
+                    row.webhook_hmac_only.unwrap_or(false),
                     vote_event,
                 ));
             }

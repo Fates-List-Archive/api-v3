@@ -5,6 +5,11 @@ use log::{debug, error};
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
 use actix_web::http::StatusCode;
+use sha2::Sha512;
+use hmac::{Hmac, Mac};
+use hex;
+
+type HmacSha512 = Hmac<Sha512>;
 
 pub fn invite_link(client_id: String, invite: String) -> String {
     if invite.starts_with("P:") && invite.len() > 2 {
@@ -75,15 +80,45 @@ pub fn flags_check(flag_list: Vec<i32>, flag_vec: Vec<i32>) -> bool{
 }
 
 // Moved here due to 'static requirement
-pub async fn send_vote_webhook(requests: reqwest::Client, webhook: String, webhook_token: String, vote_event: models::VoteWebhookEvent) {
+pub async fn send_vote_webhook(requests: reqwest::Client, webhook: String, webhook_token: String, webhook_hmac_only: bool, vote_event: models::VoteWebhookEvent) {
     let mut tries = 0;
     while tries < 5 {
         debug!("Webhook token is {}", webhook_token);
-        let res = requests.post(webhook.as_str())
-            .header("Authorization", webhook_token.clone())
-            .json(&vote_event)
+        let mut req = requests.post(webhook.as_str());
+        
+        if !webhook_hmac_only {
+            req = req.header("Authorization", webhook_token.clone())
+        }
+
+        let hmac_data = serde_json::to_string(&vote_event);
+
+        if hmac_data.is_err() {
+            error!("Failed to serialize vote webhook data");
+            return;
+        }
+
+        let hmac_data = hmac_data.unwrap();
+
+        // Add HMAC
+        let mac = HmacSha512::new_from_slice(webhook_token.as_bytes());
+
+        if mac.is_err() {
+            error!("Failed to create HMAC");
+            return;
+        }
+
+        let mut mac = mac.unwrap();
+
+        mac.update(hmac_data.as_bytes());
+
+        let hmac = hex::encode(mac.finalize().into_bytes());
+
+        req = req.header("X-Webhook-Signature", hmac);
+
+        let res = req.json(&vote_event)
             .send()
             .await;
+
         if res.is_err() {
             error!("Failed to send webhook: {}", res.unwrap_err());
             tries += 1;

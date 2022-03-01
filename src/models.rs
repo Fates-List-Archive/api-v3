@@ -659,6 +659,7 @@ pub struct Bot {
     pub webhook: Option<String>,
     pub webhook_secret: Option<String>,
     pub webhook_type: Option<WebhookType>,
+    pub webhook_hmac_only: Option<bool>,
     pub api_token: Option<String>,
 }
 
@@ -728,6 +729,7 @@ impl Default for Bot {
             resources: vec![Resource::default()],
             webhook: Some("This will be redacted for Get Bot endpoint".to_string()),
             webhook_type: None,
+            webhook_hmac_only: None,
             webhook_secret: Some("This will be redacted for Get Bot endpoint".to_string()),
             api_token: Some("This will be redacted for Get Bot endpoint".to_string())
         }
