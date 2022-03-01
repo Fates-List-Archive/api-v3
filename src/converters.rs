@@ -1,9 +1,10 @@
-// Handle simple data conversions
+// Handle simple data conversions and webhook sending
 use crate::models;
 use pulldown_cmark::{Parser, Options, html::push_html};
-use log::debug;
+use log::{debug, error};
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
+use actix_web::http::StatusCode;
 
 pub fn invite_link(client_id: String, invite: String) -> String {
     if invite.starts_with("P:") && invite.len() > 2 {
@@ -64,11 +65,45 @@ pub fn create_token(length: usize) -> String {
     .collect()
 }
 
-pub fn flags_check(flag_list: Vec<models::Flags>, flag_vec: Vec<models::Flags>) -> bool{
+pub fn flags_check(flag_list: Vec<i32>, flag_vec: Vec<i32>) -> bool{
     for flag in flag_vec {
-        if !flag_list.contains(&flag) {
+        if flag_list.contains(&flag) {
             return true;
         }
     }
     return false;
+}
+
+// Moved here due to 'static requirement
+pub async fn send_vote_webhook(requests: reqwest::Client, webhook: String, webhook_token: String, vote_event: models::VoteWebhookEvent) {
+    let mut tries = 0;
+    while tries < 5 {
+        debug!("Webhook token is {}", webhook_token);
+        let res = requests.post(webhook.as_str())
+            .header("Authorization", webhook_token.clone())
+            .json(&vote_event)
+            .send()
+            .await;
+        if res.is_err() {
+            error!("Failed to send webhook: {}", res.unwrap_err());
+            tries += 1;
+            continue;
+        }
+        let res = res.unwrap();
+        let status = res.status();
+        if !status.is_success() && !(
+                status == StatusCode::TOO_MANY_REQUESTS
+                || status == StatusCode::BAD_REQUEST
+                || status == StatusCode::UNAUTHORIZED
+                || status == StatusCode::FORBIDDEN
+            )
+        {
+            error!("Failed to send webhook: {}", res.text().await.unwrap());
+            tries += 1;
+            continue;
+        } else {
+            debug!("Sent webhook with status code: {}", status);
+            break;
+        }
+    }
 }

@@ -207,6 +207,11 @@ pub struct IndexQuery {
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct VoteBotQuery {
+    pub test: bool
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct GetUserBotPath {
     pub user_id: i64,
     pub bot_id: i64, 
@@ -813,6 +818,12 @@ pub struct BotViewProp {
     pub invite: bool,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct BotVoteProp {
+    pub test: bool,
+    pub votes: i64,
+}
+
 #[derive(Eq, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Reflect)]
 #[repr(i32)]
 pub enum TargetType {
@@ -849,6 +860,17 @@ pub struct Event<T: Serialize + Clone + Send> {
     pub ctx: EventContext,
     pub props: T,
 }
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct VoteWebhookEvent {
+    pub id: String,
+    pub user: String, // Backwards compatibility
+    pub ts: i64,
+    pub votes: i64,
+    pub eid: String,
+    pub test: bool,
+}
+
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Policies {
@@ -1184,14 +1206,16 @@ impl BannerCheckError {
 
 pub enum VoteBotError {
     Wait(String),
-    UnknownError,
+    UnknownError(String),
+    SQLError(sqlx::Error),
 }
 
 impl VoteBotError {
     pub fn to_string(&self) -> String {
         match self {
             Self::Wait(s) => format!("You must wait {} before voting again", s),
-            Self::UnknownError => "An unknown error occurred. Please ask on the Fates List support server".to_string(),
+            Self::UnknownError(e) => "An unknown error occurred. Please ask on the Fates List support server: ".to_string() + e,
+            Self::SQLError(e) => format!("SQL error: {}", e),
         }
     }
 }

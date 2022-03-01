@@ -297,7 +297,7 @@ async fn has_user_voted(req: HttpRequest, info: web::Path<models::GetUserBotPath
 
 /// Bot: Create User Vote?
 #[patch("/users/{user_id}/bots/{bot_id}/votes")]
-async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
+async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>, vote: web::Query<models::VoteBotQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.user_id;
     let bot_id = info.bot_id;
@@ -306,7 +306,19 @@ async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> 
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
     if data.database.authorize_user(user_id, auth).await {
-        let res = data.database.vote_bot(user_id, bot_id).await;
+        let bot = data.database.get_bot(bot_id).await;
+        if bot.is_none() {
+            return models::CustomError::NotFoundGeneric.error_response();
+        } 
+        let bot = bot.unwrap();
+        if converters::flags_check(bot.flags, vec![models::Flags::System as i32]) {
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                done: false,
+                reason: Some("You can't vote for system bots!".to_string()),
+                context: None,
+            });
+        }
+        let res = data.database.vote_bot(user_id, bot_id, vote.test).await;
         if res.is_err() {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
@@ -314,8 +326,15 @@ async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> 
                 context: None,
             });
         }
-        return HttpResponse::build(http::StatusCode::OK).finish();
-    } else {
+        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
+            done: false,
+            reason: Some("Successfully voted for this bot!\n\nPro Tip: You 
+            can vote for bots directly on your server using Squirrelflight, 
+            join our support server for more information but Squirreflight 
+            also supports vote reminders as well!".to_string()),
+            context: None,
+        });
+} else {
         error!("Vote Bot Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
     }
