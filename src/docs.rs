@@ -498,6 +498,33 @@ this however, it is prone to change *anytime* in the future**.
         auth_types: vec![]
     });
 
+    // - Create User Vote
+    docs += &doc( models::Route {
+        title: "Create User Vote",
+        method: "PATCH",
+        path: "/users/{user_id}/bots/{bot_id}/votes",
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::VoteBotQuery {
+            test: true,
+        },
+description: r#"
+This endpoint creates a vote for a bot which can only be done *once* every 8 hours.
+
+**It is documented purely to enable staff to use it**
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: false,
+            reason: Some("Why the vote failed".to_string()),
+            context: None,
+        },
+        equiv_v2_route: "(no longer working) [Get User Votes](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",
+        auth_types: vec![]
+    });
+
     docs += &doc(
         models::Route {
             title: "Post Stats",

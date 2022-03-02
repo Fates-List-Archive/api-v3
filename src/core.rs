@@ -237,7 +237,8 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
                 context: None
             });
         }
-        invite_link = Some(invite_link_result.unwrap())
+        invite_link = Some(invite_link_result.unwrap());
+        data.database.update_server_invite_amount(id.id).await;
     }
 
     let cached_server = data.database.get_server_from_cache(id.id).await;
@@ -261,9 +262,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
     }
 }
 
-// Search route
-
-
+/// Search route
 #[get("/search")]
 async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();

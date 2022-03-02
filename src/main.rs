@@ -13,7 +13,6 @@ use actix_web::http::Uri;
 use actix_web::http::uri::PathAndQuery;
 use futures::future::FutureExt;
 
-mod ipc;
 mod models;
 mod database;
 mod core;
