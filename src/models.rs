@@ -772,19 +772,12 @@ pub enum EventName {
     ServerInvite = 72, 
 }
 
-/*
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GuildInviteBaypawData {
+    pub url: String,
+    pub cid: u64, // First successful cid
+}
 
-class UserBotAction(IntEnum):
-    _init_ = "value __doc__"
-    approve = 0, "Approve"
-    deny = 1, "Deny"
-    certify = 2, "Certify"
-    ban = 3, "Ban"
-    claim = 4, "Claim"
-    unclaim = 5, "Unclaim"
-    transfer_ownership = 6, "Transfer Bot Ownership"
-    edit_bot = 7, "Edit Bot"
-*/
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
 #[repr(i32)]
@@ -1044,6 +1037,35 @@ pub enum CustomError {
     ForbiddenGeneric,
     #[error("Unknown Internal Error")]
     Unknown,
+}
+
+#[derive(Debug)]
+pub enum GuildInviteError {
+    SQLError(sqlx::Error),
+    LoginRequired,
+    NotAcceptingInvites,
+    WhitelistRequired(String),
+    Blacklisted,
+    StaffReview,
+    ServerBanned,
+    NoChannelFound,
+    RequestError(reqwest::Error)
+}
+
+impl GuildInviteError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::SQLError(e) => format!("SQL Error: {}", e),
+            Self::LoginRequired => "You must login in order to join this server!".to_string(),
+            Self::StaffReview => "This server is currently under review by Fates List Staff and not accepting invites at this time!".to_string(),
+            Self::NotAcceptingInvites => "This server is private and not accepting invites at this time!".to_string(),
+            Self::ServerBanned => "This server has been banned from Fates List. If you are a staff member of this server, contact Fates List Support for more information.".to_string(),
+            Self::WhitelistRequired(s) => format!("You need to be whitelisted to join this server!<br/>{}", s),
+            Self::Blacklisted => "You have been blacklisted from joining this server!".to_string(),
+            Self::NoChannelFound => "Could not find channel to invite you to... Please ask the owner of this server to set an invite or set the invite channel for this server".to_string(),
+            Self::RequestError(e) => format!("Error occurred when fetching guild invite from baypaw {}", e),
+        }
+    }
 }
 
 pub enum OauthError {

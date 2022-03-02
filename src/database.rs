@@ -1273,9 +1273,125 @@ impl Database {
         Ok(sensitive_bot)
     }
 
-    pub async fn resolve_guild_invite(&self, guild_id: i64, user_id: i64) -> String {
-        ipc::resolve_guild_invite(self.redis.clone(), guild_id, user_id).await
+    pub async fn resolve_guild_invite(&self, guild_id: i64, user_id: i64) -> Result<String, models::GuildInviteError> {
+        // Get state, invite_channel, user_whitelist, user_blacklist, login_required, whitelist_only
+        // login_required
+        let row = sqlx::query!(
+            "SELECT state, invite_channel, user_whitelist, user_blacklist, 
+            login_required, whitelist_only, whitelist_form, invite_url
+            FROM servers WHERE guild_id = $1",
+            guild_id
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(models::GuildInviteError::SQLError)?;
+
+        let state = row.state;
+        let invite_channel = row.invite_channel.unwrap_or_default();
+        let user_whitelist = row.user_whitelist.unwrap_or_default();
+        let user_blacklist = row.user_blacklist.unwrap_or_default();
+        let invite_url = row.invite_url.unwrap_or_else(|| "".to_string());
+        let mut login_required = row.login_required.unwrap_or_default();
+        let whitelist_only = row.whitelist_only.unwrap_or_default();
+
+        let mut invite_channel = invite_channel.parse::<i64>();
+
+        if invite_channel.is_err() {
+            invite_channel = Ok(0);
+        }
+
+        let invite_channel = invite_channel.unwrap();
+
+        // Whitelist only implies login_required
+        if whitelist_only {
+            login_required = true
+        }
+
+        if login_required && user_id == 0 {
+            return Err(models::GuildInviteError::LoginRequired);
+        }
+
+        // Get a state
+        let state = models::State::try_from(state).unwrap_or(models::State::Approved);
+
+        if state == models::State::Banned {
+            return Err(models::GuildInviteError::ServerBanned);
+        } else if state == models::State::PrivateStaffOnly {
+            return Err(models::GuildInviteError::StaffReview);
+        }
+
+        if user_whitelist.contains(&user_id.to_string()) {
+            return self.invite_resolver(guild_id, user_id, invite_channel, invite_url).await;
+        } else {
+            if state == models::State::PrivateViewable {
+                return Err(models::GuildInviteError::NotAcceptingInvites);
+            } else if whitelist_only {
+                let form = row.whitelist_form;
+                let form_html: String;
+                if form.is_none() {
+                    form_html = "There is no form to get access to this server!".to_string()
+                } else {
+                    form_html = format!("<a href='{}'>You can get acces to this server here</a>", form.unwrap());
+                }
+                return Err(models::GuildInviteError::WhitelistRequired(form_html));
+            }
+            else if user_blacklist.contains(&user_id.to_string()) {
+                return Err(models::GuildInviteError::Blacklisted);
+            }
+        }
+
+        self.invite_resolver(guild_id, user_id, invite_channel, invite_url).await
     }
+
+    /// Not made for external use outside resolve_guild_invite
+    async fn invite_resolver(
+        &self, 
+        guild_id: i64, 
+        user_id: i64,
+        invite_channel: i64,
+        invite_url: String,
+    ) -> Result<String, models::GuildInviteError> {
+        if !invite_url.is_empty() {
+            return Ok(invite_url);
+        }
+        // Call baypaw /guild-invite endpoint
+        let req = self.requests.get(
+            format!(
+                "http://127.0.0.1:1234/guild-invite?gid={guild_id}&uid={user_id}&cid={channel_id}",
+                guild_id = guild_id,
+                user_id = user_id,
+                channel_id = invite_channel,
+            ),
+        )
+        .send()
+        .await
+        .map_err(models::GuildInviteError::RequestError)?;
+
+        if req.status().is_success() {
+            // Handle a success here
+            let data = req.json::<models::GuildInviteBaypawData>().await;
+            if data.is_err() {
+                return Err(models::GuildInviteError::RequestError(data.unwrap_err()));
+            }
+            let data = data.unwrap();
+            // Update invite_channel with cid from baypaw
+            if data.cid.to_string() != invite_channel.to_string() {
+                sqlx::query!(
+                    "UPDATE servers SET invite_channel = $1 WHERE guild_id = $2",
+                    data.cid.to_string(),
+                    guild_id,
+                )
+                .execute(&self.pool)
+                .await
+                .unwrap();
+            }
+            return Ok(data.url)
+        } else {
+            return Err(models::GuildInviteError::NoChannelFound)
+        }
+    }
+
+    // Invite amount updater
 
     pub async fn update_bot_invite_amount(&self, bot_id: i64) {
         sqlx::query!(
@@ -1286,6 +1402,18 @@ impl Database {
         .await
         .unwrap();
     }
+
+    pub async fn update_server_invite_amount(&self, guild_id: i64) {
+        sqlx::query!(
+            "UPDATE servers SET invite_amount = invite_amount + 1 WHERE guild_id = $1",
+            guild_id
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
+    }
+
+    // Security functions
 
     pub async fn new_bot_token(&self, bot_id: i64) {
         let new_token = converters::create_token(128);

@@ -225,10 +225,19 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
 
     // Server invite handling using GUILDINVITE ipc
     if req.headers().contains_key("Frostpaw-Invite") {
-        invite_link = Some(data.database.resolve_guild_invite(
+        let invite_link_result = data.database.resolve_guild_invite(
             id.id, 
             event_user.unwrap_or_else(|| "0".to_string()).parse::<i64>().unwrap_or(0)
-        ).await);
+        ).await;
+
+        if invite_link_result.is_err() {
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                done: false,
+                reason: Some(invite_link_result.unwrap_err().to_string()),
+                context: None
+            });
+        }
+        invite_link = Some(invite_link_result.unwrap())
     }
 
     let cached_server = data.database.get_server_from_cache(id.id).await;
@@ -344,10 +353,12 @@ async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>, vot
         }
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
             done: false,
-            reason: Some("Successfully voted for this bot!\n\nPro Tip: You 
-            can vote for bots directly on your server using Squirrelflight, 
-            join our support server for more information but Squirreflight 
-            also supports vote reminders as well!".to_string()),
+            reason: Some(
+r#"Successfully voted for this bot!
+
+Pro Tip: You can vote for bots directly on your server using Squirrelflight, join our support server 
+for more information. Squirrelflight also supports vote reminders as well!
+"#.to_string()),
             context: None,
         });
 } else {
