@@ -270,7 +270,8 @@ async fn add_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web
                     username: "".to_string(),
                     avatar: "".to_string(),
                     disc: "0000".to_string(),
-                    bot: false
+                    bot: false,
+                    status: models::Status::Unknown
                 },
                 main: true,
             });

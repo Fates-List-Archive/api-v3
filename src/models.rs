@@ -21,6 +21,7 @@ pub struct User {
     pub disc: String,
     pub avatar: String,
     pub bot: bool,
+    pub status: Status
 }
 
 #[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
@@ -617,6 +618,7 @@ pub struct Bot {
     pub description: String,
     pub tags: Vec<Tag>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub last_updated_at: chrono::DateTime<chrono::Utc>,
     pub last_stats_post: chrono::DateTime<chrono::Utc>,
     pub long_description: String,
     pub long_description_raw: String,
@@ -686,6 +688,7 @@ impl Default for Bot {
             description: "".to_string(),
             tags: Vec::new(),
             created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            last_updated_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             last_stats_post: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
             long_description: "blah blah blah".to_string(),
             long_description_raw: "blah blah blah unsanitized".to_string(),

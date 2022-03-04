@@ -60,6 +60,7 @@ impl Database {
         let user: models::User = res.json().await.unwrap_or_else(|_| models::User {
             id: "".to_string(),
             username: "Unknown User".to_string(),
+            status: models::Status::Unknown,
             disc: "0000".to_string(),
             avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
             bot: false,
@@ -198,6 +199,7 @@ impl Database {
             disc: "0000".to_string(),
             avatar: row.avatar.unwrap_or_else(|| "".to_string()),
             bot: false,
+            status: models::Status::Unknown,
         }
     }
 
@@ -461,7 +463,7 @@ impl Database {
             AS library, state, website, discord AS support, github, 
             user_count, votes, total_votes, donate, privacy_policy,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
-            page_style, keep_banner_decor, long_description_type, 
+            page_style, keep_banner_decor, long_description_type, last_updated_at,
             long_description, webhook_type FROM bots WHERE bot_id = $1 OR 
             client_id = $1", 
             bot_id
@@ -634,6 +636,7 @@ impl Database {
                     created_at: data.created_at,
                     vpm: Some(vpm),
                     last_stats_post: data.last_stats_post,
+                    last_updated_at: data.last_updated_at,
                     description: data.description.unwrap_or_else(|| "No description set".to_string()),
                     css: "<style>".to_string() + &data.css.unwrap_or_else(|| "".to_string()).replace("\\n", "\n").replace("\\t", "\t") + "</style>",
                     flags: data.flags.unwrap_or_default(),
@@ -1127,6 +1130,7 @@ impl Database {
                 disc: user.discriminator,
                 avatar: user.avatar.unwrap_or_else(|| "https://api.fateslist.xyz/static/botlisticon.webp".to_string()),
                 bot: false,
+                status: models::Status::Unknown,
             },
             token,
             state,
@@ -1545,8 +1549,8 @@ impl Database {
             donate = $16, privacy_policy = $17, nsfw = $18, 
             webhook_secret = $19, webhook_hmac_only = $20,
             banner_page = $21, keep_banner_decor = $22, 
-            client_id = $23, page_style = $24, long_description_parsed = null 
-            WHERE bot_id = $1",
+            client_id = $23, page_style = $24, long_description_parsed = null,
+            last_updated_at = NOW() WHERE bot_id = $1",
             id, bot.library, bot.webhook, bot.description, 
             bot.long_description, bot.prefix, 
             bot.website, bot.support, bot.banner_card, bot.invite, 
@@ -2231,6 +2235,7 @@ impl Database {
                     disc: "0000".to_string(), // This is unknown
                     avatar: avatar, // This is unknown
                     bot: true,
+                    status: models::Status::Unknown,
                 },
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
                 description: row.description.unwrap_or_else(|| "No description found!".to_string()),
@@ -2269,6 +2274,7 @@ impl Database {
                     disc: "0000".to_string(), // This is unknown
                     avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(), // This is unknown
                     bot: true,
+                    status: models::Status::Unknown,
                 },
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
                 description: row.description.unwrap_or_else(|| "No description found!".to_string()),

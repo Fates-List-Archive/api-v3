@@ -845,6 +845,7 @@ You **must** be main owner to use this endpoint.
                 username: "Leave blank".to_string(),
                 disc: "Leave blank".to_string(),
                 avatar: "Leave blank".to_string(),
+                status: models::Status::Unknown,
                 bot: false
             }
         },
