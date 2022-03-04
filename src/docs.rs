@@ -521,8 +521,8 @@ This endpoint creates a vote for a bot which can only be done *once* every 8 hou
             reason: Some("Why the vote failed".to_string()),
             context: None,
         },
-        equiv_v2_route: "(no longer working) [Get User Votes](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",
-        auth_types: vec![]
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User]
     });
 
     docs += &doc(
