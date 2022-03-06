@@ -1,5 +1,5 @@
 /// Handles bot appeals
-use actix_web::{http, HttpRequest, post, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{http, HttpRequest, post, web, HttpResponse, ResponseError};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use log::error;

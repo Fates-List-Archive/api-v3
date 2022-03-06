@@ -1189,6 +1189,13 @@ impl Database {
     }
 
     pub async fn post_stats(&self, bot_id: i64, stats: models::BotStats) -> Result<(), models::StatsError> {
+        // Firstly make sure user does not have the StatsLocked flag
+        let bot = self.get_bot(bot_id).await.unwrap();
+
+        if converters::flags_check(bot.flags, vec![models::Flags::StatsLocked as i32]) {
+            return Err(models::StatsError::Locked);
+        }
+        
         // Shard count
         match stats.shard_count {
             Some(count) => {

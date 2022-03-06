@@ -24,7 +24,7 @@ async fn get_profile(req: HttpRequest, info: web::Path<models::FetchBotPath>) ->
 #[patch("/profiles/{id}")]
 async fn update_profile(req: HttpRequest, info: web::Path<models::FetchBotPath>, body: web::Json<models::Profile>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let user_id = info.id.clone();
+    let user_id = info.id;
 
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();

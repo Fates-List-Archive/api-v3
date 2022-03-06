@@ -1,6 +1,6 @@
 // Endpoints for bot list stats
 
-use actix_web::{http, HttpRequest, get, web, HttpResponse, ResponseError};
+use actix_web::{HttpRequest, get, web, HttpResponse};
 use crate::models;
 use procfs;
 

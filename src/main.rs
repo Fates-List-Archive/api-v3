@@ -1,10 +1,11 @@
 #![feature(derive_default_enum)]
+#![warn(clippy::pedantic)]
 
-extern crate env_logger;
+use env_logger;
 
 use actix_web::{middleware, web, http, HttpResponse, App, HttpServer, HttpRequest, error::ResponseError};
 use actix_web::middleware::Logger;
-extern crate inflector;
+use inflector;
 use log::{debug, error, info};
 use actix_cors::Cors;
 use bytes::Bytes;
@@ -111,7 +112,7 @@ async fn main() -> std::io::Result<()> {
                 let path = original_path.replacen("/api/v2/", "/", 1);
 
                 let mut parts = head.uri.clone().into_parts();
-                let query = parts.path_and_query.as_ref().and_then(|pq| pq.query());
+                let query = parts.path_and_query.as_ref().and_then(actix_web::http::uri::PathAndQuery::query);
 
                 let path = match query {
                     Some(q) => Bytes::from(format!("{}?{}", path, q)),

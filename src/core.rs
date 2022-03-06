@@ -429,7 +429,7 @@ async fn get_bot_settings(req: HttpRequest, info: web::Path<models::GetUserBotPa
 #[post("/bots/{id}/stats")] 
 async fn post_stats(req: HttpRequest, id: web::Path<models::FetchBotPath>, stats: web::Json<models::BotStats>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let bot_id = id.id.clone();
+    let bot_id = id.id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();

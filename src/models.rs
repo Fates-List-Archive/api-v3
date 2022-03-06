@@ -12,7 +12,8 @@ use std::path::PathBuf;
 use log::debug;
 use indexmap::{IndexMap, indexmap};
 use serenity::model::id::ChannelId;
-use bigdecimal;
+use std::fmt;
+
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -1024,11 +1025,13 @@ pub enum CommandAddError {
     SQLError(sqlx::Error),
 }
 
-impl CommandAddError {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-        }
+impl fmt::Display for CommandAddError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+            &match self {
+                Self::SQLError(e) => format!("SQL Error: {}", e),
+            }
+        )
     }
 }
 
@@ -1055,9 +1058,10 @@ pub enum GuildInviteError {
     RequestError(reqwest::Error)
 }
 
-impl GuildInviteError {
-    pub fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for GuildInviteError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+        &match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
             Self::LoginRequired => "You must login in order to join this server!".to_string(),
             Self::StaffReview => "This server is currently under review by Fates List Staff and not accepting invites at this time!".to_string(),
@@ -1067,7 +1071,7 @@ impl GuildInviteError {
             Self::Blacklisted => "You have been blacklisted from joining this server!".to_string(),
             Self::NoChannelFound => "Could not find channel to invite you to... Please ask the owner of this server to set an invite or set the invite channel for this server".to_string(),
             Self::RequestError(e) => format!("Error occurred when fetching guild invite from baypaw {}", e),
-        }
+        })
     }
 }
 
@@ -1078,14 +1082,15 @@ pub enum OauthError {
     SQLError(sqlx::Error),
 }
 
-impl OauthError {
-    pub fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for OauthError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+        &match self {
             Self::BadExchange(e) => format!("Bad Exchange: {}", e),
             Self::BadExchangeJson(e) => format!("Bad Exchange JSON: {}", e),
             Self::NoUser(e) => format!("No User: {}", e),
             Self::SQLError(e) => format!("SQL Error: {}", e),
-        }
+        })
     }
 }
 
@@ -1113,11 +1118,13 @@ pub enum ReviewAddError {
     SQLError(sqlx::Error)
 }
 
-impl ReviewAddError {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::SQLError(e) => format!("SQL error: {}", e),
-        }
+impl fmt::Display for ReviewAddError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+            &match self {
+                Self::SQLError(e) => format!("SQL Error: {}", e),
+            }
+        )
     }
 }
 
@@ -1250,6 +1257,7 @@ impl VoteBotError {
 
 pub enum StatsError {
     BadStats(String), // TODO
+    Locked,
     SQLError(sqlx::Error),
 }
 
@@ -1257,6 +1265,7 @@ impl StatsError {
     pub fn to_string(&self) -> String {
         match self {
             Self::BadStats(e) => format!("Bad stats caught and flagged: {}", e),
+            Self::Locked => "You have been banned from using this API endpoint!".to_string(),
             Self::SQLError(e) => format!("SQL error: {}", e),
         }
     }

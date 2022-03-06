@@ -263,59 +263,56 @@ async fn add_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: web
                 reason: Some(res.unwrap_err().to_string()),
                 context: Some("Check error".to_string())
             });
-        } else {
-            bot.owners.push(models::BotOwner {
-                user: models::User {
-                    id: user_id.clone().to_string(),
-                    username: "".to_string(),
-                    avatar: "".to_string(),
-                    disc: "0000".to_string(),
-                    bot: false,
-                    status: models::Status::Unknown
-                },
-                main: true,
-            });
-            let res = data.database.add_bot(&bot).await;
-            if res.is_err() {
-                return HttpResponse::BadRequest().json(models::APIResponse {
-                    done: false,
-                    reason: Some(res.unwrap_err().to_string()),
-                    context: Some("Add bot error".to_string())
-                });    
-            } else {
-                let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
-                    m.content("<@&".to_string()+&data.config.discord.roles.staff_ping_add_role.clone()+">");
-                    m.embed(|e| {
-                        e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
-                        e.title("New Bot!");
-                        e.color(0x00ff00 as u64);
-                        e.description(
-                            format!(
-                                "{user} has added {bot} ({bot_name}) to the queue!",
-                                user = UserId(user_id as u64).mention(),
-                                bot_name = bot.user.username,
-                                bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
-                            )
-                        );
-
-                        e.field("Guild Count (approx)", bot.guild_count.to_string(), true);
-
-                        e
-                    });
-                    m
-                }).await;
-
-                return HttpResponse::Ok().json(models::APIResponse {
-                    done: true,
-                    reason: Some("Added bot successfully!".to_string()),
-                    context: None
-                });
-            }
         }
-    } else {
-        error!("Add bot auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
-    }
+        bot.owners.push(models::BotOwner {
+            user: models::User {
+                id: user_id.clone().to_string(),
+                username: "".to_string(),
+                avatar: "".to_string(),
+                disc: "0000".to_string(),
+                bot: false,
+                status: models::Status::Unknown
+            },
+            main: true,
+        });
+        let res = data.database.add_bot(&bot).await;
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: Some("Add bot error".to_string())
+            });    
+        }
+        let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+            m.content("<@&".to_string()+&data.config.discord.roles.staff_ping_add_role.clone()+">");
+            m.embed(|e| {
+                e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
+                e.title("New Bot!");
+                e.color(0x00ff00 as u64);
+                e.description(
+                    format!(
+                        "{user} has added {bot} ({bot_name}) to the queue!",
+                        user = UserId(user_id as u64).mention(),
+                        bot_name = bot.user.username,
+                        bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
+                    )
+                );
+
+                e.field("Guild Count (approx)", bot.guild_count.to_string(), true);
+
+                e
+            });
+            m
+        }).await;
+
+        return HttpResponse::Ok().json(models::APIResponse {
+            done: true,
+            reason: Some("Added bot successfully!".to_string()),
+            context: None
+        });
+    } 
+    error!("Add bot auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
 }
 
 /// Edit bot
@@ -356,45 +353,50 @@ async fn edit_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>, bot: we
                 reason: Some(res.unwrap_err().to_string()),
                 context: Some("Check error".to_string())
             });
-        } else {
-            let res = data.database.edit_bot(user_id, &bot).await;
-            if res.is_err() {
-                return HttpResponse::BadRequest().json(models::APIResponse {
-                    done: false,
-                    reason: Some(res.unwrap_err().to_string()),
-                    context: Some("Edit bot error".to_string())
-                });    
-            } else {
-                let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
-                    m.embed(|e| {
-                        e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
-                        e.title("Bot Edit!");
-                        e.color(0x00ff00 as u64);
-                        e.description(
-                            format!(
-                                "{user} has edited {bot} ({bot_name})!",
-                                user = UserId(user_id as u64).mention(),
-                                bot_name = bot.user.username,
-                                bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
-                            )
-                        );
-
-                        e
-                    });
-                    m
-                }).await;
-
-                return HttpResponse::Ok().json(models::APIResponse {
-                    done: true,
-                    reason: Some("Edited bot successfully!".to_string()),
-                    context: None
-                });
-            }
         }
-    } else {
-        error!("Edit bot auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
+        let res = data.database.edit_bot(user_id, &bot).await;
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: Some("Edit bot error".to_string())
+            });    
+        }
+        let result = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+            m.embed(|e| {
+                e.url("https://fateslist.xyz/bot/".to_owned()+&bot.user.id);
+                e.title("Bot Edit!");
+                e.color(0x00ff00 as u64);
+                e.description(
+                    format!(
+                        "{user} has edited {bot} ({bot_name})!",
+                        user = UserId(user_id as u64).mention(),
+                        bot_name = bot.user.username,
+                        bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
+                    )
+                );
+
+                e
+            });
+            m
+        }).await;
+
+        if result.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some(result.unwrap_err().to_string() + " but the bot was edited successfully!"),
+                context: Some("Edit bot error".to_string())
+            });
+        }
+
+        return HttpResponse::Ok().json(models::APIResponse {
+            done: true,
+            reason: Some("Edited bot successfully!".to_string()),
+            context: None
+        });
     }
+    error!("Edit bot auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
 }
 
 /// Transfer ownership
@@ -492,10 +494,9 @@ async fn transfer_ownership(req: HttpRequest, id: web::Path<models::GetUserBotPa
             context: None
         });
 
-    } else {
-        error!("Transfer bot auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
     }
+    error!("Transfer bot auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
 }
 
 /// Delete bot
@@ -540,34 +541,33 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
                 reason: Some("Something went wrong while deleting the bot!".to_string() + &res.unwrap_err().to_string()),
                 context: None
             });
-        } else {
-            let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
-                m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
-                    e.title("Bot Deleted :(");
-                    e.color(0x00ff00 as u64);
-                    e.description(
-                        format!(
-                            "{user} has deleted {bot} ({bot_name})",
-                            user = UserId(user_id as u64).mention(),
-                            bot_name = bot_user.unwrap().user.username,
-                            bot = UserId(bot_id as u64).mention(),
-                        )
-                    );
-
-                    e
-                });
-                m
-            }).await;
-
-            return HttpResponse::Ok().json(models::APIResponse {
-                done: true,
-                reason: Some("Successfully transferred ownership".to_string()),
-                context: None
-            });    
         }
-    } else {
-        error!("Delete bot auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
-    }
+
+        let _ = data.config.discord.channels.bot_logs.send_message(&data.config.discord_http, |m| {
+            m.embed(|e| {
+                e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
+                e.title("Bot Deleted :(");
+                e.color(0x00ff00 as u64);
+                e.description(
+                    format!(
+                        "{user} has deleted {bot} ({bot_name})",
+                        user = UserId(user_id as u64).mention(),
+                        bot_name = bot_user.unwrap().user.username,
+                        bot = UserId(bot_id as u64).mention(),
+                    )
+                );
+
+                e
+            });
+            m
+        }).await;
+
+        return HttpResponse::Ok().json(models::APIResponse {
+            done: true,
+            reason: Some("Successfully transferred ownership".to_string()),
+            context: None
+        });    
+    } 
+    error!("Delete bot auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
 }

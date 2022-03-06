@@ -1,10 +1,9 @@
 /// Handles reviews
 /// TODO, add websocket events *if desired*
-use actix_web::{http, HttpRequest, get, post, patch, delete, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{HttpRequest, get, post, patch, delete, web, HttpResponse, ResponseError};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use log::error;
-use serenity::model::prelude::*;
 use bigdecimal::FromPrimitive;
 
 #[get("/reviews/{id}")]

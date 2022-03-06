@@ -1,5 +1,5 @@
 // Add, remove and delete commands from bots
-use actix_web::{http, HttpRequest, post, delete, web, HttpResponse, ResponseError, web::Json};
+use actix_web::{HttpRequest, post, delete, web, HttpResponse, ResponseError};
 use actix_web::http::header::HeaderValue;
 use crate::models;
 use log::error;

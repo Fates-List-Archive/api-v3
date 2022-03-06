@@ -7,7 +7,6 @@ use rand::distributions::Alphanumeric;
 use actix_web::http::StatusCode;
 use sha2::Sha512;
 use hmac::{Hmac, Mac};
-use hex;
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -27,9 +26,8 @@ pub fn invite_link(client_id: String, invite: String) -> String {
             bot_id = client_id,
             perm = 0,
         );
-    } else {
-        invite
-    }
+    } 
+    invite
 }
 
 pub fn owner_html(id: String, username: String) -> String {
