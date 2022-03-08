@@ -1300,7 +1300,9 @@ the command depending on its ``name``.**
         query_params: &models::TargetQuery {
             target_type: models::TargetType::Bot
         },
-        request_body: &models::BotCommandVec::default(),
+        request_body: &models::BotCommandVec {
+            commands: vec![models::BotCommand::default()]
+        },
         response_body: &models::APIResponse {
             done: true,
             reason: None,
