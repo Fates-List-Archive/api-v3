@@ -120,17 +120,17 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
     let auth_lengths = route.auth_types.clone().len();
     for auth in route.auth_types {
         if auth == models::RouteAuthType::Bot {
-            auth_needed += "[Bot](https://docs.fateslist.xyz/api-v3/#authorization)";
+            auth_needed += "[Bot](https://docs.fateslist.xyz/endpoints#authorization)";
             if i < auth_lengths {
                 auth_needed += ", ";
             }
         } else if auth == models::RouteAuthType::User {
-            auth_needed += "[User](https://docs.fateslist.xyz/api-v3/#authorization)";
+            auth_needed += "[User](https://docs.fateslist.xyz/endpoints#authorization)";
             if i < auth_lengths {
                 auth_needed += ", ";
             }
         } else if auth == models::RouteAuthType::Server {
-            auth_needed += "[Server](https://docs.fateslist.xyz/api-v3/#authorization)";
+            auth_needed += "[Server](https://docs.fateslist.xyz/endpoints#authorization)";
             if i < auth_lengths {
                 auth_needed += ", ";
             }
@@ -155,7 +155,7 @@ fn doc_category(name: &str) -> String {
 }
 
 pub fn document_routes() -> String {
-    let mut docs: String = "# API v3\n**API URL**: ``https://next.fateslist.xyz`` *or* ``https://api.fateslist.xyz`` (for now, can change in future)\n".to_string();
+    let mut docs: String = "**API URL**: ``https://next.fateslist.xyz`` *or* ``https://api.fateslist.xyz`` (for now, can change in future)\n".to_string();
 
     // Add basic auth stuff
     docs += r#"
@@ -202,6 +202,53 @@ you prefix the token with `User`
     // TODO: For each route, add doc system
 
     docs += &doc_category("Core");
+
+
+    docs += &doc(
+        models::Route {
+            title: "Post Stats",
+            method: "POST",
+            path: "/bots/{id}/stats",
+            path_params: &models::FetchBotPath {
+                id: 0,
+            },
+            query_params: &models::Empty {},
+            request_body: &models::BotStats {
+                guild_count: 3939,
+                shard_count: Some(48484),
+                shards: Some(vec![149, 22020]),
+                user_count: Some(39393),
+            },
+            response_body: &models::APIResponse::default(),
+description: r#"
+Post stats to the list
+
+Example:
+```py
+import requests
+
+# On dpy, guild_count is usually the below
+guild_count = len(client.guilds)
+
+# If you are using sharding
+shard_count = len(client.shards)
+shards = client.shards.keys()
+
+# Optional: User count (this is not accurate for larger bots)
+user_count = len(client.users) 
+
+def post_stats(bot_id: int, guild_count: int):
+    res = requests.post(f"{api_url}/bots/{bot_id}/stats", json={"guild_count": guild_count})
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+"#,
+            equiv_v2_route: "(no longer working) [Post Stats](https://legacy.fateslist.xyz/api/docs/redoc#operation/set_stats)",
+            auth_types: vec![models::RouteAuthType::Bot]
+    });
 
     // - Index route
     let index_bots = vec![models::IndexBot::default()];
@@ -523,52 +570,6 @@ This endpoint creates a vote for a bot which can only be done *once* every 8 hou
         },
         equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User]
-    });
-
-    docs += &doc(
-        models::Route {
-            title: "Post Stats",
-            method: "GET",
-            path: "/bots/{id}/stats",
-            path_params: &models::FetchBotPath {
-                id: 0,
-            },
-            query_params: &models::Empty {},
-            request_body: &models::BotStats {
-                guild_count: 3939,
-                shard_count: Some(48484),
-                shards: Some(vec![149, 22020]),
-                user_count: Some(39393),
-            },
-            response_body: &models::IndexBot::default(),
-description: r#"
-Post stats to the list
-
-Example:
-```py
-import requests
-
-# On dpy, guild_count is usually the below
-guild_count = len(client.guilds)
-
-# If you are using sharding
-shard_count = len(client.shards)
-shards = client.shards.keys()
-
-# Optional: User count (this is not accurate for larger bots)
-user_count = len(client.users) 
-
-def post_stats(bot_id: int, guild_count: int):
-    res = requests.post(f"{api_url}/bots/{bot_id}/stats", json={"guild_count": guild_count})
-    json = res.json()
-    if res.status != 200:
-        # Handle an error in the api
-        ...
-    return json
-```
-"#,
-            equiv_v2_route: "(no longer working) [Post Stats](https://legacy.fateslist.xyz/api/docs/redoc#operation/set_stats)",
-            auth_types: vec![models::RouteAuthType::Bot]
     });
 
     docs += &doc( models::Route {
@@ -1299,7 +1300,7 @@ the command depending on its ``name``.**
         query_params: &models::TargetQuery {
             target_type: models::TargetType::Bot
         },
-        request_body: &models::Resource::default(),
+        request_body: &models::BotCommandVec::default(),
         response_body: &models::APIResponse {
             done: true,
             reason: None,
