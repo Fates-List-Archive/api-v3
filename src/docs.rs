@@ -329,11 +329,11 @@ def post_stats(bot_id: int, guild_count: int):
     // - Preview route
     docs += &doc( models::Route {
         title: "Preview Description",
-        method: "POST",
-        path: "/partners",
+        method: "WS",
+        path: "/ws/_preview",
         path_params: &models::Empty {},
         query_params: &models::Empty {},
-        description: "Given the preview and long description, parse it and give the sanitized output",
+        description: "Given the preview and long description, parse it and give the sanitized output. You must first connect over websocket!",
         request_body: &models::PreviewRequest::default(),
         response_body: &models::PreviewResponse::default(),
         equiv_v2_route: "None",

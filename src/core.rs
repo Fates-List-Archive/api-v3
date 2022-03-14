@@ -82,15 +82,6 @@ async fn partners(req: HttpRequest) -> HttpResponse {
     HttpResponse::build(http::StatusCode::OK).json(&data.config.partners)
 }
 
-// Preview API
-#[post("/preview")]
-async fn preview_description(req: HttpRequest, preview: web::Json<models::PreviewRequest>) -> HttpResponse {
-    let preview = preview.into_inner();
-    HttpResponse::Ok().json(models::PreviewResponse {
-        preview: converters::sanitize_description(preview.long_description_type, preview.text)
-    })
-}
-
 // Bot route
 #[get("/bots/{id}")]
 async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpResponse {

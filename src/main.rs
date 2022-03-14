@@ -29,6 +29,7 @@ mod reviews;
 mod stats;
 mod resources;
 mod commands;
+mod ws;
 
 use crate::models::APIResponse;
 
@@ -135,7 +136,6 @@ async fn main() -> std::io::Result<()> {
             .service(core::docs_tmpl)
             .service(core::policies)
             .service(core::partners)
-            .service(core::preview_description)
             .service(core::get_bot)
             .service(core::get_server)
             .service(core::search)
@@ -172,6 +172,7 @@ async fn main() -> std::io::Result<()> {
             .service(resources::delete_resource)
             .service(commands::add_command)
             .service(commands::delete_commands)
+            .service(ws::preview)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

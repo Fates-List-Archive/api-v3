@@ -2358,7 +2358,7 @@ impl Database {
             description, args, examples, premium_only, notes, doc_link,
             groups, vote_locked, nsfw) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            ON CONFLICT (id, name) DO UPDATE SET cmd_type = 
+            ON CONFLICT (name) DO UPDATE SET cmd_type = 
             excluded.cmd_type, description = excluded.description,
             args = excluded.args, examples = excluded.examples,
             premium_only = excluded.premium_only, notes = excluded.notes,
