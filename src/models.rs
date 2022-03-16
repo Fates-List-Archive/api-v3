@@ -849,6 +849,7 @@ pub struct EventContext {
     pub user: Option<String>,
     pub target: String,
     pub target_type: TargetType,
+    pub ts: i64,
 }
 
 #[derive(Deserialize, Serialize, Clone)]

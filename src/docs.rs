@@ -1293,6 +1293,10 @@ The ``id`` here must be the bot id you wish to add the command for
 
 **This performs a *upsert* meaning it will either create or update 
 the command depending on its ``name``.**
+
+**Only post up to 10-20 commands at a time, otherwise requests may be truncated
+or otherwise fail with odd errors.  If you have more than this, then perform 
+multiple requests**
 "#,
         path_params: &models::FetchBotPath {
             id: 0

@@ -173,6 +173,7 @@ async fn main() -> std::io::Result<()> {
             .service(commands::add_command)
             .service(commands::delete_commands)
             .service(ws::preview)
+            .service(ws::bot_ws)
     })
     .workers(6)
     .bind("127.0.0.1:8080")?

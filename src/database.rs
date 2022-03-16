@@ -38,6 +38,11 @@ impl Database {
         }
     }
 
+    /// Only call this when absolutely *needed*
+    pub fn get_redis(&self) -> deadpool_redis::Pool {
+        self.redis.clone()
+    }
+
     pub async fn get_user(&self, user_id: i64) -> models::User {
         // First check cache
         let mut conn = self.redis.get().await.unwrap();
@@ -2545,6 +2550,7 @@ impl Database {
                 target: bot_id.to_string(),
                 target_type: models::TargetType::Bot,
                 user: Some(user_id.to_string()),
+                ts: chrono::Utc::now().timestamp(),
             },
             props: models::BotVoteProp {
                 test,

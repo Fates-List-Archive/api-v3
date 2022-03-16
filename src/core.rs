@@ -5,6 +5,8 @@ use crate::models;
 use crate::converters;
 use log::error;
 use uuid::Uuid;
+use chrono::Utc;
+
 
 
 #[get("/index")]
@@ -116,6 +118,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
                 }
             }
         }
+
         let event = models::Event {
             m: models::EventMeta {
                 e: models::EventName::BotView,
@@ -125,6 +128,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
                 target: id.id.to_string(),
                 target_type: models::TargetType::Bot,
                 user: event_user,
+                ts: chrono::Utc::now().timestamp(),
             },
             props: models::BotViewProp {
                 vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
@@ -202,6 +206,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
                 target: id.id.to_string(),
                 target_type: models::TargetType::Server,
                 user: event_user.clone(),
+                ts: chrono::Utc::now().timestamp(),
             },
             props: models::BotViewProp {
                 vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
@@ -351,10 +356,9 @@ for more information. Squirrelflight also supports vote reminders as well!
 "#.to_string()),
             context: None,
         });
-} else {
-        error!("Vote Bot Auth error");
-        return models::CustomError::ForbiddenGeneric.error_response();
     }
+    error!("Vote Bot Auth error");
+    return models::CustomError::ForbiddenGeneric.error_response();
 }
 
 /// Mini Index: Get Tags And Features 

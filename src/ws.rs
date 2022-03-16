@@ -1,104 +1,183 @@
+
+   
 use std::time::{Duration, Instant};
 use actix_web::{HttpRequest, get, web, HttpResponse, Error};
 
-use actix::prelude::*;
-use actix_web_actors::ws;
+use actix_ws::Message;
 use crate::models;
 use crate::converters;
+use futures::StreamExt;
+use log::debug;
+use redis::AsyncCommands;
+use serde::Deserialize;
 
-/// How often heartbeat pings are sent
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
+#[get("/ws/_preview")]
+pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpResponse, Error> {
+    let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
+    
+    let mut close_reason = None;
 
-/// How long before lack of client response causes a timeout
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+    actix_rt::spawn(async move {
+        let mut hb = Instant::now();
 
-#[derive(PartialEq)]
-enum WsMode {
-    Preview,
-}
+        while let Some(Ok(msg)) = msg_stream.next().await {
+            match msg {
+                Message::Ping(bytes) => {
+                    if session.pong(&bytes).await.is_err() {
+                        break;
+                    }
+                }
+                Message::Pong(_) => {
+                    hb = Instant::now();
+                }        
+                Message::Text(text) => {
+                    if text == "PING" && session.text(Instant::now().duration_since(hb).as_micros().to_string()).await.is_err() {
+                        break;
+                    }
 
-use log::error;
-
-/// websocket connection is long running connection, it easier
-/// to handle with an actor
-struct FatesWebsocket {
-    /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
-    /// otherwise we drop connection.
-    hb: Instant,
-    mode: WsMode,
-}
-
-impl FatesWebsocket {
-    fn new(mode: WsMode) -> Self {
-        Self { hb: Instant::now(), mode }
-    }
-
-    /// helper method that sends ping to client every second.
-    ///
-    /// also this method checks heartbeats from client
-    fn hb(&self, ctx: &mut <Self as Actor>::Context) {
-        ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
-            // check client heartbeats
-            if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
-                // heartbeat timed out
-                error!("Websocket Client heartbeat failed, disconnecting!");
-
-                // stop actor
-                ctx.stop();
-
-                // don't try to send a ping
-                return;
-            }
-
-            ctx.ping(b"");
-        });
-    }
-}
-
-impl Actor for FatesWebsocket {
-    type Context = ws::WebsocketContext<Self>;
-
-    /// Method is called on actor start. We start the heartbeat process here.
-    fn started(&mut self, ctx: &mut Self::Context) {
-        self.hb(ctx);
-    }
-}
-
-/// Handler for `ws::Message`
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for FatesWebsocket {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        // process websocket messages
-        println!("WS: {:?}", msg);
-        match msg {
-            Ok(ws::Message::Ping(msg)) => {
-                self.hb = Instant::now();
-                ctx.pong(&msg);
-            }
-            Ok(ws::Message::Pong(_)) => {
-                self.hb = Instant::now();
-            }
-            Ok(ws::Message::Text(text)) => {
-                if self.mode == WsMode::Preview {
                     let data: models::PreviewRequest = serde_json::from_str(&text).unwrap_or_else(|_| models::PreviewRequest {
                         long_description_type: models::LongDescriptionType::Html,
                         text: "".to_string()
                     });
 
-                    ctx.text(serde_json::to_string(&models::PreviewResponse {
+                    if data.text.is_empty() {
+                        continue;
+                    }
+
+                    if session.text(serde_json::to_string(&models::PreviewResponse {
                         preview: converters::sanitize_description(data.long_description_type, data.text)
-                    }).unwrap())           
+                    }).unwrap()).await.is_err() {
+                        break;
+                    }
                 }
-            },
-            Ok(ws::Message::Close(reason)) => {
-                ctx.close(reason);
-                ctx.stop();
+
+                Message::Close(reason) => {
+                    close_reason = reason;
+                    break;
+                } 
+
+                _ => break      
             }
-            _ => ctx.stop(),
+        }
+
+        let _ = session.close(close_reason).await;
+
+    });
+
+    Ok(response)
+}
+
+#[derive(Deserialize, Copy, Clone)]
+enum WsMode {
+    Bot,
+    Server,
+}
+
+#[derive(Deserialize)]
+struct WsModeStruct {
+    mode: WsMode,
+}
+
+async fn bot_gateway_task(mode: WsMode, id: i64, session: actix_ws::Session) {
+    let client = redis::Client::open("redis://127.0.0.1:1001/1").unwrap();
+
+    let mut pubsub_conn = client.get_async_connection().await.unwrap().into_pubsub();
+
+    let mode = match mode {
+        WsMode::Bot => "bot",
+        WsMode::Server => "server",
+    };
+
+    let _ = pubsub_conn.subscribe(mode.to_string()+"-"+&id.to_string()).await;
+
+    let mut session = session.clone();
+
+    session.text("GWTASK LISTEN").await.unwrap();
+
+
+    while let Some(msg) = pubsub_conn.on_message().next().await {
+        let msg: Result<String, _> = msg.get_payload();
+        if msg.is_err() {
+            continue;
+        }
+        if session.text(msg.unwrap()).await.is_err() {
+            return;
         }
     }
 }
 
-#[get("/ws/_preview")]
-pub async fn preview(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    ws::start(FatesWebsocket::new(WsMode::Preview), &req, stream)
+#[get("/ws/{id}")]
+pub async fn bot_ws(req: HttpRequest, id: web::Path<i64>, mode: web::Query<WsModeStruct>, body: web::Payload) -> Result<HttpResponse, Error> {
+    let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
+    
+    let mut close_reason = None;
+    let mut gw_task = None;
+
+    actix_rt::spawn(async move {
+        let id = id.into_inner();
+        let mode = mode.into_inner().mode;
+        let mut hb = Instant::now();
+
+        while let Some(Ok(msg)) = msg_stream.next().await {
+            match msg {
+                Message::Ping(bytes) => {
+                    if session.pong(&bytes).await.is_err() {
+                        break;
+                    }
+                }
+                Message::Pong(_) => {
+                    hb = Instant::now();
+                }        
+                Message::Text(text) => {
+                    if text == "PING" && session.text(Instant::now().duration_since(hb).as_micros().to_string()).await.is_err() {
+                        break;
+                    }
+
+                    if text == "SUB" {
+                        if gw_task.is_some() {
+                            // Error out, you can only have one gateway task per session
+                            close_reason = Some(actix_ws::CloseReason {
+                                code: actix_ws::CloseCode::Other(4001),
+                                description: Some("You can only have one gateway task per session".to_string())
+                            });
+                            break;
+                        }
+                        // Subscribe to messages sent to the bots websocket channel
+                        gw_task = Some(actix_rt::spawn(bot_gateway_task(mode, id, session.clone())));
+                    } else if text == "ENDGWTASK" {
+                        if gw_task.is_none() {
+                            // Error out, cannot UNSUB if you are not subscribed
+                            close_reason = Some(actix_ws::CloseReason {
+                                code: actix_ws::CloseCode::Other(4002),
+                                description: Some("You can only unsubscribe if you actually have a gateway task running".to_string())
+                            });
+                            break;
+                        }
+                        if gw_task.is_some() {
+                            gw_task.unwrap().abort();
+                        }                        
+                        gw_task = None;
+                        if session.text("GWTASK NONE").await.is_err() {
+                            break;
+                        }        
+                    }
+                }
+
+                Message::Close(reason) => {
+                    close_reason = reason;
+                    break;
+                } 
+
+                _ => break      
+            }
+        }
+
+        let _ = session.close(close_reason).await;
+        if gw_task.is_some() {
+            gw_task.unwrap().abort();
+        }    
+
+    });
+
+    Ok(response)
 }
