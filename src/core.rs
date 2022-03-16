@@ -351,14 +351,16 @@ async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>, vot
             reason: Some(
 r#"Successfully voted for this bot!
 
-Pro Tip: You can vote for bots directly on your server using Squirrelflight, join our support server 
-for more information. Squirrelflight also supports vote reminders as well!
+<em>Pro Tip</em>: You can vote for bots directly on your server using Squirrelflight. Squirrelflight 
+also supports vote reminders as well!
+
+You can invite Squirrelflight to your server by <a style="color: blue !important" href="https://discord.com/api/oauth2/authorize?client_id=862696751482667068&permissions=2147486720&scope=bot%20applications.commands">clicking here</a>!
 "#.to_string()),
             context: None,
         });
     }
     error!("Vote Bot Auth error");
-    return models::CustomError::ForbiddenGeneric.error_response();
+    models::CustomError::ForbiddenGeneric.error_response()
 }
 
 /// Mini Index: Get Tags And Features 

@@ -12,13 +12,12 @@ async fn get_profile(req: HttpRequest, info: web::Path<models::FetchBotPath>) ->
 
     if let Some(profile) = profile {
         return HttpResponse::Ok().json(profile);
-    } else {
-        return HttpResponse::NotFound().json(models::APIResponse {
-            done: false,
-            reason: Some("Profile not found".to_string()),
-            context: Some("Profile not found".to_string())
-        });
     }
+    return HttpResponse::NotFound().json(models::APIResponse {
+        done: false,
+        reason: Some("Profile not found".to_string()),
+        context: Some("Profile not found".to_string())
+    });
 }
 
 #[patch("/profiles/{id}")]

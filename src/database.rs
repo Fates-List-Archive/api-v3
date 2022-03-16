@@ -2,6 +2,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::postgres::PgPool;
 use crate::models;
 use crate::converters;
+use crate::ws;
 use deadpool_redis::{Config, Runtime};
 use crate::inflector::Inflector;
 use log::{error, debug};
@@ -14,6 +15,7 @@ use chrono::Utc;
 use chrono::TimeZone;
 use bigdecimal::FromPrimitive;
 use std::borrow::Cow;
+use serde_json::json;
 
 pub struct Database {
     pool: PgPool,
@@ -39,8 +41,8 @@ impl Database {
     }
 
     /// Only call this when absolutely *needed*
-    pub fn get_redis(&self) -> deadpool_redis::Pool {
-        self.redis.clone()
+    pub fn get_postgres(&self) -> PgPool {
+        self.pool.clone()
     }
 
     pub async fn get_user(&self, user_id: i64) -> models::User {
@@ -1069,7 +1071,7 @@ impl Database {
         index_bot
     }
 
-    pub async fn ws_event<T: 'static + Serialize + Clone + Send>(&self, event: models::Event<T>) {
+    pub async fn ws_event<T: 'static + Serialize + Clone + Sync>(&self, event: models::Event<T>) {
         let mut conn = self.redis.get().await.unwrap();
         // Push to required channel
         let hashmap = indexmap![
@@ -1081,6 +1083,23 @@ impl Database {
             channel,
             message,
         ).await.unwrap();
+
+        let target_id = event.ctx.target.parse::<i64>().unwrap();
+
+        let target_type: &str = match event.ctx.target_type {
+            models::TargetType::Bot => "bot",
+            models::TargetType::Server => "server",
+        };
+
+        sqlx::query!(
+            "INSERT INTO events (id, type, event) VALUES ($1, $2, $3)",
+            target_id,
+            target_type,
+            json!(hashmap)
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
     }
 
     pub async fn create_user_oauth(&self, user: models::OauthUser) -> Result<models::OauthUserLogin, sqlx::Error> {

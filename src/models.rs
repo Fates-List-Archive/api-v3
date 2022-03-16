@@ -859,7 +859,7 @@ pub struct EventMeta {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
-pub struct Event<T: Serialize + Clone + Send> {
+pub struct Event<T: Serialize + Clone + Sync> {
     pub m: EventMeta,    
     pub ctx: EventContext,
     pub props: T,
