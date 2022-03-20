@@ -16,6 +16,7 @@ use chrono::TimeZone;
 use bigdecimal::FromPrimitive;
 use std::borrow::Cow;
 use serde_json::json;
+use serenity::model::prelude::*;
 
 pub struct Database {
     pool: PgPool,
@@ -2448,7 +2449,7 @@ impl Database {
     #[async_recursion]
     pub async fn vote_bot(&self, user_id: i64, bot_id: i64, test: bool) -> Result<(), models::VoteBotError> {
         if test {
-           return self.final_vote_handler(user_id, bot_id, test).await;
+           return self.final_vote_handler_bot(user_id, bot_id, test).await;
         }
         
         /* Let errors be the thing that tells if a vote has happened
@@ -2504,10 +2505,73 @@ impl Database {
             }
         }
 
-        self.final_vote_handler(user_id, bot_id, test).await
+        self.final_vote_handler_bot(user_id, bot_id, test).await
     }
 
-    async fn final_vote_handler(&self, user_id: i64, bot_id: i64, test: bool) -> Result<(), models::VoteBotError> {
+    // Vote server
+    #[async_recursion]
+    pub async fn vote_server(&self, discord_server_http: &serenity::http::Http, user_id: i64, server_id: i64, test: bool) -> Result<(), models::VoteBotError> {
+        if test {
+           return self.final_vote_handler_server(&discord_server_http, user_id, server_id, test).await;
+        }
+        
+        /* Let errors be the thing that tells if a vote has happened
+
+        If INSERT errors, then there is another vote due to unique constraint
+        
+        In this case, we error out
+        */
+        let check = sqlx::query!(
+            "INSERT INTO user_server_vote_table (user_id, guild_id) VALUES ($1, $2)",
+            user_id,
+            server_id,
+        )
+        .execute(&self.pool)
+        .await;
+
+        if check.is_err() {
+            error!("Failed to insert vote: {}", check.unwrap_err());
+            // Check that we actually have a expired vote or not
+            let expiry_time = sqlx::query!(
+                "SELECT expires_on FROM user_server_vote_table WHERE user_id = $1 
+                AND expires_on < NOW()",
+                user_id
+            )
+            .fetch_one(&self.pool)
+            .await;
+
+            if !expiry_time.is_err() {
+                sqlx::query!(
+                    "DELETE FROM user_server_vote_table WHERE user_id = $1",
+                    user_id
+                )
+                .execute(&self.pool)
+                .await
+                .unwrap();
+                return self.vote_server(&discord_server_http, user_id, server_id, test).await;
+            } else {
+                let expiry_time = sqlx::query!(
+                    "SELECT expires_on FROM user_server_vote_table WHERE user_id = $1",
+                    user_id
+                )
+                .fetch_one(&self.pool)
+                .await;
+                if expiry_time.is_err() {
+                    return Err(models::VoteBotError::UnknownError("Failed to get expiry time".to_string()));
+                }
+                let expiry_time = expiry_time.unwrap().expires_on.unwrap();
+                let time_left = expiry_time.timestamp() - chrono::offset::Utc::now().timestamp();
+                let seconds = time_left % 60;
+                let minutes = (time_left / 60) % 60;
+                let hours = (time_left / 60) / 60;
+                return Err(models::VoteBotError::Wait(format!("{} hours, {} minutes, {} seconds", hours, minutes, seconds)));
+            }
+        }
+
+        self.final_vote_handler_server(&discord_server_http, user_id, server_id, test).await
+    }
+
+    async fn final_vote_handler_bot(&self, user_id: i64, bot_id: i64, test: bool) -> Result<(), models::VoteBotError> {
         debug!("Test vote: {}", test);
         let mut webhook_user_id = user_id;
         if test {
@@ -2527,16 +2591,34 @@ impl Database {
             .await
             .map_err(models::VoteBotError::SQLError)?;
 
-            sqlx::query!(
-                "INSERT INTO bot_voters (user_id, bot_id) VALUES ($1, $2)
-                ON CONFLICT (user_id, bot_id) DO UPDATE SET timestamps =
-                array_append(bot_voters.timestamps, NOW())",
+            let row = sqlx::query!(
+                "SELECT COUNT(1) FROM bot_voters WHERE user_id = $1 AND bot_id = $2",
                 user_id,
-                bot_id
+                bot_id,
             )
-            .execute(&mut tx)
+            .fetch_one(&self.pool)
             .await
             .map_err(models::VoteBotError::SQLError)?;
+
+            if row.count.unwrap_or_default() == 0 {
+                sqlx::query!(
+                    "INSERT INTO bot_voters (user_id, bot_id) VALUES ($1, $2)",
+                    user_id,
+                    bot_id
+                )
+                .execute(&mut tx)
+                .await
+                .map_err(models::VoteBotError::SQLError)?;    
+            } else {
+                sqlx::query!(
+                    "UPDATE bot_voters SET timestamps = array_append(timestamps, NOW()) WHERE user_id = $1 AND bot_id = $2",
+                    user_id,
+                    bot_id
+                )
+                .execute(&mut tx)
+                .await
+                .map_err(models::VoteBotError::SQLError)?;
+            }
         }
 
         tx.commit().await.map_err(models::VoteBotError::SQLError)?;
@@ -2615,6 +2697,153 @@ impl Database {
                     row.webhook_hmac_only.unwrap_or(false),
                     vote_event,
                 ));
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn final_vote_handler_server(&self, discord_server_http: &serenity::http::Http, user_id: i64, server_id: i64, test: bool) -> Result<(), models::VoteBotError> {
+        debug!("Test vote: {}", test);
+        let mut webhook_user_id = user_id;
+        if test {
+            webhook_user_id = 519850436899897346;
+        }
+
+        let mut tx = self.pool.begin().await.map_err(models::VoteBotError::SQLError)?;
+
+        // Add votes
+        if !test {
+            sqlx::query!(
+                "UPDATE servers SET votes = votes + 1, 
+                total_votes = total_votes + 1 WHERE guild_id = $1",
+                server_id,
+            )
+            .execute(&mut tx)
+            .await
+            .map_err(models::VoteBotError::SQLError)?;
+
+            let row = sqlx::query!(
+                "SELECT COUNT(1) FROM server_voters WHERE user_id = $1 AND guild_id = $2",
+                user_id,
+                server_id,
+            )
+            .fetch_one(&self.pool)
+            .await
+            .map_err(models::VoteBotError::SQLError)?;
+
+            if row.count.unwrap_or_default() == 0 {
+                sqlx::query!(
+                    "INSERT INTO server_voters (user_id, guild_id) VALUES ($1, $2)",
+                    user_id,
+                    server_id
+                )
+                .execute(&mut tx)
+                .await
+                .map_err(models::VoteBotError::SQLError)?;    
+            } else {
+                sqlx::query!(
+                    "UPDATE server_voters SET timestamps = array_append(timestamps, NOW()) WHERE user_id = $1 AND guild_id = $2",
+                    user_id,
+                    server_id
+                )
+                .execute(&mut tx)
+                .await
+                .map_err(models::VoteBotError::SQLError)?;
+            }
+        }
+
+        tx.commit().await.map_err(models::VoteBotError::SQLError)?;
+
+        // Send the event here
+        let event_id = uuid::Uuid::new_v4();
+
+        // Current votes
+        let row = sqlx::query!(
+            "SELECT votes, webhook, webhook_secret, webhook_type, autorole_votes,
+            webhook_hmac_only, api_token FROM servers WHERE guild_id = $1",
+            server_id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return Err(models::VoteBotError::UnknownError("Failed to get server".to_string()));
+        }
+
+        let row = row.unwrap();
+
+        // Send vote event over websocket
+        let event = models::Event {
+            m: models::EventMeta {
+                e: models::EventName::ServerVote,
+                eid: event_id.to_string(),
+            },
+            ctx: models::EventContext {
+                target: server_id.to_string(),
+                target_type: models::TargetType::Server,
+                user: Some(user_id.to_string()),
+                ts: chrono::Utc::now().timestamp(),
+            },
+            props: models::BotVoteProp {
+                test,
+                votes: row.votes.unwrap_or_default()
+            }
+        }; 
+        self.ws_event(event).await;
+
+        // Send vote event over webhook too
+        if row.webhook.is_some() {
+            let webhook = row.webhook.unwrap();
+            let mut webhook_token: String;
+            if row.webhook_secret.is_some() {
+                webhook_token = row.webhook_secret.unwrap();
+                if webhook_token.is_empty() {
+                    webhook_token = row.api_token.unwrap();
+                }
+            } else {
+                webhook_token = row.api_token.unwrap();
+            }
+
+            let vote_event = models::VoteWebhookEvent {
+                eid: event_id.to_string(),
+                id: webhook_user_id.clone().to_string(),
+                user: webhook_user_id.to_string(),
+                votes: row.votes.unwrap_or_default(),
+                ts: chrono::Utc::now().timestamp(),
+                test,
+            };
+
+            if row.webhook_type.is_none() {
+                return Err(models::VoteBotError::UnknownError("Failed to get webhook type".to_string()));
+            }
+            let webhook_type = row.webhook_type.unwrap();
+            if webhook_type == (models::WebhookType::DiscordIntegration as i32) {
+                return Err(models::VoteBotError::UnknownError("Discord integration support is under maintenance. Vote has gone through but you will not recieve any rewards".to_string()));
+            } else {
+                // Send over webhook
+                task::spawn(converters::send_vote_webhook(
+                    self.requests.clone(),
+                    webhook,
+                    webhook_token,
+                    row.webhook_hmac_only.unwrap_or(false),
+                    vote_event,
+                ));
+            }
+        }
+
+        // Autorole code
+        if let Some(autorole_votes)  = row.autorole_votes {
+            let member = GuildId(server_id as u64).member(&discord_server_http, user_id as u64).await;
+            if member.is_err() {
+                return Err(models::VoteBotError::UnknownError("Failed to find you on server for auto roles!".to_string()));
+            }
+            let mut member = member.unwrap();
+            for role in autorole_votes {
+                let res = member.add_role(&discord_server_http, RoleId(role as u64)).await;
+                if res.is_err() {
+                    error!("Failed to add role {} to user {}", role, user_id);
+                }
             }
         }
 

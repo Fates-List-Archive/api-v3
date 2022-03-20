@@ -363,6 +363,51 @@ You can invite Squirrelflight to your server by <a style="color: blue !important
     models::CustomError::ForbiddenGeneric.error_response()
 }
 
+/// Server: Create User Vote?
+#[patch("/users/{user_id}/servers/{server_id}/votes")]
+async fn vote_server(req: HttpRequest, info: web::Path<models::GetUserServerPath>, vote: web::Query<models::VoteBotQuery>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = info.user_id;
+    let server_id = info.server_id;
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    if data.database.authorize_user(user_id, auth).await {
+        let server = data.database.get_server(server_id).await;
+        if server.is_none() {
+            return models::CustomError::NotFoundGeneric.error_response();
+        } 
+        let server = server.unwrap();
+        if converters::flags_check(server.flags, vec![models::Flags::System as i32]) {
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                done: false,
+                reason: Some("You can't vote for system servers!".to_string()),
+                context: None,
+            });
+        }
+        let res = data.database.vote_server(&data.config.discord_http_server, user_id, server_id, vote.test).await;
+        if res.is_err() {
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: None,
+            });
+        }
+        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
+            done: false,
+            reason: Some(
+r#"Successfully voted for this server!
+
+Vote reminders for servers is <em>not</em> currently supported
+"#.to_string()),
+            context: None,
+        });
+    }
+    error!("Vote Server Auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
+}
+
 /// Mini Index: Get Tags And Features 
 #[get("/mini-index")] 
 async fn mini_index(req: HttpRequest) -> Json<models::Index> {

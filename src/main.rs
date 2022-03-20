@@ -144,6 +144,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::random_server)
             .service(core::has_user_voted)
             .service(core::vote_bot)
+            .service(core::vote_server)
             .service(core::post_stats)
             .service(core::get_bot_settings)
             .service(login::get_oauth2)

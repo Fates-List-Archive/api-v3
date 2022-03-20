@@ -220,6 +220,12 @@ pub struct GetUserBotPath {
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct GetUserServerPath {
+    pub user_id: i64,
+    pub server_id: i64, 
+}
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct GetUserPackPath {
     pub user_id: i64,
     pub pack_id: String,
@@ -311,6 +317,7 @@ pub struct Secrets {
     pub client_id: String,
     pub client_secret: String,
     pub token_main: String,
+    pub token_server: String,
     pub japi_key: String,
 }
 
@@ -395,6 +402,7 @@ pub struct AppConfig {
     pub partners: Partners,
     pub discord: DiscordData,
     pub discord_http: serenity::http::Http,
+    pub discord_http_server: serenity::http::Http,
 }
 
 impl Default for AppConfig {
@@ -437,6 +445,7 @@ impl Default for AppConfig {
         let discord: DiscordData = serde_json::from_str(&discord).expect("Discord data is invalid");
 
         let token_main = secrets.token_main.clone();
+        let token_server = secrets.token_server.clone();
 
         AppConfig {
             secrets,
@@ -444,6 +453,7 @@ impl Default for AppConfig {
             partners,
             discord,
             discord_http: serenity::http::Http::new_with_token(&token_main),
+            discord_http_server: serenity::http::Http::new_with_token(&token_server),
         }
     }
 }
