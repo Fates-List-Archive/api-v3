@@ -1324,20 +1324,12 @@ impl Database {
         .map_err(models::GuildInviteError::SQLError)?;
 
         let state = row.state;
-        let invite_channel = row.invite_channel.unwrap_or_default();
+        let invite_channel = row.invite_channel.unwrap_or(0);
         let user_whitelist = row.user_whitelist.unwrap_or_default();
         let user_blacklist = row.user_blacklist.unwrap_or_default();
         let invite_url = row.invite_url.unwrap_or_else(|| "".to_string());
         let mut login_required = row.login_required.unwrap_or_default();
         let whitelist_only = row.whitelist_only.unwrap_or_default();
-
-        let mut invite_channel = invite_channel.parse::<i64>();
-
-        if invite_channel.is_err() {
-            invite_channel = Ok(0);
-        }
-
-        let invite_channel = invite_channel.unwrap();
 
         // Whitelist only implies login_required
         if whitelist_only {
@@ -1415,7 +1407,7 @@ impl Database {
             if data.cid.to_string() != invite_channel.to_string() {
                 sqlx::query!(
                     "UPDATE servers SET invite_channel = $1 WHERE guild_id = $2",
-                    data.cid.to_string(),
+                    data.cid as i64,
                     guild_id,
                 )
                 .execute(&self.pool)

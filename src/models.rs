@@ -958,6 +958,9 @@ pub struct Profile {
     pub state: UserState,
     pub site_lang: String,
     pub action_logs: Vec<ActionLog>,
+    //pub vote_reminders: Option<Vec<String>>,
+    //pub vote_reminders_servers: Option<Vec<String>>,
+    // TODO: Ack data
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
