@@ -2791,10 +2791,10 @@ impl Database {
             if row.webhook_secret.is_some() {
                 webhook_token = row.webhook_secret.unwrap();
                 if webhook_token.is_empty() {
-                    webhook_token = row.api_token.unwrap();
+                    webhook_token = row.api_token;
                 }
             } else {
-                webhook_token = row.api_token.unwrap();
+                webhook_token = row.api_token;
             }
 
             let vote_event = models::VoteWebhookEvent {

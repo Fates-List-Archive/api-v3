@@ -27,7 +27,7 @@ pub async fn check_banner_img(data: &models::AppState, url: &str) -> Result<(), 
     let default = &HeaderValue::from_str("").unwrap();
     let content_type = req.headers().get("Content-Type").unwrap_or(default).to_str().unwrap();
 
-    if content_type.split("/").nth(0).unwrap() != "image" {
+    if content_type.split('/').next().unwrap() != "image" {
         return Err(models::BannerCheckError::BadContentType(content_type.to_string()));
     }
 
