@@ -1012,7 +1012,7 @@ impl Database {
                 nsfw: false,
                 votes: row.votes.unwrap_or(0),
                 flags: row.flags.clone().unwrap_or_default(),
-                user: self.get_user(row.guild_id).await,
+                user: self.get_server_user(row.guild_id).await,
             });
         }
 
