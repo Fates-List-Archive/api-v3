@@ -1,13 +1,11 @@
 // A core endpoint is one that is absolutely essential for proper list functions
-use actix_web::{http, HttpRequest, get, post, patch, web, HttpResponse, ResponseError, web::Json};
-use actix_web::http::header::HeaderValue;
-use crate::models;
 use crate::converters;
+use crate::models;
+use actix_web::http::header::HeaderValue;
+use actix_web::{get, http, patch, post, web, web::Json, HttpRequest, HttpResponse, ResponseError};
+use chrono::Utc;
 use log::error;
 use uuid::Uuid;
-use chrono::Utc;
-
-
 
 #[get("/index")]
 async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<models::Index> {
@@ -17,7 +15,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<m
 
     if info.target_type.as_ref().unwrap_or(&"bot".to_string()) == "bot" {
         let cache = data.database.get_index_bots_from_cache().await;
-        
+
         if cache.is_some() {
             return Json(cache.unwrap());
         }
@@ -31,7 +29,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<m
         data.database.set_index_bots_to_cache(&index).await;
     } else {
         let cache = data.database.get_index_servers_from_cache().await;
-        
+
         if cache.is_some() {
             return Json(cache.unwrap());
         }
@@ -54,12 +52,8 @@ async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let resolved_vanity = data.database.resolve_vanity(&code.into_inner()).await;
     match resolved_vanity {
-        Some(data) => {
-            HttpResponse::build(http::StatusCode::OK).json(data)
-        }
-        _ => {
-            models::CustomError::NotFoundGeneric.error_response()
-        }
+        Some(data) => HttpResponse::build(http::StatusCode::OK).json(data),
+        _ => models::CustomError::NotFoundGeneric.error_response(),
     }
 }
 
@@ -109,7 +103,11 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
 
                     let user_id_i64 = user_id_str.parse::<i64>().unwrap_or(0);
 
-                    if data.database.authorize_user(user_id_i64, token.as_ref()).await {
+                    if data
+                        .database
+                        .authorize_user(user_id_i64, token.as_ref())
+                        .await
+                    {
                         event_user = Some(user_id_str);
                     }
                 }
@@ -133,9 +131,9 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
             props: models::BotViewProp {
                 vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
                 widget: false,
-                invite: req.headers().contains_key("Frostpaw-Invite")
-            }
-        }; 
+                invite: req.headers().contains_key("Frostpaw-Invite"),
+            },
+        };
         data.database.ws_event(event).await;
     }
 
@@ -145,18 +143,12 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
 
     let cached_bot = data.database.get_bot_from_cache(id.id).await;
     match cached_bot {
-        Some(bot) => {
-            HttpResponse::build(http::StatusCode::OK).json(bot)
-        }
+        Some(bot) => HttpResponse::build(http::StatusCode::OK).json(bot),
         None => {
             let bot = data.database.get_bot(id.id).await;
             match bot {
-                Some(bot_data) => {
-                    HttpResponse::build(http::StatusCode::OK).json(bot_data)
-                }
-                _ => {
-                    models::CustomError::NotFoundGeneric.error_response()
-                }
+                Some(bot_data) => HttpResponse::build(http::StatusCode::OK).json(bot_data),
+                _ => models::CustomError::NotFoundGeneric.error_response(),
             }
         }
     }
@@ -188,7 +180,11 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
 
                     let user_id_i64 = user_id_str.parse::<i64>().unwrap_or(0);
 
-                    if data.database.authorize_user(user_id_i64, token.as_ref()).await {
+                    if data
+                        .database
+                        .authorize_user(user_id_i64, token.as_ref())
+                        .await
+                    {
                         event_user = Some(user_id_str);
                     }
                 }
@@ -211,9 +207,9 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
             props: models::BotViewProp {
                 vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
                 widget: false,
-                invite: req.headers().contains_key("Frostpaw-Invite")
-            }
-        }; 
+                invite: req.headers().contains_key("Frostpaw-Invite"),
+            },
+        };
         data.database.ws_event(event).await;
     }
 
@@ -221,16 +217,22 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
 
     // Server invite handling using GUILDINVITE ipc
     if req.headers().contains_key("Frostpaw-Invite") {
-        let invite_link_result = data.database.resolve_guild_invite(
-            id.id, 
-            event_user.unwrap_or_else(|| "0".to_string()).parse::<i64>().unwrap_or(0)
-        ).await;
+        let invite_link_result = data
+            .database
+            .resolve_guild_invite(
+                id.id,
+                event_user
+                    .unwrap_or_else(|| "0".to_string())
+                    .parse::<i64>()
+                    .unwrap_or(0),
+            )
+            .await;
 
         if invite_link_result.is_err() {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
                 reason: Some(invite_link_result.unwrap_err().to_string()),
-                context: None
+                context: None,
             });
         }
         invite_link = Some(invite_link_result.unwrap());
@@ -250,9 +252,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
                     server_data.invite_link = invite_link;
                     HttpResponse::build(http::StatusCode::OK).json(server_data)
                 }
-                _ => {
-                    models::CustomError::NotFoundGeneric.error_response()
-                }
+                _ => models::CustomError::NotFoundGeneric.error_response(),
             }
         }
     }
@@ -267,9 +267,7 @@ async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json
 
     let cached_resp = data.database.get_search_from_cache(query.clone()).await;
     match cached_resp {
-        Some(resp) => {
-            Json(resp)
-        }
+        Some(resp) => Json(resp),
         None => {
             let search_resp = data.database.search(query).await;
             Json(search_resp)
@@ -279,7 +277,10 @@ async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json
 
 // Search Tags
 #[get("/search-tags")]
-async fn search_tags(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
+async fn search_tags(
+    req: HttpRequest,
+    info: web::Query<models::SearchQuery>,
+) -> Json<models::Search> {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let query = info.q.clone().unwrap_or_else(|| "music".to_string());
     let search_resp = data.database.search_tags(query).await;
@@ -317,19 +318,28 @@ async fn has_user_voted(req: HttpRequest, info: web::Path<models::GetUserBotPath
 
 /// Bot: Create User Vote?
 #[patch("/users/{user_id}/bots/{bot_id}/votes")]
-async fn vote_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>, vote: web::Query<models::VoteBotQuery>) -> HttpResponse {
+async fn vote_bot(
+    req: HttpRequest,
+    info: web::Path<models::GetUserBotPath>,
+    vote: web::Query<models::VoteBotQuery>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.user_id;
     let bot_id = info.bot_id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if data.database.authorize_user(user_id, auth).await {
         let bot = data.database.get_bot(bot_id).await;
         if bot.is_none() {
             return models::CustomError::NotFoundGeneric.error_response();
-        } 
+        }
         let bot = bot.unwrap();
         if converters::flags_check(bot.flags, vec![models::Flags::System as i32]) {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
@@ -365,19 +375,28 @@ You can invite Squirrelflight to your server by <a style="color: blue !important
 
 /// Server: Create User Vote?
 #[patch("/users/{user_id}/servers/{server_id}/votes")]
-async fn vote_server(req: HttpRequest, info: web::Path<models::GetUserServerPath>, vote: web::Query<models::VoteBotQuery>) -> HttpResponse {
+async fn vote_server(
+    req: HttpRequest,
+    info: web::Path<models::GetUserServerPath>,
+    vote: web::Query<models::VoteBotQuery>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.user_id;
     let server_id = info.server_id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if data.database.authorize_user(user_id, auth).await {
         let server = data.database.get_server(server_id).await;
         if server.is_none() {
             return models::CustomError::NotFoundGeneric.error_response();
-        } 
+        }
         let server = server.unwrap();
         if converters::flags_check(server.flags, vec![models::Flags::System as i32]) {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
@@ -386,7 +405,15 @@ async fn vote_server(req: HttpRequest, info: web::Path<models::GetUserServerPath
                 context: None,
             });
         }
-        let res = data.database.vote_server(&data.config.discord_http_server, user_id, server_id, vote.test).await;
+        let res = data
+            .database
+            .vote_server(
+                &data.config.discord_http_server,
+                user_id,
+                server_id,
+                vote.test,
+            )
+            .await;
         if res.is_err() {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
@@ -397,10 +424,12 @@ async fn vote_server(req: HttpRequest, info: web::Path<models::GetUserServerPath
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
             done: false,
             reason: Some(
-r#"Successfully voted for this server!
+                r#"Successfully voted for this server!
 
 Vote reminders for servers is <em>not</em> currently supported
-"#.to_string()),
+"#
+                .to_string(),
+            ),
             context: None,
         });
     }
@@ -408,8 +437,8 @@ Vote reminders for servers is <em>not</em> currently supported
     models::CustomError::ForbiddenGeneric.error_response()
 }
 
-/// Mini Index: Get Tags And Features 
-#[get("/mini-index")] 
+/// Mini Index: Get Tags And Features
+#[get("/mini-index")]
 async fn mini_index(req: HttpRequest) -> Json<models::Index> {
     let mut mini_index = models::Index::new();
 
@@ -422,14 +451,22 @@ async fn mini_index(req: HttpRequest) -> Json<models::Index> {
 }
 
 /// User: Get Bot Settings
-#[get("/users/{user_id}/bots/{bot_id}/settings")] 
-async fn get_bot_settings(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
+#[get("/users/{user_id}/bots/{bot_id}/settings")]
+async fn get_bot_settings(
+    req: HttpRequest,
+    info: web::Path<models::GetUserBotPath>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.user_id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if data.database.authorize_user(user_id, auth).await {
         let resp = data.database.get_bot_settings(info.bot_id).await;
         match resp {
@@ -438,13 +475,15 @@ async fn get_bot_settings(req: HttpRequest, info: web::Path<models::GetUserBotPa
                 for owner in &bot.owners {
                     let id = owner.user.id.parse::<i64>().unwrap_or(0);
                     if id == user_id {
-                        return HttpResponse::build(http::StatusCode::OK).json(models::BotSettings {
-                            bot,
-                            context: models::BotSettingsContext {
-                                tags: data.database.bot_list_tags().await,
-                                features: data.database.bot_features().await,
-                            }
-                        });
+                        return HttpResponse::build(http::StatusCode::OK).json(
+                            models::BotSettings {
+                                bot,
+                                context: models::BotSettingsContext {
+                                    tags: data.database.bot_list_tags().await,
+                                    features: data.database.bot_features().await,
+                                },
+                            },
+                        );
                     }
                 }
                 HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
@@ -468,24 +507,31 @@ async fn get_bot_settings(req: HttpRequest, info: web::Path<models::GetUserBotPa
 }
 
 /// Bot: Post Stats
-#[post("/bots/{id}/stats")] 
-async fn post_stats(req: HttpRequest, id: web::Path<models::FetchBotPath>, stats: web::Json<models::BotStats>) -> HttpResponse {
+#[post("/bots/{id}/stats")]
+async fn post_stats(
+    req: HttpRequest,
+    id: web::Path<models::FetchBotPath>,
+    stats: web::Json<models::BotStats>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let bot_id = id.id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if data.database.authorize_bot(bot_id, auth).await {
         let resp = data.database.post_stats(bot_id, stats.into_inner()).await;
         match resp {
-            Ok(()) => {
-                HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
-                    done: true,
-                    reason: Some("Successfully posted stats to v3 :)".to_string()),
-                    context: None,
-                })
-            }
+            Ok(()) => HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
+                done: true,
+                reason: Some("Successfully posted stats to v3 :)".to_string()),
+                context: None,
+            }),
             Err(err) => {
                 HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                     done: false,

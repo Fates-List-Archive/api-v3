@@ -1,22 +1,20 @@
-
-   
+use actix_web::{get, web, Error, HttpRequest, HttpResponse};
 use std::time::{Duration, Instant};
-use actix_web::{HttpRequest, get, web, HttpResponse, Error};
 
-use actix_ws::Message;
-use crate::models;
 use crate::converters;
+use crate::models;
+use actix_ws::Message;
 use futures::StreamExt;
 use log::{debug, error};
 use redis::AsyncCommands;
 use serde::Deserialize;
-use std::collections::HashMap;
 use sqlx::postgres::PgPool;
+use std::collections::HashMap;
 
 #[get("/ws/_preview")]
 pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
-    
+
     let mut close_reason = None;
 
     actix_rt::spawn(async move {
@@ -31,24 +29,40 @@ pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpRespons
                 }
                 Message::Pong(_) => {
                     hb = Instant::now();
-                }        
+                }
                 Message::Text(text) => {
-                    if text == "PING" && session.text(Instant::now().duration_since(hb).as_micros().to_string()).await.is_err() {
+                    if text == "PING"
+                        && session
+                            .text(Instant::now().duration_since(hb).as_micros().to_string())
+                            .await
+                            .is_err()
+                    {
                         break;
                     }
 
-                    let data: models::PreviewRequest = serde_json::from_str(&text).unwrap_or_else(|_| models::PreviewRequest {
-                        long_description_type: models::LongDescriptionType::Html,
-                        text: "".to_string()
-                    });
+                    let data: models::PreviewRequest =
+                        serde_json::from_str(&text).unwrap_or_else(|_| models::PreviewRequest {
+                            long_description_type: models::LongDescriptionType::Html,
+                            text: "".to_string(),
+                        });
 
                     if data.text.is_empty() {
                         continue;
                     }
 
-                    if session.text(serde_json::to_string(&models::PreviewResponse {
-                        preview: converters::sanitize_description(data.long_description_type, data.text)
-                    }).unwrap()).await.is_err() {
+                    if session
+                        .text(
+                            serde_json::to_string(&models::PreviewResponse {
+                                preview: converters::sanitize_description(
+                                    data.long_description_type,
+                                    data.text,
+                                ),
+                            })
+                            .unwrap(),
+                        )
+                        .await
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -56,14 +70,13 @@ pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpRespons
                 Message::Close(reason) => {
                     close_reason = reason;
                     break;
-                } 
+                }
 
-                _ => break      
+                _ => break,
             }
         }
 
         let _ = session.close(close_reason).await;
-
     });
 
     Ok(response)
@@ -90,7 +103,9 @@ async fn bot_gateway_task_sub(mode: WsMode, id: i64, session: actix_ws::Session)
         WsMode::Server => "server",
     };
 
-    let res = pubsub_conn.subscribe(mode.to_string()+"-"+&id.to_string()).await;
+    let res = pubsub_conn
+        .subscribe(mode.to_string() + "-" + &id.to_string())
+        .await;
 
     if res.is_err() {
         error!("{}", res.err().unwrap());
@@ -101,7 +116,6 @@ async fn bot_gateway_task_sub(mode: WsMode, id: i64, session: actix_ws::Session)
 
     session.text("GWTASK LISTEN").await.unwrap();
 
-
     while let Some(msg) = pubsub_conn.on_message().next().await {
         let msg: Result<String, _> = msg.get_payload();
         if msg.is_err() {
@@ -111,8 +125,6 @@ async fn bot_gateway_task_sub(mode: WsMode, id: i64, session: actix_ws::Session)
             return;
         }
     }
-
-
 }
 
 async fn bot_gateway_task_archive(pool: PgPool, mode: WsMode, id: i64, session: actix_ws::Session) {
@@ -152,9 +164,14 @@ async fn bot_gateway_task_archive(pool: PgPool, mode: WsMode, id: i64, session: 
 }
 
 #[get("/ws/{id}")]
-pub async fn bot_ws(req: HttpRequest, id: web::Path<i64>, mode: web::Query<WsModeStruct>, body: web::Payload) -> Result<HttpResponse, Error> {
+pub async fn bot_ws(
+    req: HttpRequest,
+    id: web::Path<i64>,
+    mode: web::Query<WsModeStruct>,
+    body: web::Payload,
+) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
-    
+
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let pool = data.database.get_postgres();
@@ -176,9 +193,14 @@ pub async fn bot_ws(req: HttpRequest, id: web::Path<i64>, mode: web::Query<WsMod
                 }
                 Message::Pong(_) => {
                     hb = Instant::now();
-                }        
+                }
                 Message::Text(text) => {
-                    if text == "PING" && session.text(Instant::now().duration_since(hb).as_micros().to_string()).await.is_err() {
+                    if text == "PING"
+                        && session
+                            .text(Instant::now().duration_since(hb).as_micros().to_string())
+                            .await
+                            .is_err()
+                    {
                         break;
                     }
 
@@ -192,7 +214,11 @@ pub async fn bot_ws(req: HttpRequest, id: web::Path<i64>, mode: web::Query<WsMod
                             break;
                         }
                         // Subscribe to messages sent to the bots websocket channel
-                        gw_task = Some(actix_rt::spawn(bot_gateway_task_sub(mode, id, session.clone())));
+                        gw_task = Some(actix_rt::spawn(bot_gateway_task_sub(
+                            mode,
+                            id,
+                            session.clone(),
+                        )));
                     } else if text == "ARCHIVE" {
                         if gw_task.is_some() {
                             // Error out, you can only have one gateway task per session
@@ -203,7 +229,12 @@ pub async fn bot_ws(req: HttpRequest, id: web::Path<i64>, mode: web::Query<WsMod
                             break;
                         }
                         // Subscribe to messages sent to the bots websocket channel
-                        gw_task = Some(actix_rt::spawn(bot_gateway_task_archive(pool.clone(), mode, id, session.clone())));
+                        gw_task = Some(actix_rt::spawn(bot_gateway_task_archive(
+                            pool.clone(),
+                            mode,
+                            id,
+                            session.clone(),
+                        )));
                     } else if text == "ENDGWTASK" {
                         if gw_task.is_none() {
                             // Error out, cannot UNSUB if you are not subscribed
@@ -215,28 +246,27 @@ pub async fn bot_ws(req: HttpRequest, id: web::Path<i64>, mode: web::Query<WsMod
                         }
                         if gw_task.is_some() {
                             gw_task.unwrap().abort();
-                        }                        
+                        }
                         gw_task = None;
                         if session.text("GWTASK NONE").await.is_err() {
                             break;
-                        }        
+                        }
                     }
                 }
 
                 Message::Close(reason) => {
                     close_reason = reason;
                     break;
-                } 
+                }
 
-                _ => break      
+                _ => break,
             }
         }
 
         let _ = session.close(close_reason).await;
         if gw_task.is_some() {
             gw_task.unwrap().abort();
-        }    
-
+        }
     });
 
     Ok(response)

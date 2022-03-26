@@ -1,10 +1,13 @@
 // Endpoints to create, delete and edit packs
-use actix_web::{HttpRequest, post, patch, delete, web, HttpResponse, ResponseError};
-use actix_web::http::header::HeaderValue;
 use crate::models;
+use actix_web::http::header::HeaderValue;
+use actix_web::{delete, patch, post, web, HttpRequest, HttpResponse, ResponseError};
 use log::error;
 
-async fn pack_check(data: &models::AppState, pack: &mut models::BotPack) -> Result<(), models::PackCheckError> {
+async fn pack_check(
+    data: &models::AppState,
+    pack: &mut models::BotPack,
+) -> Result<(), models::PackCheckError> {
     // Resolve the bot pack
     if pack.resolved_bots.len() > 7 {
         return Err(models::PackCheckError::TooManyBots);
@@ -41,15 +44,23 @@ async fn pack_check(data: &models::AppState, pack: &mut models::BotPack) -> Resu
     Ok(())
 }
 
-
 #[post("/users/{id}/packs")]
-async fn add_pack(req: HttpRequest, info: web::Path<models::FetchBotPath>, mut pack: web::Json<models::BotPack>) -> HttpResponse {
+async fn add_pack(
+    req: HttpRequest,
+    info: web::Path<models::FetchBotPath>,
+    mut pack: web::Json<models::BotPack>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Pack Add Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
@@ -65,7 +76,7 @@ async fn add_pack(req: HttpRequest, info: web::Path<models::FetchBotPath>, mut p
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
             reason: Some(res.unwrap_err().to_string()),
-            context: Some("Add pack error".to_string())
+            context: Some("Add pack error".to_string()),
         });
     }
 
@@ -75,25 +86,34 @@ async fn add_pack(req: HttpRequest, info: web::Path<models::FetchBotPath>, mut p
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
             reason: Some(res.unwrap_err().to_string()),
-            context: Some("Add pack error".to_string())
+            context: Some("Add pack error".to_string()),
         });
     }
 
     return HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Added bot pack successfully!".to_string()),
-        context: None
+        context: None,
     });
 }
 
 #[patch("/users/{id}/packs")]
-async fn edit_pack(req: HttpRequest, info: web::Path<models::FetchBotPath>, pack: web::Json<models::BotPack>) -> HttpResponse {
+async fn edit_pack(
+    req: HttpRequest,
+    info: web::Path<models::FetchBotPath>,
+    pack: web::Json<models::BotPack>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Pack Edit Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
@@ -118,7 +138,7 @@ async fn edit_pack(req: HttpRequest, info: web::Path<models::FetchBotPath>, pack
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
             reason: Some(res.unwrap_err().to_string()),
-            context: Some("Edit pack error".to_string())
+            context: Some("Edit pack error".to_string()),
         });
     }
 
@@ -128,14 +148,14 @@ async fn edit_pack(req: HttpRequest, info: web::Path<models::FetchBotPath>, pack
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
             reason: Some(res.unwrap_err().to_string()),
-            context: Some("Edit pack error".to_string())
+            context: Some("Edit pack error".to_string()),
         });
     }
 
     return HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Edited bot pack successfully!".to_string()),
-        context: None
+        context: None,
     });
 }
 
@@ -146,7 +166,12 @@ async fn delete_pack(req: HttpRequest, info: web::Path<models::GetUserPackPath>)
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Pack Delete Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
@@ -168,6 +193,6 @@ async fn delete_pack(req: HttpRequest, info: web::Path<models::GetUserPackPath>)
     return HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Deleted bot pack successfully!".to_string()),
-        context: None
+        context: None,
     });
 }

@@ -1,7 +1,7 @@
 // Endpoints for bot list stats
 
-use actix_web::{HttpRequest, get, web, HttpResponse};
 use crate::models;
+use actix_web::{get, web, HttpRequest, HttpResponse};
 use procfs;
 
 #[get("/stats")]

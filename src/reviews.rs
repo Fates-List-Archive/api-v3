@@ -1,13 +1,17 @@
+use crate::models;
+use actix_web::http::header::HeaderValue;
 /// Handles reviews
 /// TODO, add websocket events *if desired*
-use actix_web::{HttpRequest, get, post, patch, delete, web, HttpResponse, ResponseError};
-use actix_web::http::header::HeaderValue;
-use crate::models;
-use log::error;
+use actix_web::{delete, get, patch, post, web, HttpRequest, HttpResponse, ResponseError};
 use bigdecimal::FromPrimitive;
+use log::error;
 
 #[get("/reviews/{id}")]
-async fn get_reviews(req: HttpRequest, info: web::Path<models::FetchBotPath>, query: web::Query<models::ReviewQuery>) -> HttpResponse {
+async fn get_reviews(
+    req: HttpRequest,
+    info: web::Path<models::FetchBotPath>,
+    query: web::Query<models::ReviewQuery>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let mut page = 1;
@@ -26,20 +30,30 @@ async fn get_reviews(req: HttpRequest, info: web::Path<models::FetchBotPath>, qu
     }
 
     let per_page = 9;
-    let offset = ((page as i64) - 1)*per_page;
+    let offset = ((page as i64) - 1) * per_page;
 
-    let reviews = data.database.get_reviews(info.id, query.target_type, per_page, offset).await;
+    let reviews = data
+        .database
+        .get_reviews(info.id, query.target_type, per_page, offset)
+        .await;
 
     let mut parsed_review = models::ParsedReview {
         reviews,
         per_page,
         from: offset,
-        stats: data.database.get_review_stats(info.id, query.target_type).await,
+        stats: data
+            .database
+            .get_review_stats(info.id, query.target_type)
+            .await,
         user_review: None,
     };
 
     if let Some(user_id) = query.user_id {
-        if let Some(user_review) = data.database.get_reviews_for_user(user_id, info.id, query.target_type).await {
+        if let Some(user_review) = data
+            .database
+            .get_reviews_for_user(user_id, info.id, query.target_type)
+            .await
+        {
             parsed_review.user_review = Some(user_review);
         }
     }
@@ -49,7 +63,12 @@ async fn get_reviews(req: HttpRequest, info: web::Path<models::FetchBotPath>, qu
 
 /// Page is there are it is needed for the future
 #[post("/reviews/{id}")]
-async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, query: web::Query<models::ReviewQuery>, review: web::Json<models::Review>) -> HttpResponse {
+async fn add_review(
+    req: HttpRequest,
+    info: web::Path<models::FetchBotPath>,
+    query: web::Query<models::ReviewQuery>,
+    review: web::Json<models::Review>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let user_id = query.user_id;
@@ -66,25 +85,39 @@ async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, que
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Add Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
     }
 
     if review.parent_id.is_none() {
-        let existing = data.database.get_reviews_for_user(user_id, info.id, query.target_type).await;
+        let existing = data
+            .database
+            .get_reviews_for_user(user_id, info.id, query.target_type)
+            .await;
 
         if existing.is_some() {
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
-                reason: Some("You have already made a review for this bot. Please edit that instead".to_string()),
+                reason: Some(
+                    "You have already made a review for this bot. Please edit that instead"
+                        .to_string(),
+                ),
                 context: None,
             });
         }
     } else {
         // Validate parent_id
-        let parent_review = data.database.get_single_review(review.parent_id.unwrap()).await;
+        let parent_review = data
+            .database
+            .get_single_review(review.parent_id.unwrap())
+            .await;
         if parent_review.is_none() {
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
@@ -94,12 +127,14 @@ async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, que
         }
     }
 
-    if review.star_rating < bigdecimal::BigDecimal::from_i64(0).unwrap() || review.star_rating > bigdecimal::BigDecimal::from_i64(10).unwrap() {
+    if review.star_rating < bigdecimal::BigDecimal::from_i64(0).unwrap()
+        || review.star_rating > bigdecimal::BigDecimal::from_i64(10).unwrap()
+    {
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
             reason: Some("Star rating must be in range 1 to 10".to_string()),
             context: None,
-        });    
+        });
     }
 
     if review.review_text.len() > 20000 || review.review_text.len() < 10 {
@@ -136,9 +171,12 @@ async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, que
             reason: Some("Target type must be either 'bot' or 'server'".to_string()),
             context: None,
         });
-    }    
+    }
 
-    let res = data.database.add_review(review.into_inner(), user_id, info.id, query.target_type).await;
+    let res = data
+        .database
+        .add_review(review.into_inner(), user_id, info.id, query.target_type)
+        .await;
 
     if res.is_err() {
         let err = res.err().unwrap().to_string();
@@ -159,7 +197,12 @@ async fn add_review(req: HttpRequest, info: web::Path<models::FetchBotPath>, que
 
 /// The FetchBotPath is not needed but we need to maintain a uniform API
 #[patch("/reviews/{id}")]
-async fn edit_review(req: HttpRequest, _: web::Path<models::FetchBotPath>, query: web::Query<models::ReviewQuery>, review: web::Json<models::Review>) -> HttpResponse {
+async fn edit_review(
+    req: HttpRequest,
+    _: web::Path<models::FetchBotPath>,
+    query: web::Query<models::ReviewQuery>,
+    review: web::Json<models::Review>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let user_id = query.user_id;
@@ -176,18 +219,25 @@ async fn edit_review(req: HttpRequest, _: web::Path<models::FetchBotPath>, query
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Add Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
     }
 
-    if review.star_rating < bigdecimal::BigDecimal::from_i64(0).unwrap() || review.star_rating > bigdecimal::BigDecimal::from_i64(10).unwrap() {
+    if review.star_rating < bigdecimal::BigDecimal::from_i64(0).unwrap()
+        || review.star_rating > bigdecimal::BigDecimal::from_i64(10).unwrap()
+    {
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
             reason: Some("Star rating must be in range 1 to 10".to_string()),
             context: None,
-        });    
+        });
     }
 
     if review.review_text.len() > 20000 || review.review_text.len() < 10 {
@@ -250,7 +300,11 @@ async fn edit_review(req: HttpRequest, _: web::Path<models::FetchBotPath>, query
 }
 
 #[delete("/reviews/{rid}")]
-async fn delete_review(req: HttpRequest, info: web::Path<models::ReviewDeletePath>, query: web::Query<models::ReviewQuery>) -> HttpResponse {
+async fn delete_review(
+    req: HttpRequest,
+    info: web::Path<models::ReviewDeletePath>,
+    query: web::Query<models::ReviewQuery>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let user_id = query.user_id;
@@ -267,7 +321,12 @@ async fn delete_review(req: HttpRequest, info: web::Path<models::ReviewDeletePat
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Add Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
@@ -323,9 +382,12 @@ async fn delete_review(req: HttpRequest, info: web::Path<models::ReviewDeletePat
     });
 }
 
-
 #[patch("/reviews/{rid}/votes")]
-async fn vote_review(req: HttpRequest, info: web::Path<models::ReviewDeletePath>, vote: web::Json<models::ReviewVote>) -> HttpResponse {
+async fn vote_review(
+    req: HttpRequest,
+    info: web::Path<models::ReviewDeletePath>,
+    vote: web::Json<models::ReviewVote>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let user_id = vote.user_id.parse::<i64>();
@@ -342,7 +404,12 @@ async fn vote_review(req: HttpRequest, info: web::Path<models::ReviewDeletePath>
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Vote Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
@@ -362,20 +429,23 @@ async fn vote_review(req: HttpRequest, info: web::Path<models::ReviewDeletePath>
 
     let res = data.database.get_review_votes(review_id).await;
 
-    if (upvote && res.upvotes.contains(&vote.user_id)) || (!upvote && res.downvotes.contains(&vote.user_id)) {
+    if (upvote && res.upvotes.contains(&vote.user_id))
+        || (!upvote && res.downvotes.contains(&vote.user_id))
+    {
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
-            reason: Some(
-                format!(
-                    "You have already voted on this review. Click the {button} to {button} it.",
-                    button = if upvote { "upvote" } else { "downvote" }
-                )
-            ),
+            reason: Some(format!(
+                "You have already voted on this review. Click the {button} to {button} it.",
+                button = if upvote { "upvote" } else { "downvote" }
+            )),
             context: None,
         });
     }
 
-    let res = data.database.add_review_vote(review_id, user_id, upvote).await;
+    let res = data
+        .database
+        .add_review_vote(review_id, user_id, upvote)
+        .await;
     if res.is_err() {
         let err = res.err().unwrap().to_string();
         error!("Error adding review vote: {:?}", err);

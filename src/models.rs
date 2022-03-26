@@ -1,19 +1,18 @@
-use serde::{Deserialize, Serialize};
-use bevy_reflect::{Reflect, Struct};
-use num_enum::TryFromPrimitive;
-use serde_repr::*;
-use thiserror::Error;
 use crate::database;
-use actix_web::{http, HttpResponse, error::ResponseError};
+use actix_web::{error::ResponseError, http, HttpResponse};
+use bevy_reflect::{Reflect, Struct};
+use indexmap::{indexmap, IndexMap};
+use log::debug;
+use num_enum::TryFromPrimitive;
+use serde::{Deserialize, Serialize};
+use serde_repr::*;
+use serenity::model::id::ChannelId;
+use std::env;
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
-use std::env;
 use std::path::PathBuf;
-use log::debug;
-use indexmap::{IndexMap, indexmap};
-use serenity::model::id::ChannelId;
-use std::fmt;
-
+use thiserror::Error;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -22,10 +21,12 @@ pub struct User {
     pub disc: String,
     pub avatar: String,
     pub bot: bool,
-    pub status: Status
+    pub status: Status,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+)]
 #[repr(i32)]
 pub enum State {
     #[default]
@@ -41,7 +42,9 @@ pub enum State {
     PrivateStaffOnly = 9,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+)]
 #[repr(i32)]
 pub enum Flags {
     #[default]
@@ -53,7 +56,9 @@ pub enum Flags {
     System = 5,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+)]
 #[repr(i32)]
 pub enum UserState {
     #[default]
@@ -62,7 +67,9 @@ pub enum UserState {
     ProfileEditBan = 2,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+)]
 #[repr(i32)]
 pub enum CommandType {
     #[default]
@@ -71,7 +78,9 @@ pub enum CommandType {
     SlashCommandGuild = 2,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+)]
 #[repr(i32)]
 pub enum LongDescriptionType {
     Html = 0,
@@ -79,7 +88,9 @@ pub enum LongDescriptionType {
     MarkdownServerSide = 1,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+)]
 #[repr(i32)]
 pub enum PageStyle {
     #[default]
@@ -171,7 +182,10 @@ impl Default for BotPack {
             banner: "".to_string(),
             resolved_bots: vec![ResolvedPackBot::default()],
             owner: User::default(),
-            created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            created_at: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
         }
     }
 }
@@ -210,19 +224,19 @@ pub struct IndexQuery {
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct VoteBotQuery {
-    pub test: bool
+    pub test: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct GetUserBotPath {
     pub user_id: i64,
-    pub bot_id: i64, 
+    pub bot_id: i64,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct GetUserServerPath {
     pub user_id: i64,
-    pub server_id: i64, 
+    pub server_id: i64,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
@@ -234,7 +248,7 @@ pub struct GetUserPackPath {
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct PreviewRequest {
     pub text: String,
-    pub long_description_type: LongDescriptionType
+    pub long_description_type: LongDescriptionType,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -286,8 +300,7 @@ pub struct SearchQuery {
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
-pub struct Empty {
-}
+pub struct Empty {}
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Default)]
 pub enum Status {
@@ -308,7 +321,7 @@ pub struct VanityPath {
 #[derive(Deserialize, Serialize, Reflect)]
 pub struct Vanity {
     pub target_type: String,
-    pub target_id: String
+    pub target_id: String,
 }
 
 // Internal Secrets Struct
@@ -355,25 +368,23 @@ pub struct Partner {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Partners {
     pub partners: Vec<Partner>,
-    pub icons: IndexMap<String, String>
+    pub icons: IndexMap<String, String>,
 }
 
 impl Default for Partners {
     fn default() -> Self {
         Partners {
-            partners: vec![
-                Partner {
-                    id: "0".to_string(),
-                    name: "My development".to_string(),
-                    owner: "12345678901234567".to_string(),
-                    image: "".to_string(),
-                    description: "Some random description".to_string(),
-                    links: indexmap![
-                        "discord".to_string() => "https://discord.com/lmao".to_string(),
-                        "website".to_string() => "https://example.com".to_string(),
-                    ],
-                },
-            ],
+            partners: vec![Partner {
+                id: "0".to_string(),
+                name: "My development".to_string(),
+                owner: "12345678901234567".to_string(),
+                image: "".to_string(),
+                description: "Some random description".to_string(),
+                links: indexmap![
+                    "discord".to_string() => "https://discord.com/lmao".to_string(),
+                    "website".to_string() => "https://example.com".to_string(),
+                ],
+            }],
             icons: IndexMap::new(),
         }
     }
@@ -408,37 +419,45 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         let path = match env::var_os("HOME") {
-            None => { panic!("$HOME not set"); }
+            None => {
+                panic!("$HOME not set");
+            }
             Some(path) => PathBuf::from(path),
-        };    
+        };
 
         let data_dir = path.into_os_string().into_string().unwrap() + "/FatesList/config/data/";
 
         debug!("Data dir: {}", data_dir);
 
         // open secrets.json, handle config
-        let mut file = File::open(data_dir.to_owned() + "secrets.json").expect("No config file found");
+        let mut file =
+            File::open(data_dir.to_owned() + "secrets.json").expect("No config file found");
         let mut data = String::new();
         file.read_to_string(&mut data).unwrap();
 
         let secrets: Secrets = serde_json::from_str(&data).expect("JSON was not well-formatted");
-    
+
         // open policy.json, handle config
-        let mut file = File::open(data_dir.to_owned() + "policy.json").expect("No policy.json file found");
+        let mut file =
+            File::open(data_dir.to_owned() + "policy.json").expect("No policy.json file found");
         let mut policies = String::new();
         file.read_to_string(&mut policies).unwrap();
 
-        let policies: Policies = serde_json::from_str(&policies).expect("JSON was not well-formatted");
+        let policies: Policies =
+            serde_json::from_str(&policies).expect("JSON was not well-formatted");
 
         // open partners.json, handle config
-        let mut file = File::open(data_dir.to_owned() + "partners.json").expect("No partners.json file found");
+        let mut file =
+            File::open(data_dir.to_owned() + "partners.json").expect("No partners.json file found");
         let mut partners = String::new();
         file.read_to_string(&mut partners).unwrap();
 
-        let partners: Partners = serde_json::from_str(&partners).expect("JSON was not well-formatted");
+        let partners: Partners =
+            serde_json::from_str(&partners).expect("JSON was not well-formatted");
 
         // open discord.json, handle config
-        let mut file = File::open(data_dir.to_owned() + "discord.json").expect("No discord.json file found");
+        let mut file =
+            File::open(data_dir.to_owned() + "discord.json").expect("No discord.json file found");
         let mut discord = String::new();
         file.read_to_string(&mut discord).unwrap();
 
@@ -499,7 +518,7 @@ pub struct BotCommand {
     pub premium_only: bool,
     pub notes: Vec<String>,
     pub doc_link: String,
-    pub id: Option<String>,    
+    pub id: Option<String>,
     pub nsfw: bool,
 }
 
@@ -526,7 +545,7 @@ pub struct Resource {
 #[derive(Deserialize, Serialize, Clone, Default, Reflect)]
 pub struct ResourceDeleteQuery {
     pub id: String,
-    pub target_type: TargetType
+    pub target_type: TargetType,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default, Reflect)]
@@ -547,7 +566,7 @@ pub struct ActionLog {
     pub action: i32,
     pub action_time: chrono::DateTime<chrono::Utc>,
     pub context: Option<String>,
-}   
+}
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Server {
@@ -587,7 +606,10 @@ impl Default for Server {
             guild_count: 0,
             invite_amount: 0,
             invite_link: None,
-            created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            created_at: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
             state: State::default(),
             flags: vec![],
             css: "".to_string(),
@@ -602,7 +624,9 @@ impl Default for Server {
     }
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+)]
 #[repr(i32)]
 pub enum WebhookType {
     #[default]
@@ -678,19 +702,18 @@ pub struct Bot {
 
 impl Default for Bot {
     fn default() -> Self {
-        let owners = vec![
-            BotOwner::default()
-        ];
+        let owners = vec![BotOwner::default()];
 
-        let features = vec![
-            Feature::default()
-        ];
+        let features = vec![Feature::default()];
 
         let action_logs = vec![ActionLog {
             user_id: "".to_string(),
             bot_id: "".to_string(),
             action: 0,
-            action_time: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            action_time: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
             context: None,
         }];
 
@@ -698,9 +721,18 @@ impl Default for Bot {
             user: User::default(),
             description: "".to_string(),
             tags: Vec::new(),
-            created_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
-            last_updated_at: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
-            last_stats_post: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            created_at: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
+            last_updated_at: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
+            last_stats_post: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
             long_description: "blah blah blah".to_string(),
             long_description_raw: "blah blah blah unsanitized".to_string(),
             long_description_type: LongDescriptionType::MarkdownServerSide,
@@ -737,53 +769,53 @@ impl Default for Bot {
             vpm: Some(vec![VotesPerMonth::default()]),
             uptime_checks_total: Some(30),
             uptime_checks_failed: Some(19),
-            commands: IndexMap::from([
-                ("default".to_string(), vec![BotCommand::default()]),
-            ]),
+            commands: IndexMap::from([("default".to_string(), vec![BotCommand::default()])]),
             resources: vec![Resource::default()],
             webhook: Some("This will be redacted for Get Bot endpoint".to_string()),
             webhook_type: None,
             webhook_hmac_only: None,
             webhook_secret: Some("This will be redacted for Get Bot endpoint".to_string()),
-            api_token: Some("This will be redacted for Get Bot endpoint".to_string())
+            api_token: Some("This will be redacted for Get Bot endpoint".to_string()),
         }
     }
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+)]
 #[repr(i32)]
 pub enum EventName {
     #[default]
     BotVote = 0,
-    BotEdit = 2, // Not sent anymore
+    BotEdit = 2,   // Not sent anymore
     BotDelete = 3, // Not sent anymore
     BotClaim = 4,
-    BotApprove = 5, 
-    BotDeny = 6, 
-    BotBan = 7, 
-    BotUnban = 8, 
-    BotRequeue = 9, 
-    BotCertify = 10, 
-    BotUncertify = 11, 
-    BotTransfer = 12, 
-    BotUnverify = 15, 
-    BotView = 16, 
+    BotApprove = 5,
+    BotDeny = 6,
+    BotBan = 7,
+    BotUnban = 8,
+    BotRequeue = 9,
+    BotCertify = 10,
+    BotUncertify = 11,
+    BotTransfer = 12,
+    BotUnverify = 15,
+    BotView = 16,
     BotInvite = 17,
     BotUnclaim = 18,
-    BotVoteReset = 20, 
-    BotLock = 22, 
+    BotVoteReset = 20,
+    BotLock = 22,
     BotUnlock = 23,
-    ReviewVote = 30, 
+    ReviewVote = 30,
     ReviewAdd = 31,
-    ReviewEdit = 32, 
+    ReviewEdit = 32,
     ReviewDelete = 33,
-    ResourceAdd = 40, 
-    ResourceDelete = 41, 
-    CommandAdd = 50, 
+    ResourceAdd = 40,
+    ResourceDelete = 41,
+    CommandAdd = 50,
     CommandDelete = 51,
-    ServerView = 70, 
+    ServerView = 70,
     ServerVote = 71,
-    ServerInvite = 72, 
+    ServerInvite = 72,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -792,8 +824,9 @@ pub struct GuildInviteBaypawData {
     pub cid: u64, // First successful cid
 }
 
-
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+)]
 #[repr(i32)]
 pub enum UserBotAction {
     #[default]
@@ -812,14 +845,15 @@ pub enum UserBotAction {
     Requeue = 12,
 }
 
-#[derive(Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default)]
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+)]
 #[repr(i32)]
 pub enum BotRequestType {
     #[default]
     Appeal = 0,
     Certification = 1,
 }
-
 
 // {"m": {"e": enums.APIEvents.bot_view}, "ctx": {"user": str(user_id), "widget": False, "vote_page": compact}}
 
@@ -870,7 +904,7 @@ pub struct EventMeta {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Event<T: Serialize + Clone + Sync> {
-    pub m: EventMeta,    
+    pub m: EventMeta,
     pub ctx: EventContext,
     pub props: T,
 }
@@ -884,7 +918,6 @@ pub struct VoteWebhookEvent {
     pub eid: String,
     pub test: bool,
 }
-
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Policies {
@@ -918,7 +951,10 @@ impl Default for VotesPerMonth {
     fn default() -> Self {
         Self {
             votes: 0,
-            ts: chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc),
+            ts: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
         }
     }
 }
@@ -943,7 +979,7 @@ pub struct JAPIAppData {
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct JAPIApplication {
-    pub data: JAPIAppData
+    pub data: JAPIAppData,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -987,7 +1023,7 @@ pub struct Review {
     pub user: User,
     pub epoch: Vec<i64>,
     pub replies: Vec<Review>,
-    pub parent_id: Option<uuid::Uuid>
+    pub parent_id: Option<uuid::Uuid>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -1015,14 +1051,16 @@ pub struct ReviewQuery {
 // Error Handling
 pub enum ProfileCheckError {
     SQLError(sqlx::Error),
-    InvalidVoteReminderChannel
+    InvalidVoteReminderChannel,
 }
 
 impl ProfileCheckError {
     pub fn to_string(&self) -> String {
         match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
-            Self::InvalidVoteReminderChannel => "Invalid vote reminder channel. Are you sure its a valid channel ID?".to_string(),
+            Self::InvalidVoteReminderChannel => {
+                "Invalid vote reminder channel. Are you sure its a valid channel ID?".to_string()
+            }
         }
     }
 }
@@ -1045,11 +1083,9 @@ pub enum CommandAddError {
 
 impl fmt::Display for CommandAddError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-            &match self {
-                Self::SQLError(e) => format!("SQL Error: {}", e),
-            }
-        )
+        fmt.write_str(&match self {
+            Self::SQLError(e) => format!("SQL Error: {}", e),
+        })
     }
 }
 
@@ -1073,7 +1109,7 @@ pub enum GuildInviteError {
     StaffReview,
     ServerBanned,
     NoChannelFound,
-    RequestError(reqwest::Error)
+    RequestError(reqwest::Error),
 }
 
 impl fmt::Display for GuildInviteError {
@@ -1102,8 +1138,7 @@ pub enum OauthError {
 
 impl fmt::Display for OauthError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-        &match self {
+        fmt.write_str(&match self {
             Self::BadExchange(e) => format!("Bad Exchange: {}", e),
             Self::BadExchangeJson(e) => format!("Bad Exchange JSON: {}", e),
             Self::NoUser(e) => format!("No User: {}", e),
@@ -1114,7 +1149,7 @@ impl fmt::Display for OauthError {
 
 pub enum SettingsError {
     NotFound,
-    SQLError(sqlx::Error)
+    SQLError(sqlx::Error),
 }
 
 impl SettingsError {
@@ -1133,16 +1168,14 @@ pub enum BotActionMode {
 }
 
 pub enum ReviewAddError {
-    SQLError(sqlx::Error)
+    SQLError(sqlx::Error),
 }
 
 impl fmt::Display for ReviewAddError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-            &match self {
-                Self::SQLError(e) => format!("SQL Error: {}", e),
-            }
-        )
+        fmt.write_str(&match self {
+            Self::SQLError(e) => format!("SQL Error: {}", e),
+        })
     }
 }
 
@@ -1230,19 +1263,25 @@ impl PackCheckError {
         match self {
             Self::TooManyBots => "You cannot have more than 7 bots in a pack".to_string(),
             Self::InvalidBotId => "One of your bot IDs is invalid".to_string(),
-            Self::TooFewBots => "You must have at least 2 bots in a pack. Recheck the Bot IDs?".to_string(),
+            Self::TooFewBots => {
+                "You must have at least 2 bots in a pack. Recheck the Bot IDs?".to_string()
+            }
             Self::InvalidIcon => "Your icon must start with https://".to_string(),
             Self::InvalidBanner => "Your icon must start with https://".to_string(),
             Self::SQLError(err) => format!("SQL error: {}", err),
-            Self::InvalidPackId => "Your pack ID is invalid. This error should *never* be seen".to_string(),
-            Self::DescriptionTooShort => "Your description must be at least 10 characters long".to_string(),
+            Self::InvalidPackId => {
+                "Your pack ID is invalid. This error should *never* be seen".to_string()
+            }
+            Self::DescriptionTooShort => {
+                "Your description must be at least 10 characters long".to_string()
+            }
         }
     }
 }
 
 pub enum BannerCheckError {
     BadURL(reqwest::Error),
-    StatusError(String), 
+    StatusError(String),
     BadContentType(String),
 }
 
@@ -1251,7 +1290,10 @@ impl BannerCheckError {
         match self {
             Self::BadURL(e) => format!("Bad banner url: {}", e),
             Self::StatusError(s) => format!("Got status code: {} when requesting this banner", s),
-            Self::BadContentType(s) => format!("Got invalid content type: {} when requesting this banner", s),
+            Self::BadContentType(s) => format!(
+                "Got invalid content type: {} when requesting this banner",
+                s
+            ),
         }
     }
 }
@@ -1266,12 +1308,15 @@ impl VoteBotError {
     pub fn to_string(&self) -> String {
         match self {
             Self::Wait(s) => format!("You must wait {} before voting again", s),
-            Self::UnknownError(e) => "An unknown error occurred. Please ask on the Fates List support server: ".to_string() + e,
+            Self::UnknownError(e) => {
+                "An unknown error occurred. Please ask on the Fates List support server: "
+                    .to_string()
+                    + e
+            }
             Self::SQLError(e) => format!("SQL error: {}", e),
         }
     }
 }
-
 
 pub enum StatsError {
     BadStats(String), // TODO
@@ -1302,7 +1347,7 @@ impl CustomError {
 impl ResponseError for CustomError {
     fn status_code(&self) -> http::StatusCode {
         match *self {
-            Self::NotFoundGeneric  => http::StatusCode::NOT_FOUND,
+            Self::NotFoundGeneric => http::StatusCode::NOT_FOUND,
             Self::ForbiddenGeneric => http::StatusCode::FORBIDDEN,
             Self::Unknown => http::StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -1317,7 +1362,7 @@ impl ResponseError for CustomError {
         };
         HttpResponse::build(status_code).json(error_response)
     }
-}  
+}
 
 #[derive(Clone, PartialEq)]
 pub enum RouteAuthType {
@@ -1338,4 +1383,3 @@ pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: St
     pub equiv_v2_route: &'a str,
     pub auth_types: Vec<RouteAuthType>,
 }
-

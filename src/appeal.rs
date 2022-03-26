@@ -1,19 +1,28 @@
-/// Handles bot appeals
-use actix_web::{http, HttpRequest, post, web, HttpResponse, ResponseError};
-use actix_web::http::header::HeaderValue;
 use crate::models;
+use actix_web::http::header::HeaderValue;
+/// Handles bot appeals
+use actix_web::{http, post, web, HttpRequest, HttpResponse, ResponseError};
 use log::error;
 use serenity::model::prelude::*;
 
 #[post("/users/{user_id}/bots/{bot_id}/appeal")]
-async fn appeal_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>, request: web::Json<models::BotRequest>) -> HttpResponse {
+async fn appeal_bot(
+    req: HttpRequest,
+    info: web::Path<models::GetUserBotPath>,
+    request: web::Json<models::BotRequest>,
+) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = info.user_id;
     let bot_id = info.bot_id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Appeal Auth error");
         return models::CustomError::ForbiddenGeneric.error_response();
@@ -34,7 +43,7 @@ async fn appeal_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>, r
             done: false,
             reason: Some("Appeal length must be between 7 and 4000 characters".to_string()),
             context: None,
-        });    
+        });
     }
 
     let (title, request_type) = if req_data.request_type == models::BotRequestType::Certification {
@@ -51,14 +60,24 @@ async fn appeal_bot(req: HttpRequest, info: web::Path<models::GetUserBotPath>, r
                 context: None,
             });
         }
-        if bot.banner_card.is_none() || !bot.banner_card.unwrap_or_else(|| "".to_string()).starts_with("https://") {
+        if bot.banner_card.is_none()
+            || !bot
+                .banner_card
+                .unwrap_or_else(|| "".to_string())
+                .starts_with("https://")
+        {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
                 reason: Some(format!("You cannot certify a bot that has no banner card")),
                 context: None,
             });
         }
-        if bot.banner_page.is_none() || !bot.banner_page.unwrap_or_else(|| "".to_string()).starts_with("https://") {
+        if bot.banner_page.is_none()
+            || !bot
+                .banner_page
+                .unwrap_or_else(|| "".to_string())
+                .starts_with("https://")
+        {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
                 reason: Some(format!("You cannot certify a bot that has no banner page")),

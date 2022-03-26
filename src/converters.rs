@@ -1,12 +1,12 @@
 // Handle simple data conversions and webhook sending
 use crate::models;
-use pulldown_cmark::{Parser, Options, html::push_html};
-use log::{debug, error};
-use rand::{thread_rng, Rng};
-use rand::distributions::Alphanumeric;
 use actix_web::http::StatusCode;
-use sha2::Sha512;
 use hmac::{Hmac, Mac};
+use log::{debug, error};
+use pulldown_cmark::{html::push_html, Options, Parser};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
+use sha2::Sha512;
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -26,7 +26,7 @@ pub fn invite_link(client_id: String, invite: String) -> String {
             bot_id = client_id,
             perm = 0,
         );
-    } 
+    }
     invite
 }
 
@@ -35,10 +35,13 @@ pub fn owner_html(id: String, username: String) -> String {
         "<a class='long-desc-link' href='/profile/{id}'>{username}</a><br/>",
         id = id,
         username = username,
-    )
+    );
 }
 
-pub fn sanitize_description(long_desc_type: models::LongDescriptionType, description: String) -> String {
+pub fn sanitize_description(
+    long_desc_type: models::LongDescriptionType,
+    description: String,
+) -> String {
     // TODO: Check if stored in redis
     debug!("Sanitizing description");
     let mut html = String::new();
@@ -51,24 +54,51 @@ pub fn sanitize_description(long_desc_type: models::LongDescriptionType, descrip
     }
 
     ammonia::Builder::new()
-    .rm_clean_content_tags(&["style", "iframe"])
-    .add_tags(&["span", "img", "video", "iframe", "style", "p", "br", "center", "div", "h1", "h2", "h3", "h4", "h5", "section", "article", "fl-lang"]) 
-    .add_generic_attributes(&["id", "class", "style", "data-src", "data-background-image", "data-background-image-set", "data-background-delimiter", "data-icon", "data-inline", "data-height", "code"])
-    .add_tag_attributes("iframe", &["src", "height", "width"])
-    .add_tag_attributes("img", &["src", "alt", "width", "height", "crossorigin", "referrerpolicy", "sizes", "srcset"])
-    .clean(&html)
-    .to_string()
+        .rm_clean_content_tags(&["style", "iframe"])
+        .add_tags(&[
+            "span", "img", "video", "iframe", "style", "p", "br", "center", "div", "h1", "h2",
+            "h3", "h4", "h5", "section", "article", "fl-lang",
+        ])
+        .add_generic_attributes(&[
+            "id",
+            "class",
+            "style",
+            "data-src",
+            "data-background-image",
+            "data-background-image-set",
+            "data-background-delimiter",
+            "data-icon",
+            "data-inline",
+            "data-height",
+            "code",
+        ])
+        .add_tag_attributes("iframe", &["src", "height", "width"])
+        .add_tag_attributes(
+            "img",
+            &[
+                "src",
+                "alt",
+                "width",
+                "height",
+                "crossorigin",
+                "referrerpolicy",
+                "sizes",
+                "srcset",
+            ],
+        )
+        .clean(&html)
+        .to_string()
 }
 
 pub fn create_token(length: usize) -> String {
     thread_rng()
-    .sample_iter(&Alphanumeric)
-    .take(length)
-    .map(char::from)
-    .collect()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
 }
 
-pub fn flags_check(flag_list: Vec<i32>, flag_vec: Vec<i32>) -> bool{
+pub fn flags_check(flag_list: Vec<i32>, flag_vec: Vec<i32>) -> bool {
     for flag in flag_vec {
         if flag_list.contains(&flag) {
             return true;
@@ -78,12 +108,18 @@ pub fn flags_check(flag_list: Vec<i32>, flag_vec: Vec<i32>) -> bool{
 }
 
 // Moved here due to 'static requirement
-pub async fn send_vote_webhook(requests: reqwest::Client, webhook: String, webhook_token: String, webhook_hmac_only: bool, vote_event: models::VoteWebhookEvent) {
+pub async fn send_vote_webhook(
+    requests: reqwest::Client,
+    webhook: String,
+    webhook_token: String,
+    webhook_hmac_only: bool,
+    vote_event: models::VoteWebhookEvent,
+) {
     let mut tries = 0;
     while tries < 5 {
         debug!("Webhook token is {}", webhook_token);
         let mut req = requests.post(webhook.as_str());
-        
+
         if !webhook_hmac_only {
             req = req.header("Authorization", webhook_token.clone())
         }
@@ -113,9 +149,7 @@ pub async fn send_vote_webhook(requests: reqwest::Client, webhook: String, webho
 
         req = req.header("X-Webhook-Signature", hmac);
 
-        let res = req.json(&vote_event)
-            .send()
-            .await;
+        let res = req.json(&vote_event).send().await;
 
         if res.is_err() {
             error!("Failed to send webhook: {}", res.unwrap_err());
@@ -124,12 +158,11 @@ pub async fn send_vote_webhook(requests: reqwest::Client, webhook: String, webho
         }
         let res = res.unwrap();
         let status = res.status();
-        if !status.is_success() && !(
-                status == StatusCode::TOO_MANY_REQUESTS
+        if !status.is_success()
+            && !(status == StatusCode::TOO_MANY_REQUESTS
                 || status == StatusCode::BAD_REQUEST
                 || status == StatusCode::UNAUTHORIZED
-                || status == StatusCode::FORBIDDEN
-            )
+                || status == StatusCode::FORBIDDEN)
         {
             error!("Failed to send webhook: {}", res.text().await.unwrap());
             tries += 1;

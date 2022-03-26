@@ -1,13 +1,10 @@
-use serde::Serialize;
 use crate::models;
 use bevy_reflect::{Reflect, Struct};
 use bigdecimal::FromPrimitive;
+use serde::Serialize;
 
-
-fn _get_value_from(
-    value: &dyn Reflect,
-) -> String {
-    let mut field_name_ext: String = value.type_name().to_string();    
+fn _get_value_from(value: &dyn Reflect) -> String {
+    let mut field_name_ext: String = value.type_name().to_string();
 
     // type_name replacer
     field_name_ext = field_name_ext.replace("core::option::Option", "Optional ");
@@ -18,10 +15,10 @@ fn _get_value_from(
         match value {
             Some(value) => {
                 field_name_ext = "String? ".to_string() + "| default = " + value;
-            },
+            }
             None => {
                 // Ignored
-            },
+            }
         }
     }
 
@@ -30,19 +27,17 @@ fn _get_value_from(
         match value {
             Some(value) => {
                 field_name_ext = "i64? ".to_string() + "| default = " + &value.to_string();
-            },
+            }
             None => {
                 // Ignored
-            },
+            }
         }
-    }    
+    }
 
     "[".to_owned() + &field_name_ext + " (type info may be incomplete, see example)]"
 }
 
-fn _get_params<T: Struct>(
-    params: &T,
-) -> String {
+fn _get_params<T: Struct>(params: &T) -> String {
     let mut params_string = String::new();
     for (i, value) in params.iter_fields().enumerate() {
         let field_name: String = params.name_at(i).unwrap().to_string();
@@ -63,7 +58,7 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
     let buf = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser = serde_json::Serializer::with_formatter(buf, formatter);
-    
+
     route.request_body.serialize(&mut ser).unwrap();
 
     // Serialize response body
@@ -84,7 +79,8 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
 
     let query_params_json = &String::from_utf8(ser4.into_inner()).unwrap();
 
-    query_params_str += &("\n\n**Example**\n\n```json\n".to_string() + &query_params_json.clone() + "\n```");
+    query_params_str +=
+        &("\n\n**Example**\n\n```json\n".to_string() + &query_params_json.clone() + "\n```");
 
     // Serialize path parameters
     let buf3 = Vec::new();
@@ -97,7 +93,8 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
 
     let path_params_json = &String::from_utf8(ser3.into_inner()).unwrap();
 
-    path_params_str += &("\n\n**Example**\n\n```json\n".to_string() + &path_params_json.clone() + "\n```");
+    path_params_str +=
+        &("\n\n**Example**\n\n```json\n".to_string() + &path_params_json.clone() + "\n```");
 
     let mut base_doc = format!(
         "### {title}\n#### {method} {path}\n\n{description}\n\n**API v2 analogue:** {equiv_v2_route}",
@@ -148,10 +145,7 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
 
 /// Begin a new doc category
 fn doc_category(name: &str) -> String {
-    format!(
-        "## {name}\n\n",
-        name = name,
-    )
+    format!("## {name}\n\n", name = name,)
 }
 
 pub fn document_routes() -> String {
@@ -190,19 +184,24 @@ you prefix the token with `User`
     let buf = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser = serde_json::Serializer::with_formatter(buf, formatter);
-    
+
     models::APIResponse {
         done: true,
         reason: Some("Reason for success of failure, can be null".to_string()),
         context: Some("Any extra context".to_string()),
-    }.serialize(&mut ser).unwrap();
+    }
+    .serialize(&mut ser)
+    .unwrap();
 
-    docs += &("\n## Base Response\n\nA default API Response will be of the below format:\n\n```json\n".to_string() + &String::from_utf8(ser.into_inner()).unwrap() + "\n```\n\n");
+    docs +=
+        &("\n## Base Response\n\nA default API Response will be of the below format:\n\n```json\n"
+            .to_string()
+            + &String::from_utf8(ser.into_inner()).unwrap()
+            + "\n```\n\n");
 
     // TODO: For each route, add doc system
 
     docs += &doc_category("Core");
-
 
     docs += &doc(
         models::Route {
@@ -278,7 +277,6 @@ def post_stats(bot_id: int, guild_count: int):
         auth_types: vec![]
     });
 
-
     // - Vanity route
     docs += &doc( models::Route {
         title: "Resolve Vanity",
@@ -338,16 +336,16 @@ def post_stats(bot_id: int, guild_count: int):
         response_body: &models::PreviewResponse::default(),
         equiv_v2_route: "None",
         auth_types: vec![]
-    });    
+    });
 
     // - Fetch Bot route
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "Get Bot",
         method: "GET",
         path: "/bots/{id}",
         path_params: &models::FetchBotPath::default(),
         query_params: &models::FetchBotQuery::default(),
-description: r#"
+        description: r#"
 Fetches bot information given a bot ID. If not found, 404 will be returned. 
 
 This endpoint handles both bot IDs and client IDs
@@ -364,10 +362,10 @@ This is to allow reuse of the Bot struct in Get Bot Settings which does contain 
 
 **Set the Frostpaw header if you are a custom client. Send Frostpaw-Invite header on invites**
 "#,
-    request_body: &models::Empty{},
-    response_body: &models::Bot::default(), // TODO
-    equiv_v2_route: "[Fetch Bot](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_bot)",
-    auth_types: vec![]
+        request_body: &models::Empty {},
+        response_body: &models::Bot::default(), // TODO
+        equiv_v2_route: "[Fetch Bot](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_bot)",
+        auth_types: vec![],
     });
 
     // - Search List route
@@ -546,7 +544,7 @@ this however, it is prone to change *anytime* in the future**.
     });
 
     // - Create User Vote
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "Create User Vote",
         method: "PATCH",
         path: "/users/{user_id}/bots/{bot_id}/votes",
@@ -554,10 +552,8 @@ this however, it is prone to change *anytime* in the future**.
             user_id: 0,
             bot_id: 0,
         },
-        query_params: &models::VoteBotQuery {
-            test: true,
-        },
-description: r#"
+        query_params: &models::VoteBotQuery { test: true },
+        description: r#"
 This endpoint creates a vote for a bot which can only be done *once* every 8 hours.
 
 **It is documented purely to enable staff to use it**
@@ -569,10 +565,10 @@ This endpoint creates a vote for a bot which can only be done *once* every 8 hou
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "Mini Index",
         method: "GET",
         path: "/mini-index",
@@ -586,7 +582,7 @@ This endpoint creates a vote for a bot which can only be done *once* every 8 hou
             tags: tags.clone(),
             features: features.clone(),
         },
-description: r#"
+        description: r#"
 Returns a mini-index which is basically a Index but with only ``tags``
 and ``features`` having any data. Other fields are empty arrays/vectors.
 
@@ -594,10 +590,10 @@ This is used internally by sunbeam for the add bot system where a full bot
 index is too costly and making a new struct is unnecessary.
 "#,
         equiv_v2_route: "None",
-        auth_types: vec![]
+        auth_types: vec![],
     });
 
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "Gets Bot Settings",
         method: "GET",
         path: "/users/{user_id}/bots/{bot_id}/settings",
@@ -609,12 +605,9 @@ index is too costly and making a new struct is unnecessary.
         request_body: &models::Empty {},
         response_body: &models::BotSettings {
             bot: models::Bot::default(),
-            context: models::BotSettingsContext {
-                tags,
-                features,    
-            },
+            context: models::BotSettingsContext { tags, features },
         },
-description: r#"
+        description: r#"
 Returns the bot settings.
 
 The ``bot`` key here is equivalent to a Get Bot response with the following
@@ -629,7 +622,7 @@ Staff members *should* instead use Lynx.
 Due to massive changes, this API cannot be mapped onto any v2 API
 "#,
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc_category("Auth");
@@ -693,17 +686,15 @@ This API is essentially a logout
     docs += &doc_category("Security");
 
     // New Bot Token
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "New Bot Token",
         method: "DELETE",
         path: "/bots/{id}/token",
-description: r#"
+        description: r#"
 'Deletes' a bot token and reissues a new bot token. Use this if your bots
 token ever gets leaked.
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::APIResponse {
@@ -712,21 +703,19 @@ token ever gets leaked.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::Bot]
+        auth_types: vec![models::RouteAuthType::Bot],
     });
 
     // New User Token
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "New User Token",
         method: "DELETE",
         path: "/users/{id}/token",
-description: r#"
+        description: r#"
 'Deletes' a user token and reissues a new user token. Use this if your user
 token ever gets leaked.
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::APIResponse {
@@ -735,21 +724,19 @@ token ever gets leaked.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     // New Server Token
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "New Server Token",
         method: "DELETE",
         path: "/servers/{id}/token",
-description: r#"
+        description: r#"
 'Deletes' a server token and reissues a new server token. Use this if your server
 token ever gets leaked.
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::APIResponse {
@@ -758,7 +745,7 @@ token ever gets leaked.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::Server]
+        auth_types: vec![models::RouteAuthType::Server],
     });
 
     docs += &doc_category("Bot Actions");
@@ -767,7 +754,7 @@ token ever gets leaked.
         title: "New Bot",
         method: "POST",
         path: "/users/{id}/bots",
-description: r#"
+        description: r#"
 Creates a new bot. 
 
 Set ``created_at``, ``last_stats_post`` to sometime in the past
@@ -780,9 +767,7 @@ containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object
 containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot``
 to false.
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Bot::default(),
         response_body: &models::APIResponse {
@@ -791,14 +776,14 @@ to false.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc(models::Route {
         title: "Edit Bot",
         method: "PATCH",
         path: "/users/{id}/bots",
-description: r#"
+        description: r#"
 Edits a existing bot. 
 
 Set ``created_at``, ``last_stats_post`` to sometime in the past
@@ -811,9 +796,7 @@ containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object
 containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot``
 to false.
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Bot::default(),
         response_body: &models::APIResponse {
@@ -822,14 +805,14 @@ to false.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc(models::Route {
         title: "Transfer Ownership",
         method: "PATCH",
         path: "/users/{user_id}/bots/{bot_id}/main-owner",
-description: r#"
+        description: r#"
 Transfers bot ownership.
 
 You **must** be main owner to use this endpoint.
@@ -847,8 +830,8 @@ You **must** be main owner to use this endpoint.
                 disc: "Leave blank".to_string(),
                 avatar: "Leave blank".to_string(),
                 status: models::Status::Unknown,
-                bot: false
-            }
+                bot: false,
+            },
         },
         response_body: &models::APIResponse {
             done: true,
@@ -856,14 +839,14 @@ You **must** be main owner to use this endpoint.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc(models::Route {
         title: "Delete Bot",
         method: "DELETE",
         path: "/users/{user_id}/bots/{bot_id}",
-description: r#"
+        description: r#"
 Deletes a bot.
 
 You **must** be main owner to use this endpoint.
@@ -880,17 +863,17 @@ You **must** be main owner to use this endpoint.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc_category("Appeal");
 
     // New Appeal
-    docs += &doc( models::Route {
+    docs += &doc(models::Route {
         title: "New Appeal",
         method: "POST",
         path: "/users/{user_id}/bots/{bot_id}/appeal",
-description: r#"
+        description: r#"
 Creates a appeal/request for a bot.
 
 ``request_type`` is a ``BotRequestType``, see [Enum Reference](https://docs.fateslist.xyz/structures/enums.autogen/)
@@ -912,7 +895,7 @@ Creates a appeal/request for a bot.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc_category("Packs");
@@ -921,7 +904,7 @@ Creates a appeal/request for a bot.
         title: "Add Pack",
         method: "GET",
         path: "/users/{id}/packs",
-description: r#"
+        description: r#"
 Creates a bot pack. 
 
 - Set ``id`` to empty string, 
@@ -938,7 +921,7 @@ but must exist in the object
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc_category("Users");
@@ -947,32 +930,28 @@ but must exist in the object
         title: "Get Profile",
         method: "GET",
         path: "/profiles/{id}",
-description: r#"
+        description: r#"
 Gets a user profile.
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::Profile::default(),
         equiv_v2_route: "None",
-        auth_types: vec![]
+        auth_types: vec![],
     });
 
     docs += &doc(models::Route {
         title: "Edit Profile",
         method: "PATCH",
         path: "/profiles/{id}",
-description: r#"
+        description: r#"
 Edits a user profile.
 
 ``user`` can be completely empty valued but the keys present in a User must
 be present
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Profile::default(),
         response_body: &models::APIResponse {
@@ -981,7 +960,7 @@ be present
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![]
+        auth_types: vec![],
     });
 
     docs += &doc_category("Reviews");
@@ -990,7 +969,7 @@ be present
         title: "Get Reviews",
         method: "GET",
         path: "/reviews/{id}",
-description: r#"
+        description: r#"
 Gets reviews for a reviewable entity.
 
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
@@ -1011,9 +990,7 @@ This may change in the future and is given by ``per_page`` key.
 
 ``from`` contains the index/count of the first review of the page.
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::ReviewQuery {
             page: Some(1),
             user_id: Some(0),
@@ -1027,18 +1004,18 @@ This may change in the future and is given by ``per_page`` key.
             from: 0,
             stats: models::ReviewStats {
                 total: 78,
-                average_stars: bigdecimal::BigDecimal::from_f32(8.8).unwrap()
+                average_stars: bigdecimal::BigDecimal::from_f32(8.8).unwrap(),
             },
         },
         equiv_v2_route: "None",
-        auth_types: vec![]
+        auth_types: vec![],
     });
 
     docs += &doc(models::Route {
         title: "Create Review",
         method: "POST",
         path: "/reviews/{id}",
-description: r#"
+        description: r#"
 Creates a review.
 
 ``id`` and ``page`` should be set to null or omitted though are ignored by this endpoint
@@ -1055,9 +1032,7 @@ path.
 ``user_id`` is *required* for this endpoint and must be the user making the review. It must
 also match the user token sent in the ``Authorization`` header
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::ReviewQuery {
             page: None,
             user_id: Some(0),
@@ -1070,14 +1045,14 @@ also match the user token sent in the ``Authorization`` header
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc(models::Route {
         title: "Edit Review",
         method: "PATCH",
         path: "/reviews/{id}",
-description: r#"
+        description: r#"
 Edits a review.
 
 ``page`` should be set to null or omitted though are ignored by this endpoint
@@ -1098,9 +1073,7 @@ edit reviews using Lynx when required.
 ``user_id`` is *required* for this endpoint and must be the user making the review. It must
 also match the user token sent in the ``Authorization`` header
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0,
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::ReviewQuery {
             page: None,
             user_id: Some(0),
@@ -1116,14 +1089,14 @@ also match the user token sent in the ``Authorization`` header
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc(models::Route {
         title: "Delete Review",
         method: "DELETE",
         path: "/reviews/{rid}",
-description: r#"
+        description: r#"
 Deletes a review
 
 ``rid`` must be a valid uuid.
@@ -1154,14 +1127,14 @@ set this a TargetType anyways so you might as well set it correctly.
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc(models::Route {
         title: "Vote Review",
         method: "PATCH",
         path: "/reviews/{rid}/votes",
-description: r#"
+        description: r#"
 Creates a vote for a review
 
 ``rid`` must be a valid uuid.
@@ -1192,7 +1165,7 @@ A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::User]
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc_category("Stats");
@@ -1201,7 +1174,7 @@ A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``
         title: "Get List Stats",
         method: "GET",
         path: "/stats",
-description: r#"
+        description: r#"
 Returns the bot list stats. This currently returns the full list of all bots
 as a vector/list of IndexBot structs.
 
@@ -1216,7 +1189,7 @@ if the list grows and then requires it.
             ..models::ListStats::default()
         },
         equiv_v2_route: "None",
-        auth_types: vec![]
+        auth_types: vec![],
     });
 
     docs += &doc_category("Resources");
@@ -1225,7 +1198,7 @@ if the list grows and then requires it.
         title: "Create Resource",
         method: "POST",
         path: "/resources/{id}",
-description: r#"
+        description: r#"
 Creates a resource. Both bots and servers support these however only bots 
 support the frontend resource creator in Bot Settings as of right now.
 
@@ -1234,11 +1207,9 @@ The ``id`` here must be the resource id
 A bot has a TargetType of 0 while a server has a TargetType of 1. 
 This is the ``target_type``
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::TargetQuery {
-            target_type: models::TargetType::Bot
+            target_type: models::TargetType::Bot,
         },
         request_body: &models::Resource::default(),
         response_body: &models::APIResponse {
@@ -1247,14 +1218,14 @@ This is the ``target_type``
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server]
+        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server],
     });
 
     docs += &doc(models::Route {
         title: "Delete Resource",
         method: "DELETE",
         path: "/resources/{id}",
-description: r#"
+        description: r#"
 Deletes a resource. Both bots and servers support these however only bots 
 support the frontend resource creator in Bot Settings as of right now.
 
@@ -1263,12 +1234,10 @@ The ``id`` here must be the resource id
 A bot has a TargetType of 0 while a server has a TargetType of 1. 
 This is the ``target_type``
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::ResourceDeleteQuery {
             id: uuid::Uuid::new_v4().to_hyphenated().to_string(),
-            target_type: models::TargetType::Bot
+            target_type: models::TargetType::Bot,
         },
         request_body: &models::Empty {},
         response_body: &models::APIResponse {
@@ -1277,7 +1246,7 @@ This is the ``target_type``
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server]
+        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server],
     });
 
     docs += &doc_category("Commands");
@@ -1286,7 +1255,7 @@ This is the ``target_type``
         title: "Create Bot Command",
         method: "POST",
         path: "/bots/{id}/commands",
-description: r#"
+        description: r#"
 Creates a command.
 
 The ``id`` here must be the bot id you wish to add the command for
@@ -1298,14 +1267,12 @@ the command depending on its ``name``.**
 or otherwise fail with odd errors.  If you have more than this, then perform 
 multiple requests**
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::TargetQuery {
-            target_type: models::TargetType::Bot
+            target_type: models::TargetType::Bot,
         },
         request_body: &models::BotCommandVec {
-            commands: vec![models::BotCommand::default()]
+            commands: vec![models::BotCommand::default()],
         },
         response_body: &models::APIResponse {
             done: true,
@@ -1313,14 +1280,14 @@ multiple requests**
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::Bot]
+        auth_types: vec![models::RouteAuthType::Bot],
     });
 
     docs += &doc(models::Route {
         title: "Delete Bot Command",
         method: "DELETE",
         path: "/bots/{id}/commands",
-description: r#"
+        description: r#"
 DELETE a command.
 
 The ``id`` here must be the bot id you wish to add the command for
@@ -1328,9 +1295,7 @@ The ``id`` here must be the bot id you wish to add the command for
 ``names`` and ``ids`` must be a ``|`` seperated list of ``names`` or valid
 UUIDs in the case of ids. Bad names/ids will be ignored
 "#,
-        path_params: &models::FetchBotPath {
-            id: 0
-        },
+        path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::CommandDeleteQuery {
             nuke: Some(false),
             names: Some("command name|command name 2".to_string()),
@@ -1343,7 +1308,7 @@ UUIDs in the case of ids. Bad names/ids will be ignored
             context: None,
         },
         equiv_v2_route: "None",
-        auth_types: vec![models::RouteAuthType::Bot]
+        auth_types: vec![models::RouteAuthType::Bot],
     });
 
     // Return docs

@@ -1,35 +1,46 @@
 // Add, remove and delete commands from bots
-use actix_web::{HttpRequest, post, delete, web, HttpResponse, ResponseError};
-use actix_web::http::header::HeaderValue;
 use crate::models;
+use actix_web::http::header::HeaderValue;
+use actix_web::{delete, post, web, HttpRequest, HttpResponse, ResponseError};
 use log::error;
 
 #[post("/bots/{id}/commands")]
 async fn add_command(
-    req: HttpRequest, 
-    id: web::Path<models::FetchBotPath>, 
-    res: web::Json<models::BotCommandVec>
+    req: HttpRequest,
+    id: web::Path<models::FetchBotPath>,
+    res: web::Json<models::BotCommandVec>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let id = id.id.clone();
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if data.database.authorize_bot(id, auth).await {
         for command in &res.commands {
             if command.name.is_empty() {
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,
-                    reason: Some("Command name must be at least 1 character long: ".to_string() + &command.name),
-                    context: Some("Check error".to_string())
+                    reason: Some(
+                        "Command name must be at least 1 character long: ".to_string()
+                            + &command.name,
+                    ),
+                    context: Some("Check error".to_string()),
                 });
             }
             if command.description.is_empty() {
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,
-                    reason: Some("Command name must be at least 1 character long: ".to_string() + &command.name),
-                    context: Some("Check error".to_string())
+                    reason: Some(
+                        "Command name must be at least 1 character long: ".to_string()
+                            + &command.name,
+                    ),
+                    context: Some("Check error".to_string()),
                 });
             }
             let ret = data.database.add_command(id, command).await;
@@ -37,8 +48,8 @@ async fn add_command(
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,
                     reason: Some(ret.unwrap_err().to_string()),
-                    context: Some("Check error".to_string())
-                });        
+                    context: Some("Check error".to_string()),
+                });
             }
         }
         return HttpResponse::Ok().json(models::APIResponse {
@@ -54,16 +65,21 @@ async fn add_command(
 
 #[delete("/bots/{id}/commands")]
 async fn delete_commands(
-    req: HttpRequest, 
-    id: web::Path<models::FetchBotPath>,  
-    query: web::Query<models::CommandDeleteQuery>
+    req: HttpRequest,
+    id: web::Path<models::FetchBotPath>,
+    query: web::Query<models::CommandDeleteQuery>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let id = id.id.clone();
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req.headers().get("Authorization").unwrap_or(auth_default).to_str().unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
     if data.database.authorize_bot(id, auth).await {
         // If nuke, delete all commands
         if query.nuke.unwrap_or(false) == true {
@@ -84,7 +100,7 @@ async fn delete_commands(
             for cmd in ids.split("|").collect::<Vec<&str>>() {
                 let id_parse = uuid::Uuid::parse_str(&cmd);
                 if id_parse.is_err() {
-                    continue
+                    continue;
                 }
                 let cmd_id = id_parse.unwrap();
                 data.database.delete_commands_by_id(id, cmd_id).await;
