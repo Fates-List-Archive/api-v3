@@ -885,6 +885,30 @@ Returns a array of sources that a bot can be imported from.
             ]
         },
         equiv_v2_route: "None",
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
+        title: "Import Bot",
+        method: "POST",
+        path: "/users/{user_id}/bots/{bot_id}/import?src={source}",
+        description: r#"
+Imports a bot from a source listed in ``Get Import Sources``.
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::ImportQuery {
+            src: models::ImportSource::Rdl,
+        },
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
