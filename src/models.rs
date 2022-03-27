@@ -89,6 +89,28 @@ pub enum LongDescriptionType {
 }
 
 #[derive(
+    Eq, TryFromPrimitive, Serialize, Deserialize, PartialEq, Clone, Copy, Default, Reflect
+)]
+#[repr(i32)]
+pub enum ImportSource {
+    Rdl,
+    #[default]
+    Other
+}
+
+// A import source item - a bot list that can be imported from
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ImportSourceListItem {
+    pub id: ImportSource,
+    pub name: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ImportSourceList {
+    pub sources: Vec<ImportSourceListItem>,    
+}
+
+#[derive(
     Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
 )]
 #[repr(i32)]
@@ -232,6 +254,12 @@ pub struct GetUserBotPath {
     pub user_id: i64,
     pub bot_id: i64,
 }
+
+#[derive(Deserialize, Serialize, Clone, Reflect)]
+pub struct ImportQuery {
+    pub src: ImportSource,
+}
+
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct GetUserServerPath {
@@ -1197,6 +1225,7 @@ pub enum CheckBotError {
     InvalidGithub,
     InvalidPrivacyPolicy,
     InvalidDonate,
+    InvalidWebsite,
     BannerCardError(BannerCheckError),
     BannerPageError(BannerCheckError),
     JAPIError(reqwest::Error),
@@ -1227,6 +1256,7 @@ impl CheckBotError {
             Self::VanityTaken => "This vanity has already been taken. Please contact Fates List staff if you wish to report this!".to_string(),
             Self::InvalidInvitePermNum => "This invite is invalid!".to_string(),
             Self::InvalidInvite => "Your invite link must start with https://".to_string(),
+            Self::InvalidWebsite => "Your website must start with https://".to_string(),
             Self::ShortDescLengthErr => "Your description must be at least 10 characters long and must be a maximum of 200 characters".to_string(),
             Self::LongDescLengthErr => "Your long description must be at least 200 characters long".to_string(),
             Self::BotNotFound => "According to Discord's API and our cache, your bot does not exist. Please try again after 2 hours.".to_string(),

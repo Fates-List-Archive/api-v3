@@ -167,6 +167,8 @@ async fn main() -> std::io::Result<()> {
             .service(botactions::edit_bot)
             .service(botactions::transfer_ownership)
             .service(botactions::delete_bot)
+            .service(botactions::import_rdl)
+            .service(botactions::import_sources)
             .service(appeal::appeal_bot)
             .service(packs::add_pack)
             .service(packs::edit_pack)

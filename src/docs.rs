@@ -866,6 +866,28 @@ You **must** be main owner to use this endpoint.
         auth_types: vec![models::RouteAuthType::User],
     });
 
+    docs += &doc(models::Route {
+        title: "Get Import Sources",
+        method: "GET",
+        path: "/import-sources",
+        description: r#"
+Returns a array of sources that a bot can be imported from.
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::ImportSourceList {
+            sources: vec![
+                models::ImportSourceListItem {
+                    id: models::ImportSource::Rdl,
+                    name: "Rovel Bot List".to_string()
+                }
+            ]
+        },
+        equiv_v2_route: "None",
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
     docs += &doc_category("Appeal");
 
     // New Appeal

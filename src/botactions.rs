@@ -1,10 +1,13 @@
 use crate::models;
+use crate::converters;
 use actix_web::http::header::HeaderValue;
 /// Handles bot adds
-use actix_web::{delete, patch, post, web, HttpRequest, HttpResponse, ResponseError};
-use log::error;
+use actix_web::{get, delete, patch, post, web, HttpRequest, HttpResponse, ResponseError};
+use log::{error, debug};
 use serenity::model::prelude::*;
 use std::time::Duration;
+use std::collections::HashMap;
+use serde_json::json;
 
 /// Simple helper function to check a banner url
 pub async fn check_banner_img(
@@ -134,26 +137,26 @@ async fn check_bot(
     if resolved_vanity.is_some() {
         if mode == models::BotActionMode::Add {
             return Err(models::CheckBotError::VanityTaken);
-        } else {
-            if resolved_vanity.unwrap().target_id != bot.user.id {
-                return Err(models::CheckBotError::VanityTaken);
-            }
+        } 
+        if resolved_vanity.unwrap().target_id != bot.user.id {
+            return Err(models::CheckBotError::VanityTaken);
         }
     }
 
     if let Some(ref invite) = bot.invite {
         if invite.starts_with("P:") {
-            let perm_num = invite.split(":").nth(1).unwrap();
+            let perm_num = invite.split(':').nth(1).unwrap();
             match perm_num.parse::<u64>() {
                 Ok(_) => {}
                 Err(_) => {
                     return Err(models::CheckBotError::InvalidInvitePermNum);
                 }
             }
-        } else {
-            if !invite.starts_with("https://") {
-                return Err(models::CheckBotError::InvalidInvite);
-            }
+        }
+        debug!("Invite is {}", invite);
+        if !invite.replace('"', "").starts_with("https://") {
+            debug!("Invite {} is not https", invite);
+            return Err(models::CheckBotError::InvalidInvite);
         }
     }
 
@@ -167,22 +170,29 @@ async fn check_bot(
     }
 
     if let Some(ref github) = bot.github {
-        if !github.starts_with("https://www.github.com/")
-            && !github.starts_with("https://github.com")
+        if !github.replace('"', "").starts_with("https://www.github.com/")
+            && !github.replace('"', "").starts_with("https://github.com")
+            && !github.is_empty()
         {
             return Err(models::CheckBotError::InvalidGithub);
         }
     }
 
     if let Some(ref privacy_policy) = bot.privacy_policy {
-        if !privacy_policy.starts_with("https://") {
+        if !privacy_policy.replace('"', "").starts_with("https://") && !privacy_policy.is_empty(){
             return Err(models::CheckBotError::InvalidPrivacyPolicy);
         }
     }
 
     if let Some(ref donate) = bot.donate {
-        if !donate.starts_with("https://") {
+        if !donate.replace('"', "").starts_with("https://") && !donate.is_empty() {
             return Err(models::CheckBotError::InvalidDonate);
+        }
+    }
+
+    if let Some(ref website) = bot.website {
+        if !website.replace('"', "").starts_with("https://") && !website.is_empty() {
+            return Err(models::CheckBotError::InvalidWebsite);
         }
     }
 
@@ -601,7 +611,7 @@ async fn transfer_ownership(
 async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let user_id = id.user_id.clone();
+    let user_id = id.user_id;
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()
@@ -609,7 +619,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         .unwrap_or(auth_default)
         .to_str()
         .unwrap();
-    let bot_id = id.bot_id.clone();
+    let bot_id = id.bot_id;
 
     if data.database.authorize_user(user_id, auth).await {
         // Before doing anything else, get the bot from db and check if user is owner
@@ -680,5 +690,182 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         });
     }
     error!("Delete bot auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
+}
+
+// Get Import Sources
+#[get("/import-sources")]
+async fn import_sources(req: HttpRequest) -> HttpResponse {
+    return HttpResponse::Ok().json(models::ImportSourceList {
+        sources: vec![
+            models::ImportSourceListItem {
+                id: models::ImportSource::Rdl,
+                name: "Rovel Bot List".to_string()
+            }
+        ]
+    });
+}
+
+// Import bots
+#[post("/users/{user_id}/bots/{bot_id}/import")]
+async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src: web::Query<models::ImportQuery>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = id.user_id;
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
+    if data.database.authorize_user(user_id, auth).await {
+        // Fetch bot from RDL
+        let bot_id = id.bot_id;
+
+        let mut bot = match src.src {
+            models::ImportSource::Rdl => {
+                let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://discord.rovelstars.com/api/bots/".to_owned()+&bot_id.to_string())
+                .timeout(Duration::from_secs(10))
+                .send()
+                .await
+                .unwrap()
+                .json::<HashMap<String, serde_json::Value>>()
+                .await
+                .unwrap();
+
+                if bot_data.get("err").is_some() {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some("Bot not found on RDL".to_string()),
+                        context: None,
+                    });
+                }
+
+                debug!("{:?}", bot_data);
+
+                let owners: Vec<String> = bot_data.remove("owners").unwrap().as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
+
+                let mut got_owner = false;
+                for owner in owners {
+                    if owner == user_id.to_string() {
+                        got_owner = true;
+                    }
+                }
+
+                if !got_owner {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some(
+                            "You are not allowed to import bots you are not owner of!".to_string(),
+                        ),
+                        context: None,
+                    });
+                }
+
+                let website = Some(bot_data.remove("website").unwrap_or_else(|| json!("")).to_string());
+                let website = website.unwrap();
+                let website = if website == *"null" || website.is_empty() {
+                    None
+                } else {
+                    Some(website)
+                };
+
+                models::Bot {
+                    user: models::User {
+                        id: bot_id.to_string(),
+                        ..models::User::default()
+                    },
+                    description: bot_data.remove("short").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                    long_description: bot_data.remove("desc").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string()),
+                    library: bot_data.remove("lib").unwrap_or_else(|| json!("")).to_string(),
+                    website,
+                    invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).to_string()),
+                    vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).to_string() + "-" + &converters::create_token(32),
+                    shard_count: 0,
+                    owners: Vec::new(),
+                    tags: vec![
+                        // Rovel does not provide us with tags, assert utility
+                        models::Tag {
+                            id: "utility".to_string(),
+                            ..models::Tag::default()
+                        }
+                    ],
+                    ..models::Bot::default()
+                }
+            }
+            _ => {
+                return HttpResponse::BadRequest().json(models::APIResponse {
+                    done: false,
+                    reason: Some("Invalid source".to_string()),
+                    context: None,
+                });
+            }
+        };
+
+        let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: Some("Check error".to_string()),
+            });
+        }
+        bot.owners.push(models::BotOwner {
+            user: models::User {
+                id: user_id.clone().to_string(),
+                username: "".to_string(),
+                avatar: "".to_string(),
+                disc: "0000".to_string(),
+                bot: false,
+                status: models::Status::Unknown,
+            },
+            main: true,
+        });
+        let res = data.database.add_bot(&bot).await;
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: Some("Add bot error".to_string()),
+            });
+        }
+        let _ = data
+            .config
+            .discord
+            .channels
+            .bot_logs
+            .send_message(&data.config.discord_http, |m| {
+                m.content(
+                    "<@&".to_string()
+                        + &data.config.discord.roles.staff_ping_add_role.clone()
+                        + ">",
+                );
+                m.embed(|e| {
+                    e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
+                    e.title("New Bot!");
+                    e.color(0x00ff00 as u64);
+                    e.description(format!(
+                        "{user} has added {bot} ({bot_name}) to the queue through Rovel Discord List!",
+                        user = UserId(user_id as u64).mention(),
+                        bot_name = bot.user.username,
+                        bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
+                    ));
+
+                    e.field("Guild Count (approx)", bot.guild_count.to_string(), true);
+
+                    e
+                });
+                m
+            })
+            .await;
+
+        return HttpResponse::Ok().json(models::APIResponse {
+            done: true,
+            reason: Some("Added bot successfully!".to_string()),
+            context: None,
+        });
+    }
+    error!("Add bot auth error");
     models::CustomError::ForbiddenGeneric.error_response()
 }
