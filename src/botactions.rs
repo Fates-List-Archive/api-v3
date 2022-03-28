@@ -700,15 +700,19 @@ async fn import_sources(req: HttpRequest) -> HttpResponse {
         sources: vec![
             models::ImportSourceListItem {
                 id: models::ImportSource::Rdl,
-                name: "Rovel Bot List".to_string()
-            }
+                name: "Rovel Discord List".to_string()
+            },
+            models::ImportSourceListItem {
+                id: models::ImportSource::Topgg,
+                name: "Top.gg (ALPHA, may not work reliably)".to_string()
+            },
         ]
     });
 }
 
 // Import bots
 #[post("/users/{user_id}/bots/{bot_id}/import")]
-async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src: web::Query<models::ImportQuery>) -> HttpResponse {
+async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src: web::Query<models::ImportQuery>, body: web::Json<models::ImportBody>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = id.user_id;
     let auth_default = &HeaderValue::from_str("").unwrap();
@@ -763,7 +767,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 }
 
                 let website = Some(bot_data.remove("website").unwrap_or_else(|| json!("")).to_string());
-                let website = website.unwrap();
+                let website = website.unwrap().replace('"', "");
                 let website = if website == *"null" || website.is_empty() {
                     None
                 } else {
@@ -777,11 +781,11 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     },
                     description: bot_data.remove("short").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
                     long_description: bot_data.remove("desc").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
-                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string()),
-                    library: bot_data.remove("lib").unwrap_or_else(|| json!("")).to_string(),
+                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
+                    library: bot_data.remove("lib").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
                     website,
-                    invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).to_string()),
-                    vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).to_string() + "-" + &converters::create_token(32),
+                    invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
+                    vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).to_string().replace('"', "") + "-" + &converters::create_token(32),
                     shard_count: 0,
                     owners: Vec::new(),
                     tags: vec![
@@ -794,6 +798,69 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     ..models::Bot::default()
                 }
             }
+            models::ImportSource::Topgg => {
+                let mut body = body.into_inner();
+                let ext_data = &mut body.ext_data;
+                if let Some(ref mut bot_data) = ext_data {
+                    debug!("{:?}", bot_data);
+
+                    let owners: Vec<String> = bot_data.remove("owners").unwrap().as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
+    
+                    let mut got_owner = false;
+                    for owner in owners {
+                        if owner == user_id.to_string() {
+                            got_owner = true;
+                        }
+                    }    
+
+                    if !got_owner {
+                        return HttpResponse::BadRequest().json(models::APIResponse {
+                            done: false,
+                            reason: Some(
+                                "You are not allowed to import bots you are not owner of!".to_string(),
+                            ),
+                            context: None,
+                        });
+                    }    
+
+                    let website = Some(bot_data.remove("website").unwrap_or_else(|| json!("")).to_string());
+                    let website = website.unwrap().replace('"', "");
+                    let website = if website == *"null" || website.is_empty() {
+                        None
+                    } else {
+                        Some(website)
+                    };    
+
+                    models::Bot {
+                        user: models::User {
+                            id: bot_id.to_string(),
+                            ..models::User::default()
+                        },                    
+                        vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).to_string().replace('"', "") + "-" + &converters::create_token(32),
+                        description: bot_data.remove("shortdesc").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                        long_description: bot_data.remove("longdesc").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                        prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string().replace('"', "")),   
+                        invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).to_string().replace('"', "")), 
+                        shard_count: 0,
+                        owners: Vec::new(),    
+                        website,
+                        tags: vec![
+                            // top.gg provides tag but they usually don't match and can be arbitary anyways
+                            models::Tag {
+                                id: "utility".to_string(),
+                                ..models::Tag::default()
+                            }
+                        ],        
+                        ..models::Bot::default()
+                    }
+                } else {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some("Invalid ext_data".to_string()),
+                        context: None,
+                    });
+                }
+            },
             _ => {
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,

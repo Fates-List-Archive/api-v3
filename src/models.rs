@@ -13,6 +13,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use thiserror::Error;
+use std::collections::HashMap;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -94,6 +95,7 @@ pub enum LongDescriptionType {
 #[repr(i32)]
 pub enum ImportSource {
     Rdl,
+    Topgg,
     #[default]
     Other
 }
@@ -260,6 +262,10 @@ pub struct ImportQuery {
     pub src: ImportSource,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ImportBody {
+    pub ext_data: Option<HashMap<String, serde_json::Value>>,
+}
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]
 pub struct GetUserServerPath {
