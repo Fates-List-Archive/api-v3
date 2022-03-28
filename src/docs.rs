@@ -534,9 +534,8 @@ this however, it is prone to change *anytime* in the future**.
         response_body: &models::UserVoted {
             votes: 10,
             voted: true,
-            vote_epoch: 101,
+            expiry: 101,
             timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
-            time_to_vote: 0,
             vote_right_now: false,
         },
         equiv_v2_route: "(no longer working) [Get User Votes](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",

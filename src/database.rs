@@ -17,6 +17,9 @@ use sqlx::postgres::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use std::borrow::Cow;
 use tokio::task;
+use std::time::{SystemTime, UNIX_EPOCH};
+use bigdecimal::BigDecimal;
+use bigdecimal::ToPrimitive;
 
 pub struct Database {
     pool: PgPool,
@@ -1293,42 +1296,39 @@ impl Database {
         .fetch_one(&self.pool)
         .await;
 
-        match voter_ts {
-            Ok(ts) => {
-                let vote_ts = ts.timestamps.unwrap_or_default();
+        let voted = sqlx::query!(
+            "SELECT extract(epoch from expires_on) AS expiry FROM user_vote_table WHERE user_id = $1",
+            user_id,
+        )
+        .fetch_one(&self.pool)
+        .await;
 
-                let votes = vote_ts.len() as i64;
-
-                let mut conn = self.redis.get().await.unwrap();
-
-                // Get vote epoch
-                let ttl = conn
-                    .ttl(format!("vote_lock:{user_id}", user_id = user_id))
-                    .await
-                    .unwrap_or(-2);
-
-                let mut time_to_vote: i64 = 0;
-                if ttl > 0 {
-                    time_to_vote = 60 * 60 * 8 - ttl
-                }
-
-                models::UserVoted {
-                    votes,
-                    vote_epoch: ttl,
-                    vote_right_now: ttl < 0,
-                    time_to_vote,
-                    voted: votes > 0,
-                    timestamps: vote_ts,
-                }
-            }
-            Err(_) => models::UserVoted {
-                votes: 0,
-                time_to_vote: 0,
-                vote_right_now: true,
-                vote_epoch: -2,
-                voted: false,
-                timestamps: Vec::new(),
+        let expiry = match voted {
+            Ok(voted) => {
+                voted.expiry.unwrap_or_default()
             },
+            Err(_) => {
+                BigDecimal::from_u64(0).unwrap_or_default()
+            }
+        }.to_u64().unwrap_or_default();
+
+        let vote_ts = match voter_ts {
+            Ok(ts) => {
+                ts.timestamps.unwrap_or_default()
+            }
+            _ => {
+                Vec::new()
+            }
+        };
+
+        let vote_len = vote_ts.len().try_into().unwrap();
+
+        models::UserVoted {
+            votes: vote_len,
+            expiry,
+            vote_right_now: expiry < 1,
+            voted: vote_len > 0,
+            timestamps: vote_ts,
         }
     }
 

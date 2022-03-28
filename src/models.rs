@@ -96,8 +96,20 @@ pub enum LongDescriptionType {
 pub enum ImportSource {
     Rdl,
     Topgg,
+    Ibl,
     #[default]
     Other
+}
+
+impl ImportSource {
+    pub fn to_source_name(&self) -> String {
+        match self {
+            ImportSource::Rdl => "Rovel Discord List".to_string(),
+            ImportSource::Topgg => "Top.gg".to_string(),
+            ImportSource::Ibl => "Infinity Bot List".to_string(),
+            ImportSource::Other => "Unknown Source".to_string(),
+        }
+    }
 }
 
 // A import source item - a bot list that can be imported from
@@ -970,8 +982,7 @@ pub struct UserVoted {
     pub votes: i64,
     pub voted: bool,
     pub vote_right_now: bool,
-    pub vote_epoch: i64,
-    pub time_to_vote: i64,
+    pub expiry: u64,
     pub timestamps: Vec<chrono::DateTime<chrono::Utc>>,
 }
 

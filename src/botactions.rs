@@ -706,6 +706,10 @@ async fn import_sources(req: HttpRequest) -> HttpResponse {
                 id: models::ImportSource::Topgg,
                 name: "Top.gg (ALPHA, may not work reliably)".to_string()
             },
+            models::ImportSourceListItem {
+                id: models::ImportSource::Ibl,
+                name: "Infinity Bot List".to_string()
+            },
         ]
     });
 }
@@ -861,6 +865,72 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     });
                 }
             },
+            models::ImportSource::Ibl => {
+                let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://api.infinitybotlist.com/bots/".to_owned()+&bot_id.to_string())
+                .timeout(Duration::from_secs(10))
+                .send()
+                .await
+                .unwrap()
+                .json::<HashMap<String, serde_json::Value>>()
+                .await
+                .unwrap();
+
+                if bot_data.get("message").is_some() {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some("Bot not found on IBL".to_string()),
+                        context: None,
+                    });
+                }
+
+                debug!("{:?}", bot_data);
+
+                // Typically, we would do ownership check, but these can be very easily bypassed so don't do it
+                // TODO: Add proper ownership checks if/when this gets fixed IBL side.
+
+                let mut links = bot_data.remove("links").unwrap_or_else(|| json!({})).as_object().unwrap().clone();
+
+                let website = Some(links.remove("website").unwrap_or_else(|| json!("")).to_string());
+                let website = website.unwrap().replace('"', "");
+                let website = if website == *"null" || website.is_empty() {
+                    None
+                } else {
+                    Some(website)
+                };
+
+                let github = Some(links.remove("github").unwrap_or_else(|| json!("")).to_string());
+                let github = github.unwrap().replace('"', "").replacen("None", "", 1);
+                let github = if github == *"null" || github.is_empty() {
+                    None
+                } else {
+                    Some(github)
+                };
+
+                models::Bot {
+                    user: models::User {
+                        id: bot_id.to_string(),
+                        ..models::User::default()
+                    },
+                    description: bot_data.remove("short").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                    long_description: bot_data.remove("long").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
+                    library: bot_data.remove("library").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                    website,
+                    github,
+                    invite: Some(links.remove("invite").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
+                    vanity: "_".to_string() + &bot_data.remove("name").unwrap_or_else(|| json!("")).to_string().replace('"', "") + "-" + &converters::create_token(32),
+                    shard_count: 0,
+                    owners: Vec::new(),
+                    tags: vec![
+                        // Rovel does not provide us with tags, assert utility
+                        models::Tag {
+                            id: "utility".to_string(),
+                            ..models::Tag::default()
+                        }
+                    ],
+                    ..models::Bot::default()
+                }
+            },
             _ => {
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,
@@ -913,10 +983,11 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     e.title("New Bot!");
                     e.color(0x00ff00 as u64);
                     e.description(format!(
-                        "{user} has added {bot} ({bot_name}) to the queue through Rovel Discord List!",
+                        "{user} has added {bot} ({bot_name}) to the queue through {source}!",
                         user = UserId(user_id as u64).mention(),
                         bot_name = bot.user.username,
-                        bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
+                        bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention(),
+                        source = src.src.to_source_name()
                     ));
 
                     e.field("Guild Count (approx)", bot.guild_count.to_string(), true);
