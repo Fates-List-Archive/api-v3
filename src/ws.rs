@@ -55,7 +55,7 @@ pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpRespons
                             serde_json::to_string(&models::PreviewResponse {
                                 preview: converters::sanitize_description(
                                     data.long_description_type,
-                                    data.text,
+                                    data.text.replace("\\n", "\n"),
                                 ),
                             })
                             .unwrap(),

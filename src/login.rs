@@ -23,7 +23,7 @@ async fn get_oauth2(req: HttpRequest) -> HttpResponse {
     );
     HttpResponse::Ok().json(models::APIResponse {
         done: true,
-        reason: None,
+        reason: Some(state),
         context: Some(url),
     })
 }

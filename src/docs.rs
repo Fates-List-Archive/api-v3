@@ -517,10 +517,8 @@ Endpoint to check amount of votes a user has.
 
 - votes | The amount of votes the bot has.
 - voted | Whether or not the user has *ever* voted for the bot.
-- vote_epoch | The redis TTL of the users vote lock. This is not time_to_vote which is the
-elapsed time the user has waited since their last vote.
 - timestamps | A list of timestamps that the user has voted for the bot on that has been recorded.
-- time_to_vote | The time the user has waited since they last voted.
+- expiry | The time when the user can next vote.
 - vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
 
 Differences from API v2:
@@ -631,7 +629,7 @@ Due to massive changes, this API cannot be mapped onto any v2 API
         title: "Get OAuth2 Link",
         method: "GET",
         path: "/oauth2",
-        description: "Returns the oauth2 link used to login with",
+        description: "Returns the oauth2 link used to login with. ``reason`` contains the state UUID",
         path_params: &models::Empty {},
         query_params: &models::Empty {},
         request_body: &models::Empty {},

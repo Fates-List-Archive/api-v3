@@ -378,6 +378,7 @@ pub struct Secrets {
     pub token_main: String,
     pub token_server: String,
     pub japi_key: String,
+    pub ibl_fates_key: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]

@@ -169,6 +169,8 @@ async fn check_bot(
         return Err(models::CheckBotError::LongDescLengthErr);
     }
 
+    bot.long_description = bot.long_description.replace("\\n", "\n").replace("\\r", "");
+
     if let Some(ref github) = bot.github {
         if !github.replace('"', "").starts_with("https://www.github.com/")
             && !github.replace('"', "").starts_with("https://github.com")
@@ -753,10 +755,20 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
 
                 let owners: Vec<String> = bot_data.remove("owners").unwrap().as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
 
+                let mut extra_owners = Vec::new();
+
                 let mut got_owner = false;
                 for owner in owners {
                     if owner == user_id.to_string() {
                         got_owner = true;
+                    } else {
+                        extra_owners.push(models::BotOwner {
+                            user: models::User {
+                                id: owner,
+                                ..models::User::default()
+                            },
+                            main: false
+                        });
                     }
                 }
 
@@ -770,8 +782,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     });
                 }
 
-                let website = Some(bot_data.remove("website").unwrap_or_else(|| json!("")).to_string());
-                let website = website.unwrap().replace('"', "");
+                let website = bot_data.remove("website").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
                 let website = if website == *"null" || website.is_empty() {
                     None
                 } else {
@@ -783,15 +794,15 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                         id: bot_id.to_string(),
                         ..models::User::default()
                     },
-                    description: bot_data.remove("short").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
-                    long_description: bot_data.remove("desc").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
-                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
-                    library: bot_data.remove("lib").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                    description: bot_data.remove("short").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                    long_description: bot_data.remove("desc").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
+                    library: bot_data.remove("lib").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                     website,
-                    invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
-                    vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).to_string().replace('"', "") + "-" + &converters::create_token(32),
+                    invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
+                    vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
                     shard_count: 0,
-                    owners: Vec::new(),
+                    owners: extra_owners,
                     tags: vec![
                         // Rovel does not provide us with tags, assert utility
                         models::Tag {
@@ -809,11 +820,21 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     debug!("{:?}", bot_data);
 
                     let owners: Vec<String> = bot_data.remove("owners").unwrap().as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
-    
+                    
+                    let mut extra_owners = Vec::new();
+
                     let mut got_owner = false;
                     for owner in owners {
                         if owner == user_id.to_string() {
                             got_owner = true;
+                        } else {
+                            extra_owners.push(models::BotOwner {
+                                user: models::User {
+                                    id: owner,
+                                    ..models::User::default()
+                                },
+                                main: false
+                            });
                         }
                     }    
 
@@ -827,26 +848,25 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                         });
                     }    
 
-                    let website = Some(bot_data.remove("website").unwrap_or_else(|| json!("")).to_string());
-                    let website = website.unwrap().replace('"', "");
+                    let website = bot_data.remove("website").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
                     let website = if website == *"null" || website.is_empty() {
                         None
                     } else {
                         Some(website)
-                    };    
-
+                    };   
+                    
                     models::Bot {
                         user: models::User {
                             id: bot_id.to_string(),
                             ..models::User::default()
                         },                    
-                        vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).to_string().replace('"', "") + "-" + &converters::create_token(32),
-                        description: bot_data.remove("shortdesc").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
-                        long_description: bot_data.remove("longdesc").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
-                        prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string().replace('"', "")),   
-                        invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).to_string().replace('"', "")), 
+                        vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
+                        description: bot_data.remove("shortdesc").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                        long_description: bot_data.remove("longdesc").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                        prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),   
+                        invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()), 
                         shard_count: 0,
-                        owners: Vec::new(),    
+                        owners: extra_owners,    
                         website,
                         tags: vec![
                             // top.gg provides tag but they usually don't match and can be arbitary anyways
@@ -866,8 +886,12 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 }
             },
             models::ImportSource::Ibl => {
-                let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://api.infinitybotlist.com/bots/".to_owned()+&bot_id.to_string())
+                let mut headers = reqwest::header::HeaderMap::new();
+                headers.insert("Authorization", HeaderValue::from_str(&data.config.secrets.ibl_fates_key).unwrap());
+
+                let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://api.infinitybotlist.com/fates/bots/".to_owned()+&bot_id.to_string())
                 .timeout(Duration::from_secs(10))
+                .headers(headers)
                 .send()
                 .await
                 .unwrap()
@@ -885,42 +909,76 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
 
                 debug!("{:?}", bot_data);
 
-                // Typically, we would do ownership check, but these can be very easily bypassed so don't do it
-                // TODO: Add proper ownership checks if/when this gets fixed IBL side.
+                // First check owners
+                let main_owner: String = bot_data.remove("owner").unwrap().as_str().unwrap_or("0").to_string();
 
-                let mut links = bot_data.remove("links").unwrap_or_else(|| json!({})).as_object().unwrap().clone();
+                let mut got_owner = false;
 
-                let website = Some(links.remove("website").unwrap_or_else(|| json!("")).to_string());
-                let website = website.unwrap().replace('"', "");
+                let mut extra_owners = Vec::new();
+
+                if main_owner == user_id.to_string() {
+                    got_owner = true;
+                } 
+
+                // Then additional_owners
+                let owners: Vec<String> = bot_data.remove("additional_owners").unwrap().as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
+    
+                for owner in owners {
+                    if owner == user_id.to_string() {
+                        got_owner = true;
+                    } else {
+                        extra_owners.push(models::BotOwner {
+                            user: models::User {
+                                id: owner,
+                                ..models::User::default()
+                            },
+                            main: false
+                        });
+                    }
+                }    
+
+                if !got_owner {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some(
+                            "You are not allowed to import bots you are not owner of!".to_string(),
+                        ),
+                        context: None,
+                    });
+                }
+
+                let website = bot_data.remove("website").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
                 let website = if website == *"null" || website.is_empty() {
                     None
                 } else {
                     Some(website)
                 };
 
-                let github = Some(links.remove("github").unwrap_or_else(|| json!("")).to_string());
-                let github = github.unwrap().replace('"', "").replacen("None", "", 1);
+                let github = bot_data.remove("github").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
+                let github = github.replace('"', "").replacen("None", "", 1);
                 let github = if github == *"null" || github.is_empty() {
                     None
                 } else {
                     Some(github)
                 };
 
+                let nsfw = bot_data.remove("nsfw").unwrap_or_else(|| json!(false)).as_bool().unwrap_or(false);
+
                 models::Bot {
                     user: models::User {
                         id: bot_id.to_string(),
                         ..models::User::default()
                     },
-                    description: bot_data.remove("short").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
-                    long_description: bot_data.remove("long").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
-                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
-                    library: bot_data.remove("library").unwrap_or_else(|| json!("")).to_string().replace('"', ""),
+                    description: bot_data.remove("short").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                    long_description: bot_data.remove("long").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
+                    library: bot_data.remove("library").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                     website,
                     github,
-                    invite: Some(links.remove("invite").unwrap_or_else(|| json!("")).to_string().replace('"', "")),
-                    vanity: "_".to_string() + &bot_data.remove("name").unwrap_or_else(|| json!("")).to_string().replace('"', "") + "-" + &converters::create_token(32),
+                    invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
+                    vanity: "_".to_string() + &bot_data.remove("name").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
                     shard_count: 0,
-                    owners: Vec::new(),
+                    owners: extra_owners,
                     tags: vec![
                         // Rovel does not provide us with tags, assert utility
                         models::Tag {
@@ -928,6 +986,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                             ..models::Tag::default()
                         }
                     ],
+                    nsfw,
                     ..models::Bot::default()
                 }
             },
