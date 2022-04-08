@@ -375,9 +375,14 @@ This is to allow reuse of the Bot struct in Get Bot Settings which does contain 
         path: "/search?q={query}",
         path_params: &models::Empty {},
         query_params: &models::SearchQuery {
-            q: Some("mew".to_string()),
+            q: "mew".to_string(),
+            gc_from: 1,
+            gc_to: -1,
         },
-        description: r#"Searches the list based on a query named ``q``"#,
+        description: r#"
+Searches the list based on a query named ``q``. 
+        
+Using -1 for ``gc_to`` will disable ``gc_to`` field"#,
         request_body: &models::Empty {},
         response_body: &models::Search {
             bots: vec![models::IndexBot::default()],
@@ -399,8 +404,8 @@ This is to allow reuse of the Bot struct in Get Bot Settings which does contain 
         method: "GET",
         path: "/search-tags?q={query}",
         path_params: &models::Empty {},
-        query_params: &models::SearchQuery {
-            q: Some("music".to_string()),
+        query_params: &models::SearchTagQuery {
+            q: "music".to_string(),
         },
         description: r#"Searches the list for all bots/servers with tag *exactly* specified ``q``"#,
         request_body: &models::Empty {},

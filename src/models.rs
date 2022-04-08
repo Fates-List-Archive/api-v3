@@ -340,9 +340,16 @@ pub struct OauthAccessTokenResponse {
     pub access_token: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
+pub struct SearchTagQuery {
+    pub q: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
 pub struct SearchQuery {
-    pub q: Option<String>,
+    pub q: String,
+    pub gc_from: i64,
+    pub gc_to: i64,
 }
 
 #[derive(Deserialize, Serialize, Clone, Reflect)]

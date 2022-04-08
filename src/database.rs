@@ -463,10 +463,12 @@ impl Database {
         None
     }
 
-    pub async fn get_search_from_cache(&self, query: String) -> Option<models::Search> {
+    pub async fn get_search_from_cache(&self, search: &models::SearchQuery) -> Option<models::Search> {
+        let filters_key = format!("{gc_from}-{gc_to}", gc_from=search.gc_from, gc_to=search.gc_to);
+        
         let mut conn = self.redis.get().await.unwrap();
         let data: String = conn
-            .get("search:".to_string() + &query.to_string())
+            .get("search:".to_string() + &search.q + &filters_key)
             .await
             .unwrap_or_else(|_| "".to_string());
         if !data.is_empty() {
@@ -902,7 +904,7 @@ impl Database {
         resolved_bots
     }
 
-    pub async fn search(&self, query: String) -> models::Search {
+    pub async fn search(&self, search: models::SearchQuery) -> models::Search {
         // Get bots row
         let bots_row = sqlx::query!(
             "SELECT DISTINCT bots.bot_id,
@@ -914,10 +916,14 @@ impl Database {
             OR bots.username_cached ilike $1 
             OR bot_owner.owner::text ilike $1) 
             AND (bots.state = $2 OR bots.state = $3) 
+            AND (bots.guild_count > $4)
+            AND (($5 = -1::bigint) OR (bots.guild_count < $5))
             ORDER BY bots.votes DESC, bots.guild_count DESC LIMIT 6",
-            "%".to_string() + &query + "%",
+            "%".to_string() + &search.q + "%",
             models::State::Approved as i32,
             models::State::Certified as i32,
+            search.gc_from,
+            search.gc_to
         )
         .fetch_all(&self.pool)
         .await
@@ -945,7 +951,7 @@ impl Database {
             OR servers.long_description ilike $1
             OR servers.name_cached ilike $1) AND servers.state = $2
             ORDER BY servers.votes DESC, servers.guild_count DESC LIMIT 6",
-            "%".to_string() + &query + "%",
+            "%".to_string() + &search.q + "%",
             models::State::Approved as i32,
         )
         .fetch_all(&self.pool)
@@ -980,7 +986,7 @@ impl Database {
             WHERE ((bots.state = 0 OR bots.state = 6) 
             AND (bots.username_cached ilike $1 OR bots.description ilike $1 OR bots.bot_id::text ilike $1)) 
             OR (users.username ilike $1) LIMIT 12", 
-            "%".to_string()+&query+"%",
+            "%".to_string()+&search.q+"%",
         )
         .fetch_all(&self.pool)
         .await
@@ -1016,7 +1022,7 @@ impl Database {
             WHERE bot_packs.name ilike $1 OR bot_packs.owner::text 
             ilike $1 OR users.username ilike $1 OR bots.bot_id::text ilike $1 
             OR bots.username_cached ilike $1",
-            "%".to_string() + &query + "%",
+            "%".to_string() + &search.q + "%",
         )
         .fetch_all(&self.pool)
         .await
@@ -1054,7 +1060,7 @@ impl Database {
 
         let mut conn = self.redis.get().await.unwrap();
         conn.set_ex(
-            "search:".to_string() + &query.to_string(),
+            "search:".to_string() + &search.q,
             serde_json::to_string(&res).unwrap(),
             60,
         )
@@ -1065,7 +1071,7 @@ impl Database {
     }
 
     // Search bot/server tags
-    pub async fn search_tags(&self, tag: String) -> models::Search {
+    pub async fn search_tags(&self, tag: &String) -> models::Search {
         let rows = sqlx::query!(
             "SELECT DISTINCT bots.bot_id, bots.description, bots.state, bots.banner_card 
             AS banner, bots.flags, bots.votes, bots.guild_count FROM bots INNER JOIN bot_tags 
@@ -1103,7 +1109,7 @@ impl Database {
         let server_rows = sqlx::query!(
             "SELECT DISTINCT guild_id, flags, description, state, banner_card AS banner, 
             votes, guild_count FROM servers WHERE state = 0 AND tags && $1",
-            &vec![tag]
+            &vec![tag.clone()]
         )
         .fetch_all(&self.pool)
         .await
@@ -1321,12 +1327,14 @@ impl Database {
             }
         };
 
+        let now = chrono::Utc::now().timestamp() as u64;
+        
         let vote_len = vote_ts.len().try_into().unwrap();
 
         models::UserVoted {
             votes: vote_len,
             expiry,
-            vote_right_now: expiry < 1,
+            vote_right_now: now > expiry,
             voted: vote_len > 0,
             timestamps: vote_ts,
         }

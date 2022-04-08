@@ -258,18 +258,18 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
     }
 }
 
-/// Search route
+/// Search route. Uses PUT because request body
 #[get("/search")]
 async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let query = info.q.clone().unwrap_or_else(|| "fates".to_string());
+    let search = info.into_inner();
 
-    let cached_resp = data.database.get_search_from_cache(query.clone()).await;
+    let cached_resp = data.database.get_search_from_cache(&search).await;
     match cached_resp {
         Some(resp) => Json(resp),
         None => {
-            let search_resp = data.database.search(query).await;
+            let search_resp = data.database.search(search).await;
             Json(search_resp)
         }
     }
@@ -279,11 +279,10 @@ async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json
 #[get("/search-tags")]
 async fn search_tags(
     req: HttpRequest,
-    info: web::Query<models::SearchQuery>,
+    info: web::Query<models::SearchTagQuery>,
 ) -> Json<models::Search> {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let query = info.q.clone().unwrap_or_else(|| "music".to_string());
-    let search_resp = data.database.search_tags(query).await;
+    let search_resp = data.database.search_tags(&info.q).await;
     Json(search_resp)
 }
 
