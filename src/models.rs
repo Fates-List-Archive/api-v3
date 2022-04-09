@@ -1,6 +1,5 @@
 use crate::database;
 use actix_web::{error::ResponseError, http, HttpResponse};
-use bevy_reflect::{Reflect, Struct};
 use indexmap::{indexmap, IndexMap};
 use log::debug;
 use num_enum::TryFromPrimitive;
@@ -90,7 +89,7 @@ pub enum LongDescriptionType {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize, Deserialize, PartialEq, Clone, Copy, Default, Reflect
+    Eq, TryFromPrimitive, Serialize, Deserialize, PartialEq, Clone, Copy, Default
 )]
 #[repr(i32)]
 pub enum ImportSource {
@@ -253,23 +252,23 @@ pub struct Search {
     pub tags: SearchTags,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct IndexQuery {
     pub target_type: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct VoteBotQuery {
     pub test: bool,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct GetUserBotPath {
     pub user_id: i64,
     pub bot_id: i64,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct ImportQuery {
     pub src: ImportSource,
 }
@@ -279,13 +278,13 @@ pub struct ImportBody {
     pub ext_data: Option<HashMap<String, serde_json::Value>>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct GetUserServerPath {
     pub user_id: i64,
     pub server_id: i64,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct GetUserPackPath {
     pub user_id: i64,
     pub pack_id: String,
@@ -302,13 +301,13 @@ pub struct PreviewResponse {
     pub preview: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct OauthDoQuery {
     pub code: String,
     pub state: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct OauthUser {
     pub id: String,
     pub username: String,
@@ -335,24 +334,24 @@ pub struct BotStats {
 }
 
 /// The response from the oauth2 endpoint. We do not care about anything but access token
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct OauthAccessTokenResponse {
     pub access_token: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct SearchTagQuery {
     pub q: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct SearchQuery {
     pub q: String,
     pub gc_from: i64,
     pub gc_to: i64,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Empty {}
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Default)]
@@ -366,12 +365,12 @@ pub enum Status {
 }
 
 // For the sake of documentation
-#[derive(Deserialize, Serialize, Reflect)]
+#[derive(Deserialize, Serialize)]
 pub struct VanityPath {
     pub code: String,
 }
 
-#[derive(Deserialize, Serialize, Reflect)]
+#[derive(Deserialize, Serialize)]
 pub struct Vanity {
     pub target_type: String,
     pub target_id: String,
@@ -545,17 +544,17 @@ pub struct APIResponse {
     pub context: Option<String>, // This is the error itself
 }
 
-#[derive(Deserialize, Serialize, Default, Reflect)]
+#[derive(Deserialize, Serialize, Default)]
 pub struct FetchBotQuery {
     pub lang: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Default, Reflect)]
+#[derive(Deserialize, Serialize, Default)]
 pub struct ReviewDeletePath {
     pub rid: String,
 }
 
-#[derive(Deserialize, Serialize, Default, Reflect, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 pub struct FetchBotPath {
     pub id: i64,
 }
@@ -581,7 +580,7 @@ pub struct BotCommandVec {
     pub commands: Vec<BotCommand>,
 }
 
-#[derive(Deserialize, Serialize, Default, Reflect, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 pub struct CommandDeleteQuery {
     pub nuke: Option<bool>,
     pub names: Option<String>,
@@ -596,13 +595,13 @@ pub struct Resource {
     pub resource_description: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct ResourceDeleteQuery {
     pub id: String,
     pub target_type: TargetType,
 }
 
-#[derive(Deserialize, Serialize, Clone, Default, Reflect)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct TargetQuery {
     pub target_type: TargetType,
 }
@@ -925,7 +924,7 @@ pub struct BotVoteProp {
     pub votes: i64,
 }
 
-#[derive(Eq, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Reflect)]
+#[derive(Eq, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
 #[repr(i32)]
 pub enum TargetType {
     #[default]
@@ -1094,7 +1093,7 @@ pub struct ParsedReview {
     pub user_review: Option<Review>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Reflect)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct ReviewQuery {
     pub target_type: TargetType,
     pub page: Option<i32>,
@@ -1426,7 +1425,7 @@ pub enum RouteAuthType {
     Server,
 }
 
-pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize> {
+pub struct Route<'a, T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize> {
     pub title: &'a str,
     pub method: &'a str,
     pub path: &'a str,
@@ -1435,6 +1434,5 @@ pub struct Route<'a, T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: St
     pub description: &'a str,
     pub request_body: &'a T,
     pub response_body: &'a T2,
-    pub equiv_v2_route: &'a str,
     pub auth_types: Vec<RouteAuthType>,
 }

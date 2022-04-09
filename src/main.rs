@@ -32,6 +32,7 @@ mod security;
 mod stats;
 mod user;
 mod ws;
+mod docser; // Used internally by docs.rs
 
 use crate::models::APIResponse;
 

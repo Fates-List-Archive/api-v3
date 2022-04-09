@@ -1,57 +1,9 @@
 use crate::models;
-use bevy_reflect::{Reflect, Struct};
+use crate::docser;
 use bigdecimal::FromPrimitive;
 use serde::Serialize;
 
-fn _get_value_from(value: &dyn Reflect) -> String {
-    let mut field_name_ext: String = value.type_name().to_string();
-
-    // type_name replacer
-    field_name_ext = field_name_ext.replace("core::option::Option", "Optional ");
-    field_name_ext = field_name_ext.replace("alloc::string::", "");
-
-    // Optional string case
-    if let Some(value) = value.downcast_ref::<Option<String>>() {
-        match value {
-            Some(value) => {
-                field_name_ext = "String? ".to_string() + "| default = " + value;
-            }
-            None => {
-                // Ignored
-            }
-        }
-    }
-
-    // Optional i64 case
-    if let Some(value) = value.downcast_ref::<Option<i64>>() {
-        match value {
-            Some(value) => {
-                field_name_ext = "i64? ".to_string() + "| default = " + &value.to_string();
-            }
-            None => {
-                // Ignored
-            }
-        }
-    }
-
-    "[".to_owned() + &field_name_ext + " (type info may be incomplete, see example)]"
-}
-
-fn _get_params<T: Struct>(params: &T) -> String {
-    let mut params_string = String::new();
-    for (i, value) in params.iter_fields().enumerate() {
-        let field_name: String = params.name_at(i).unwrap().to_string();
-        let field_value = _get_value_from(value);
-        params_string += &format!(
-            "- **{field_name}** {field_value}\n",
-            field_name = field_name,
-            field_value = field_value,
-        )
-    }
-    params_string
-}
-
-fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Serialize>(
+fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
     route: models::Route<T, T2, T3, T4>,
 ) -> String {
     // Serialize request body
@@ -68,47 +20,22 @@ fn doc<T: Serialize, T2: Serialize, T3: Struct + Serialize, T4: Struct + Seriali
 
     route.response_body.serialize(&mut ser2).unwrap();
 
-    // Serialize query parameters
-    let buf4 = Vec::new();
-    let formatter4 = serde_json::ser::PrettyFormatter::with_indent(b"    ");
-    let mut ser4 = serde_json::Serializer::with_formatter(buf4, formatter4);
+    let query_params_str = docser::serialize_docs(route.query_params).unwrap();
 
-    let mut query_params_str = _get_params(route.query_params);
-
-    route.query_params.serialize(&mut ser4).unwrap();
-
-    let query_params_json = &String::from_utf8(ser4.into_inner()).unwrap();
-
-    query_params_str +=
-        &("\n\n**Example**\n\n```json\n".to_string() + &query_params_json.clone() + "\n```");
-
-    // Serialize path parameters
-    let buf3 = Vec::new();
-    let formatter3 = serde_json::ser::PrettyFormatter::with_indent(b"    ");
-    let mut ser3 = serde_json::Serializer::with_formatter(buf3, formatter3);
-
-    let mut path_params_str = _get_params(route.path_params);
-
-    route.path_params.serialize(&mut ser3).unwrap();
-
-    let path_params_json = &String::from_utf8(ser3.into_inner()).unwrap();
-
-    path_params_str +=
-        &("\n\n**Example**\n\n```json\n".to_string() + &path_params_json.clone() + "\n```");
+    let path_params_str = docser::serialize_docs(route.path_params).unwrap();
 
     let mut base_doc = format!(
-        "### {title}\n#### {method} {path}\n\n{description}\n\n**API v2 analogue:** {equiv_v2_route}",
+        "### {title}\n#### {method} {path}\n\n{description}",
         title = route.title,
         method = route.method,
         path = route.path,
         description = route.description,
-        equiv_v2_route = route.equiv_v2_route,
     );
 
-    if path_params_json.len() > 2 {
+    if query_params_str.len() > 2 {
         base_doc += &("\n\n**Path parameters**\n\n".to_string() + &path_params_str);
     }
-    if query_params_json.len() > 2 {
+    if query_params_str.len() > 2 {
         base_doc += &("\n\n**Query parameters**\n\n".to_string() + &query_params_str);
     }
 
@@ -245,7 +172,6 @@ def post_stats(bot_id: int, guild_count: int):
     return json
 ```
 "#,
-            equiv_v2_route: "(no longer working) [Post Stats](https://legacy.fateslist.xyz/api/docs/redoc#operation/set_stats)",
             auth_types: vec![models::RouteAuthType::Bot]
     });
 
@@ -273,7 +199,6 @@ def post_stats(bot_id: int, guild_count: int):
             tags: tags.clone(),
             features: features.clone(),
         },
-        equiv_v2_route: "(no longer working) [Get Index](https://legacy.fateslist.xyz/docs/redoc#operation/get_index)",
         auth_types: vec![]
     });
 
@@ -292,21 +217,6 @@ def post_stats(bot_id: int, guild_count: int):
             target_id: "0000000000".to_string(),
             target_type: "bot | server".to_string(),
         },
-        equiv_v2_route: "(no longer working) [Get Vanity](https://legacy.fateslist.xyz/docs/redoc#operation/get_vanity)",
-        auth_types: vec![]
-    });
-
-    // - Policies route
-    docs += &doc( models::Route {
-        title: "Get Policies",
-        method: "GET",
-        path: "/policies",
-        path_params: &models::Empty {},
-        query_params: &models::Empty {},
-        description: "Get policies (rules, privacy policy, terms of service)",
-        request_body: &models::Empty {},
-        response_body: &models::Policies::default(),
-        equiv_v2_route: "(no longer working) [All Policies](https://legacy.fateslist.xyz/api/docs/redoc#operation/all_policies)",
         auth_types: vec![]
     });
 
@@ -320,7 +230,6 @@ def post_stats(bot_id: int, guild_count: int):
         description: "Get policies (rules, privacy policy, terms of service)",
         request_body: &models::Empty {},
         response_body: &models::Partners::default(),
-        equiv_v2_route: "(no longer working) [Get Partners](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_partners)",
         auth_types: vec![]
     });
 
@@ -334,7 +243,6 @@ def post_stats(bot_id: int, guild_count: int):
         description: "Given the preview and long description, parse it and give the sanitized output. You must first connect over websocket!",
         request_body: &models::PreviewRequest::default(),
         response_body: &models::PreviewResponse::default(),
-        equiv_v2_route: "None",
         auth_types: vec![]
     });
 
@@ -364,7 +272,6 @@ This is to allow reuse of the Bot struct in Get Bot Settings which does contain 
 "#,
         request_body: &models::Empty {},
         response_body: &models::Bot::default(), // TODO
-        equiv_v2_route: "[Fetch Bot](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_bot)",
         auth_types: vec![],
     });
 
@@ -394,7 +301,6 @@ Using -1 for ``gc_to`` will disable ``gc_to`` field"#,
                 servers: vec![models::Tag::default()]
             },
         },
-        equiv_v2_route: "(no longer working) [Search List](https://legacy.fateslist.xyz/docs/redoc#operation/search_list)",
         auth_types: vec![]
     });
 
@@ -419,7 +325,6 @@ Using -1 for ``gc_to`` will disable ``gc_to`` field"#,
                 servers: vec![models::Tag::default()]
             },
         },
-        equiv_v2_route: "(no longer working) [Search List](https://legacy.fateslist.xyz/docs/redoc#operation/search_list)",
         auth_types: vec![]
     });
 
@@ -448,7 +353,6 @@ def random_bot():
     return json
 ```
 "#,
-            equiv_v2_route: "(no longer working) [Fetch Random Bot](https://legacy.fateslist.xyz/api/docs/redoc#operation/fetch_random_bot)",
             auth_types: vec![]
     });
 
@@ -477,7 +381,6 @@ def random_server():
     return json
 ```
 "#,
-            equiv_v2_route: "(no longer working) [Fetch Random Server](https://legacy.fateslist.xyz/api/docs/redoc#operation/fetch_random_server)",
             auth_types: vec![]
     });
 
@@ -503,13 +406,12 @@ server privacy restrictions
 "#,
         request_body: &models::Empty{},
         response_body: &models::Server::default(),
-        equiv_v2_route: "(no longer working) [Fetch Server](https://legacy.fateslist.xyz/docs/redoc#operation/fetch_server)",
         auth_types: vec![]
     });
 
     // - Get User Votes
     docs += &doc( models::Route {
-        title: "Get User Votes",
+        title: "Get Bot Votes",
         method: "GET",
         path: "/users/{user_id}/bots/{bot_id}/votes",
         path_params: &models::GetUserBotPath {
@@ -541,13 +443,12 @@ this however, it is prone to change *anytime* in the future**.
             timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
             vote_right_now: false,
         },
-        equiv_v2_route: "(no longer working) [Get User Votes](https://legacy.fateslist.xyz/api/docs/redoc#operation/get_user_votes)",
         auth_types: vec![]
     });
 
-    // - Create User Vote
+    // - Create Bot Vote
     docs += &doc(models::Route {
-        title: "Create User Vote",
+        title: "Create Bot Vote",
         method: "PATCH",
         path: "/users/{user_id}/bots/{bot_id}/votes",
         path_params: &models::GetUserBotPath {
@@ -566,7 +467,6 @@ This endpoint creates a vote for a bot which can only be done *once* every 8 hou
             reason: Some("Why the vote failed".to_string()),
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -591,7 +491,6 @@ and ``features`` having any data. Other fields are empty arrays/vectors.
 This is used internally by sunbeam for the add bot system where a full bot
 index is too costly and making a new struct is unnecessary.
 "#,
-        equiv_v2_route: "None",
         auth_types: vec![],
     });
 
@@ -623,7 +522,6 @@ Staff members *should* instead use Lynx.
 
 Due to massive changes, this API cannot be mapped onto any v2 API
 "#,
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -643,7 +541,6 @@ Due to massive changes, this API cannot be mapped onto any v2 API
             reason: None,
             context: Some("https://discord.com/.........".to_string()),
         },
-        equiv_v2_route: "(no longer working) [Get OAuth2 Link](https://legacy.fateslist.xyz/docs/redoc#operation/get_oauth2_link)",
         auth_types: vec![]
     });
 
@@ -659,7 +556,6 @@ Due to massive changes, this API cannot be mapped onto any v2 API
             state: Some("Random UUID right now".to_string())
         },
         response_body: &models::OauthUserLogin::default(),
-        equiv_v2_route: "(no longer working) [Login User](https://legacy.fateslist.xyz/api/docs/redoc#operation/login_user)",
         auth_types: vec![]
     });
 
@@ -681,7 +577,6 @@ This API is essentially a logout
             reason: None,
             context: None,
         },
-        equiv_v2_route: "(no longer working) [Logout Sunbeam](https://legacy.fateslist.xyz/docs/redoc#operation/logout_sunbeam)",
         auth_types: vec![]
     });
 
@@ -704,7 +599,6 @@ token ever gets leaked.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Bot],
     });
 
@@ -725,7 +619,6 @@ token ever gets leaked.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -746,7 +639,6 @@ token ever gets leaked.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Server],
     });
 
@@ -777,7 +669,6 @@ to false.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -806,7 +697,6 @@ to false.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -840,7 +730,6 @@ You **must** be main owner to use this endpoint.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -864,7 +753,6 @@ You **must** be main owner to use this endpoint.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -886,7 +774,6 @@ Returns a array of sources that a bot can be imported from.
                 }
             ]
         },
-        equiv_v2_route: "None",
         auth_types: vec![],
     });
 
@@ -910,7 +797,6 @@ Imports a bot from a source listed in ``Get Import Sources``.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -942,7 +828,6 @@ Creates a appeal/request for a bot.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -968,7 +853,6 @@ but must exist in the object
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -985,7 +869,6 @@ Gets a user profile.
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::Profile::default(),
-        equiv_v2_route: "None",
         auth_types: vec![],
     });
 
@@ -1007,7 +890,6 @@ be present
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![],
     });
 
@@ -1055,7 +937,6 @@ This may change in the future and is given by ``per_page`` key.
                 average_stars: bigdecimal::BigDecimal::from_f32(8.8).unwrap(),
             },
         },
-        equiv_v2_route: "None",
         auth_types: vec![],
     });
 
@@ -1092,7 +973,6 @@ also match the user token sent in the ``Authorization`` header
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -1136,7 +1016,6 @@ also match the user token sent in the ``Authorization`` header
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -1174,7 +1053,6 @@ set this a TargetType anyways so you might as well set it correctly.
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -1212,7 +1090,6 @@ A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::User],
     });
 
@@ -1236,7 +1113,6 @@ if the list grows and then requires it.
             bots: index_bots.clone(),
             ..models::ListStats::default()
         },
-        equiv_v2_route: "None",
         auth_types: vec![],
     });
 
@@ -1265,7 +1141,6 @@ This is the ``target_type``
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server],
     });
 
@@ -1293,7 +1168,6 @@ This is the ``target_type``
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server],
     });
 
@@ -1327,7 +1201,6 @@ multiple requests**
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Bot],
     });
 
@@ -1355,7 +1228,6 @@ UUIDs in the case of ids. Bad names/ids will be ignored
             reason: None,
             context: None,
         },
-        equiv_v2_route: "None",
         auth_types: vec![models::RouteAuthType::Bot],
     });
 

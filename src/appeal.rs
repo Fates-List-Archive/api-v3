@@ -68,7 +68,7 @@ async fn appeal_bot(
         {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
-                reason: Some(format!("You cannot certify a bot that has no banner card")),
+                reason: Some("You cannot certify a bot that has no banner card".to_string()),
                 context: None,
             });
         }
@@ -80,20 +80,20 @@ async fn appeal_bot(
         {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
-                reason: Some(format!("You cannot certify a bot that has no banner page")),
+                reason: Some("You cannot certify a bot that has no banner page".to_string()),
                 context: None,
             });
         }
         if bot.guild_count < 100 {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
-                reason: Some(format!("You cannot certify a bot that has fewer than 100 guilds (verified using japi.rest)")),
+                reason: Some("You cannot certify a bot that has fewer than 100 guilds (verified using japi.rest)".to_string()),
                 context: None,
             });
         }
     }
 
-    let _ = data.config.discord.channels.appeals_channel.send_message(&data.config.discord_http, |m| {
+    let msg = data.config.discord.channels.appeals_channel.send_message(&data.config.discord_http, |m| {
         m.content("<@&".to_string()+&data.config.discord.roles.staff_ping_add_role.clone()+">");
         m.embed(|e| {
             e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
@@ -115,6 +115,14 @@ async fn appeal_bot(
         });
         m
     }).await;
+
+    if msg.is_err() {
+        return HttpResponse::build(http::StatusCode::INTERNAL_SERVER_ERROR).json(models::APIResponse {
+            done: false,
+            reason: Some("Failed to send appeal message".to_string()),
+            context: None,
+        });
+    }
 
     return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
         done: true,
