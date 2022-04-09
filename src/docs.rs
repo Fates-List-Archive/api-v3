@@ -32,10 +32,10 @@ fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
         description = route.description,
     );
 
-    if query_params_str.len() > 2 {
+    if query_params_str.len() > 0 {
         base_doc += &("\n\n**Path parameters**\n\n".to_string() + &path_params_str);
     }
-    if query_params_str.len() > 2 {
+    if query_params_str.len() > 0 {
         base_doc += &("\n\n**Query parameters**\n\n".to_string() + &query_params_str);
     }
 
@@ -845,7 +845,9 @@ Creates a bot pack.
 - In user and bot, only ``id`` must be filled, all others can be left empty string
 but must exist in the object
 "#,
-        path_params: &models::Empty {},
+        path_params: &models::FetchBotPath { 
+            id: 0
+        },
         query_params: &models::Empty {},
         request_body: &models::BotPack::default(),
         response_body: &models::APIResponse {
