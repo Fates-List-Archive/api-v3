@@ -1058,9 +1058,11 @@ impl Database {
             packs,
         };
 
+        let filters_key = format!("{gc_from}-{gc_to}", gc_from=search.gc_from, gc_to=search.gc_to);
+
         let mut conn = self.redis.get().await.unwrap();
         conn.set_ex(
-            "search:".to_string() + &search.q,
+            "search:".to_string() + &search.q + &filters_key,
             serde_json::to_string(&res).unwrap(),
             60,
         )

@@ -315,7 +315,7 @@ async fn has_user_voted(req: HttpRequest, info: web::Path<models::GetUserBotPath
     HttpResponse::build(http::StatusCode::OK).json(resp)
 }
 
-/// Bot: Create User Vote?
+/// Create Bot Vote
 #[patch("/users/{user_id}/bots/{bot_id}/votes")]
 async fn vote_bot(
     req: HttpRequest,
@@ -372,7 +372,7 @@ You can invite Squirrelflight to your server by <a style="color: blue !important
     models::CustomError::ForbiddenGeneric.error_response()
 }
 
-/// Server: Create User Vote?
+/// Create Server Vote
 #[patch("/users/{user_id}/servers/{server_id}/votes")]
 async fn vote_server(
     req: HttpRequest,

@@ -254,7 +254,7 @@ def post_stats(bot_id: int, guild_count: int):
         method: "GET",
         path: "/bots/{id}",
         path_params: &models::FetchBotPath::default(),
-        query_params: &models::FetchBotQuery::default(),
+        query_params: &models::Empty {},
         description: r#"
 Fetches bot information given a bot ID. If not found, 404 will be returned. 
 
@@ -267,8 +267,8 @@ Differences from API v2:
 - All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
 - Some fields have been renamed or removed (such as ``promos`` which may be readded at a later date)
 
-This API returns some empty fields such as ``webhook``, ``webhook_secret``, `api_token`` and more. 
-This is to allow reuse of the Bot struct in Get Bot Settings which does contain this sensitive data. 
+This API returns some empty fields such as ``webhook``, ``webhook_secret``, ``api_token`` and more. 
+This is to allow reuse of the Bot struct in Get Bot Settings which *does* contain this sensitive data. 
 
 **Set the Frostpaw header if you are a custom client. Send Frostpaw-Invite header on invites**
 "#,
@@ -391,7 +391,7 @@ def random_server():
         method: "GET",
         path: "/servers/{id}",
         path_params: &models::FetchBotPath::default(),
-        query_params: &models::FetchBotQuery::default(),
+        query_params: &models::Empty {},
 description: r#"
 Fetches server information given a server/guild ID. If not found, 404 will be returned. 
 
@@ -460,8 +460,29 @@ this however, it is prone to change *anytime* in the future**.
         query_params: &models::VoteBotQuery { test: true },
         description: r#"
 This endpoint creates a vote for a bot which can only be done *once* every 8 hours.
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: false,
+            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
+            context: Some("Some context on the vote".to_string()),
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
 
-**It is documented purely to enable staff to use it**
+    // - Create Server Vote
+    docs += &doc(models::Route {
+        title: "Create Server Vote",
+        method: "PATCH",
+        path: "/users/{user_id}/servers/{server_id}/votes",
+        path_params: &models::GetUserServerPath {
+            user_id: 0,
+            server_id: 0,
+        },
+        query_params: &models::VoteBotQuery { test: true },
+        description: r#"
+This endpoint creates a vote for a server which can only be done *once* every 8 hours
+and is independent from a bot vote.
 "#,
         request_body: &models::Empty {},
         response_body: &models::APIResponse {

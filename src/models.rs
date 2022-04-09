@@ -545,11 +545,6 @@ pub struct APIResponse {
 }
 
 #[derive(Deserialize, Serialize, Default)]
-pub struct FetchBotQuery {
-    pub lang: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, Default)]
 pub struct ReviewDeletePath {
     pub rid: String,
 }
