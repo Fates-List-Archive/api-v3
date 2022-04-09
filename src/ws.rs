@@ -6,10 +6,8 @@ use crate::models;
 use actix_ws::Message;
 use futures::StreamExt;
 use log::{debug, error};
-use redis::AsyncCommands;
 use serde::Deserialize;
 use sqlx::postgres::PgPool;
-use std::collections::HashMap;
 
 #[get("/ws/_preview")]
 pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpResponse, Error> {

@@ -32,10 +32,10 @@ fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
         description = route.description,
     );
 
-    if query_params_str.len() > 0 {
+    if !query_params_str.is_empty() {
         base_doc += &("\n\n**Path parameters**\n\n".to_string() + &path_params_str);
     }
-    if query_params_str.len() > 0 {
+    if !query_params_str.is_empty() {
         base_doc += &("\n\n**Query parameters**\n\n".to_string() + &query_params_str);
     }
 
@@ -63,7 +63,8 @@ fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
     }
 
     return base_doc + &format!(
-        "\n\n**Request Body**\n\n```json\n{request_body}\n```\n\n**Response Body**\n\n```json\n{response_body}\n```\n**Authorization Needed** | {auth_needed}\n\n\n",
+        "\n\n**Request Body Description**\n\n{request_body_desc}\n\n**Request Body Example**\n\n```json\n{request_body}\n```\n\n**Response Body Example**\n\n```json\n{response_body}\n```\n**Authorization Needed** | {auth_needed}\n\n\n",
+        request_body_desc = docser::serialize_docs(route.request_body).unwrap(),
         request_body = String::from_utf8(ser.into_inner()).unwrap(),
         response_body = String::from_utf8(ser2.into_inner()).unwrap(),
         auth_needed = auth_needed
@@ -870,7 +871,11 @@ Gets a user profile.
         path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
-        response_body: &models::Profile::default(),
+        response_body: &models::Profile {
+            vote_reminder_channel: Some("939123825885474898".to_string()),
+            action_logs: vec![models::ActionLog::default()],
+            ..models::Profile::default()
+        },
         auth_types: vec![],
     });
 
@@ -886,7 +891,11 @@ be present
 "#,
         path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
-        request_body: &models::Profile::default(),
+        request_body: &models::Profile {
+            vote_reminder_channel: Some("939123825885474898".to_string()),
+            action_logs: vec![models::ActionLog::default()],
+            ..models::Profile::default()
+        },
         response_body: &models::APIResponse {
             done: true,
             reason: None,

@@ -621,6 +621,21 @@ pub struct ActionLog {
     pub context: Option<String>,
 }
 
+impl Default for ActionLog {
+    fn default() -> Self {
+        ActionLog {
+            user_id: "".to_string(),
+            bot_id: "".to_string(),
+            action: 0,
+            action_time: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
+            context: None,
+        }        
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Server {
     pub user: User,
@@ -759,16 +774,7 @@ impl Default for Bot {
 
         let features = vec![Feature::default()];
 
-        let action_logs = vec![ActionLog {
-            user_id: "".to_string(),
-            bot_id: "".to_string(),
-            action: 0,
-            action_time: chrono::DateTime::<chrono::Utc>::from_utc(
-                chrono::NaiveDateTime::from_timestamp(0, 0),
-                chrono::Utc,
-            ),
-            context: None,
-        }];
+        let action_logs = vec![ActionLog::default()];
 
         Bot {
             user: User::default(),

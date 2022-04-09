@@ -67,6 +67,8 @@ pub struct Serializer {
     // This string starts empty and docs is appended as values are serialized.
     output: String,
     is_key: bool,
+    in_struct: usize,
+    root_ser: bool, // Whether or not root struct has been serialized
 }
 
 pub fn serialize_docs<T>(value: &T) -> Result<String>
@@ -76,6 +78,8 @@ where
     let mut serializer = Serializer {
         output: String::new(),
         is_key: true, // This is set by serialize_key, value does not matter
+        in_struct: 0,
+        root_ser: false
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
@@ -271,7 +275,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // explicitly in the serialized form. Some serializers may only be able to
     // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        self.output += "[";
+        self.output += "(Array) ";
         Ok(self)
     }
 
@@ -312,16 +316,17 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(self)
     }
 
-    // Structs look just like maps in JSON. In particular, JSON requires that we
-    // serialize the field names of the struct. Other formats may be able to
-    // omit the field names when serializing structs because the corresponding
-    // Deserialize implementation is required to know what the keys are without
-    // looking at the serialized data.
     fn serialize_struct(
         self,
-        _name: &'static str,
+        name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStruct> {
+        if self.root_ser {
+            self.in_struct += 1;
+            self.output += &("Struct ".to_string() + name + " \n");
+        } else {
+            self.root_ser = true;
+        }
         self.serialize_map(Some(len))
     }
 
@@ -334,9 +339,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        self.output += "{";
         variant.serialize(&mut *self)?;
-        self.output += ":{";
         Ok(self)
     }
 }
@@ -359,15 +362,11 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        if !self.output.ends_with('[') {
-            self.output += ",";
-        }
         value.serialize(&mut **self)
     }
 
     // Close the sequence.
     fn end(self) -> Result<()> {
-        self.output += "]";
         Ok(())
     }
 }
@@ -381,14 +380,10 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        if !self.output.ends_with('[') {
-            self.output += ",";
-        }
         value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        self.output += "]";
         Ok(())
     }
 }
@@ -402,14 +397,10 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        if !self.output.ends_with('[') {
-            self.output += ",";
-        }
         value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        self.output += "]";
         Ok(())
     }
 }
@@ -422,14 +413,10 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        if !self.output.ends_with('[') {
-            self.output += ",";
-        }
         value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        self.output += "]}";
         Ok(())
     }
 }
@@ -443,7 +430,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         self.is_key = true;
-        self.output += "- ";
+        self.output += &("\t".repeat(self.in_struct) + "- ");
         key.serialize(&mut **self)?;
         self.is_key = false;
         Ok(())
@@ -461,6 +448,10 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
+        if self.in_struct > 0 {
+            self.output += "\n";
+            self.in_struct -= 1;
+        }
         self.output += "\n";
         Ok(())
     }
@@ -475,7 +466,8 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         self.is_key = true;
-        self.output += "- ";
+
+        self.output += &("\t".repeat(self.in_struct) + "- ");
         key.serialize(&mut **self)?;
         self.is_key = false;
         self.output += " => ";
@@ -485,6 +477,10 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
+        if self.in_struct > 0 {
+            self.output += "\n";
+            self.in_struct -= 1;
+        }
         self.output += "\n";
         Ok(())
     }
@@ -510,7 +506,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
-        self.output += "}}";
+        self.output += "\n";
         Ok(())
     }
 }
