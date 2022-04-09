@@ -63,8 +63,9 @@ fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
     }
 
     return base_doc + &format!(
-        "\n\n**Request Body Description**\n\n{request_body_desc}\n\n**Request Body Example**\n\n```json\n{request_body}\n```\n\n**Response Body Example**\n\n```json\n{response_body}\n```\n**Authorization Needed** | {auth_needed}\n\n\n",
+        "\n\n**Request Body Description**\n\n{request_body_desc}\n\n**Request Body Example**\n\n```json\n{request_body}\n```\n\n**Response Body Description**\n\n{response_body_desc}\n\n**Response Body Example**\n\n```json\n{response_body}\n```\n**Authorization Needed** | {auth_needed}\n\n\n",
         request_body_desc = docser::serialize_docs(route.request_body).unwrap(),
+        response_body_desc = docser::serialize_docs(route.response_body).unwrap(),
         request_body = String::from_utf8(ser.into_inner()).unwrap(),
         response_body = String::from_utf8(ser2.into_inner()).unwrap(),
         auth_needed = auth_needed
@@ -465,8 +466,8 @@ This endpoint creates a vote for a bot which can only be done *once* every 8 hou
         request_body: &models::Empty {},
         response_body: &models::APIResponse {
             done: false,
-            reason: Some("Why the vote failed".to_string()),
-            context: None,
+            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
+            context: Some("Some context on the vote".to_string()),
         },
         auth_types: vec![models::RouteAuthType::User],
     });
@@ -1040,7 +1041,7 @@ Deletes a review
 ``rid`` must be a valid uuid.
 
 ``user_id`` is *required* for this endpoint and must be the user making the review. It must
-also match the user token sent in the ``Authorization`` header
+also match the user token sent in the ``Authorization`` header. ``page`` is currently ignored
 
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
