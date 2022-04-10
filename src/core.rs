@@ -64,6 +64,13 @@ async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
     HttpResponse::build(http::StatusCode::OK).body(data.docs.clone())
 }
 
+// Enum Docs template (not yet documented)
+#[get("/_enum_docs_template")]
+async fn enum_docs_tmpl(req: HttpRequest) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    HttpResponse::build(http::StatusCode::OK).body(data.enum_docs.clone())
+}
+
 // Policies
 #[get("/policies")]
 async fn policies(req: HttpRequest) -> HttpResponse {

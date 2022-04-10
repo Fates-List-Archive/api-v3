@@ -13,6 +13,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use thiserror::Error;
 use std::collections::HashMap;
+use strum_macros::EnumIter;
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
@@ -25,7 +26,7 @@ pub struct User {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
 )]
 #[repr(i32)]
 pub enum State {
@@ -43,7 +44,7 @@ pub enum State {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
 )]
 #[repr(i32)]
 pub enum Flags {
@@ -57,7 +58,7 @@ pub enum Flags {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
 #[repr(i32)]
 pub enum UserState {
@@ -68,7 +69,7 @@ pub enum UserState {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
 #[repr(i32)]
 pub enum CommandType {
@@ -79,7 +80,7 @@ pub enum CommandType {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
 #[repr(i32)]
 pub enum LongDescriptionType {
@@ -89,7 +90,7 @@ pub enum LongDescriptionType {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize, Deserialize, PartialEq, Clone, Copy, Default
+    Eq, TryFromPrimitive, Serialize, Deserialize, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
 #[repr(i32)]
 pub enum ImportSource {
@@ -124,7 +125,7 @@ pub struct ImportSourceList {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
 #[repr(i32)]
 pub enum PageStyle {
@@ -354,7 +355,7 @@ pub struct SearchQuery {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Empty {}
 
-#[derive(Deserialize, Serialize, Clone, PartialEq, Default)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Default, Debug, EnumIter)]
 pub enum Status {
     #[default]
     Unknown = 0,
@@ -534,6 +535,7 @@ pub struct AppState {
     pub database: database::Database,
     pub config: AppConfig,
     pub docs: String,
+    pub enum_docs: String,
     pub requests: reqwest::Client,
 }
 
@@ -688,7 +690,7 @@ impl Default for Server {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
 #[repr(i32)]
 pub enum WebhookType {
@@ -835,7 +837,7 @@ impl Default for Bot {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
 #[repr(i32)]
 pub enum EventName {
@@ -879,7 +881,7 @@ pub struct GuildInviteBaypawData {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
 )]
 #[repr(i32)]
 pub enum UserBotAction {
@@ -900,7 +902,7 @@ pub enum UserBotAction {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default,
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
 )]
 #[repr(i32)]
 pub enum BotRequestType {
@@ -925,7 +927,7 @@ pub struct BotVoteProp {
     pub votes: i64,
 }
 
-#[derive(Eq, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default)]
+#[derive(Eq, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter)]
 #[repr(i32)]
 pub enum TargetType {
     #[default]
@@ -1424,6 +1426,13 @@ pub enum RouteAuthType {
     User,
     Bot,
     Server,
+}
+
+pub struct EnumDesc {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub alt_names: Vec<&'static str>,
+    pub gen: fn() -> String,
 }
 
 pub struct Route<'a, T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize> {

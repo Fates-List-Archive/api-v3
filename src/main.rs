@@ -82,6 +82,7 @@ async fn main() -> std::io::Result<()> {
     let app_state = web::Data::new(models::AppState {
         database: pool,
         docs: docs::document_routes(),
+        enum_docs: docs::document_enums(),
         config: models::AppConfig::default(),
         requests: client,
     });
@@ -156,6 +157,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::mini_index) // Add Bot
             .service(core::get_vanity)
             .service(core::docs_tmpl)
+            .service(core::enum_docs_tmpl)
             .service(core::policies)
             .service(core::partners)
             .service(core::get_bot)

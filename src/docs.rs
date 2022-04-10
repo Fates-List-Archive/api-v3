@@ -2,6 +2,9 @@ use crate::models;
 use crate::docser;
 use bigdecimal::FromPrimitive;
 use serde::Serialize;
+use std::fmt::Debug;
+use strum::IntoEnumIterator;
+use serde_json::json;
 
 fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
     route: models::Route<T, T2, T3, T4>,
@@ -74,8 +77,234 @@ fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
 
 /// Begin a new doc category
 fn doc_category(name: &str) -> String {
-    format!("## {name}\n\n", name = name,)
+    format!("## {name}\n\n", name = name)
 }
+
+fn enum_doc<T: Debug + Serialize>(typ: T) -> String {
+    format!("| **{:?}** | {} |\n", typ, json!(typ))
+}
+
+fn new_enum(data: models::EnumDesc) -> String {
+    let mut keys = String::new();
+
+    for name in data.alt_names {
+        keys += &format!("- ``{}``\n", name);
+    }
+
+    format!("
+    
+### {name}
+
+{desc}
+
+**Common JSON keys**
+
+{keys}
+
+**Values**
+
+| Name | Value |
+| :--- | :--- |
+{docs}
+", 
+        name = data.name, 
+        desc = data.description, 
+        keys = keys, 
+        docs = (data.gen)()
+    )
+}
+
+pub fn document_enums() -> String {
+    let mut docs: String = "Below is a reference of all the enums used in Fates List, 
+    
+It is semi-automatically generated
+".to_string();
+
+    // Long Description Type
+    docs += &new_enum(models::EnumDesc {
+        name: "LongDescriptionType",
+        alt_names: vec!["long_description_type"],
+        description: "The type of long description that the bot/server has opted for",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::LongDescriptionType::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // State
+    docs += &new_enum(models::EnumDesc {
+        name: "State",
+        alt_names: vec!["state"],
+        description: "The state of the bot or server (approved, denied etc.)",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::State::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // UserState
+    docs += &new_enum(models::EnumDesc {
+        name: "UserState",
+        alt_names: vec!["state"],
+        description: "The state of the user (normal, banned etc.)",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::UserState::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // Flags
+    docs += &new_enum(models::EnumDesc {
+        name: "Flags",
+        alt_names: vec!["flags"],
+        description: "The flags of the bot or server (system bot etc)",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::Flags::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // Status
+    docs += &new_enum(models::EnumDesc {
+        name: "Status",
+        alt_names: vec!["flags"],
+        description: "The status of the user. **Due to bugs, this currently shows Unknown only but this will be fixed soon!**",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::Status::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // CommandType
+    docs += &new_enum(models::EnumDesc {
+        name: "CommandType",
+        alt_names: vec!["cmd_type"],
+        description: "The type of the command being posted (prefix, guild-only etc)",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::CommandType::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // ImportSource
+    docs += &new_enum(models::EnumDesc {
+        name: "ImportSource",
+        alt_names: vec!["src (query parameter)"],
+        description: "The source to import bots from",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::ImportSource::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // PageStyle
+    docs += &new_enum(models::EnumDesc {
+        name: "PageStyle",
+        alt_names: vec!["page_style"],
+        description: "The style/theme of the bot page. Servers always use single-page view",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::PageStyle::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // WebhookType
+    docs += &new_enum(models::EnumDesc {
+        name: "WebhookType",
+        alt_names: vec!["webhook_type"],
+        description: "The type of webhook being used",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::WebhookType::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // EventName
+    docs += &new_enum(models::EnumDesc {
+        name: "EventName",
+        alt_names: vec!["e", "...(non-exhaustive list, use context and it should be self-explanatory)"],
+        description: "The name of the event being sent and its corresponding number",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::EventName::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // UserBotAction
+    docs += &new_enum(models::EnumDesc {
+        name: "UserBotAction",
+        alt_names: vec!["action"],
+        description: "The name of the event being sent and its corresponding number",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::UserBotAction::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // BotRequestType
+    docs += &new_enum(models::EnumDesc {
+        name: "BotRequestType",
+        alt_names: vec!["request_type"],
+        description: "The type of appeal being sent",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::BotRequestType::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    // TargetType
+    docs += &new_enum(models::EnumDesc {
+        name: "TargetType",
+        alt_names: vec!["target_type"],
+        description: "The type of the entity (bot/server)",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::TargetType::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
+    docs
+}
+
 
 pub fn document_routes() -> String {
     let mut docs: String = "**API URL**: ``https://next.fateslist.xyz`` *or* ``https://api.fateslist.xyz`` (for now, can change in future)\n".to_string();
