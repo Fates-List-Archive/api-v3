@@ -20,15 +20,17 @@ use tokio::task;
 use std::time::{SystemTime, UNIX_EPOCH};
 use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
+use std::sync::Arc;
 
 pub struct Database {
     pool: PgPool,
     redis: deadpool_redis::Pool,
     requests: reqwest::Client,
+    discord: Arc<serenity::http::client::Http>,
 }
 
 impl Database {
-    pub async fn new(max_connections: u32, url: &str, redis_url: &str) -> Self {
+    pub async fn new(max_connections: u32, url: &str, redis_url: &str, discord: Arc<serenity::http::client::Http>) -> Self {
         let cfg = Config::from_url(redis_url);
         Database {
             pool: PgPoolOptions::new()
@@ -41,6 +43,7 @@ impl Database {
                 .user_agent("Lightleap/0.1.0")
                 .build()
                 .unwrap(),
+            discord,
         }
     }
 
@@ -579,7 +582,7 @@ impl Database {
                 let mut owners_html = "".to_string();
                 for row in owner_rows.iter() {
                     let user = self.get_user(row.owner).await;
-                    owners_html += &converters::owner_html(user.id.clone(), user.username.clone());
+                    owners_html += &converters::owner_html(&user.id, &user.username);
                     owners.push(models::BotOwner {
                         user: user.clone(),
                         main: row.main.unwrap_or(false),
@@ -718,8 +721,8 @@ impl Database {
                     prefix: data.prefix,
                     invite: data.invite.clone(),
                     invite_link: converters::invite_link(
-                        client_id.clone(),
-                        data.invite.clone().unwrap_or_else(|| "".to_string()),
+                        &client_id,
+                        &(data.invite.unwrap_or_else(|| "".to_string())),
                     ),
                     invite_amount: data.invite_amount.unwrap_or(0),
                     features: Vec::new(), // TODO
@@ -1350,7 +1353,7 @@ impl Database {
         // Firstly make sure user does not have the StatsLocked flag
         let bot = self.get_bot(bot_id).await.unwrap();
 
-        if converters::flags_check(bot.flags, vec![models::Flags::StatsLocked as i32]) {
+        if converters::flags_check(&bot.flags, vec![models::Flags::StatsLocked as i32]) {
             return Err(models::StatsError::Locked);
         }
 
@@ -2996,7 +2999,12 @@ impl Database {
             }
             let webhook_type = row.webhook_type.unwrap();
             if webhook_type == (models::WebhookType::DiscordIntegration as i32) {
-                return Err(models::VoteBotError::UnknownError("Discord integration support is under maintenance. Vote has gone through but you will not recieve any rewards".to_string()));
+                let discord = self.discord.clone();
+                task::spawn(converters::send_discord_integration(
+                    discord,
+                    webhook,
+                    vote_event,
+                ));
             } else {
                 // Send over webhook
                 task::spawn(converters::send_vote_webhook(
@@ -3142,7 +3150,12 @@ impl Database {
             }
             let webhook_type = row.webhook_type.unwrap();
             if webhook_type == (models::WebhookType::DiscordIntegration as i32) {
-                return Err(models::VoteBotError::UnknownError("Discord integration support is under maintenance. Vote has gone through but you will not recieve any rewards".to_string()));
+                let discord = self.discord.clone();
+                task::spawn(converters::send_discord_integration(
+                    discord,
+                    webhook,
+                    vote_event,
+                ));
             } else {
                 // Send over webhook
                 task::spawn(converters::send_vote_webhook(

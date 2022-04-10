@@ -6,10 +6,6 @@ use std::fmt::{self, Display};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-// This is a bare-bones implementation. A real library would provide additional
-// information in its error type, for example the line and column at which the
-// error occurred, the byte offset into the input, or the current key being
-// processed.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     // One or more variants that can be created by data structures through the
@@ -279,15 +275,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(self)
     }
 
-    // Tuples look just like sequences in JSON. Some formats may be able to
-    // represent tuples more efficiently by omitting the length, since tuple
-    // means that the corresponding `Deserialize implementation will know the
-    // length without needing to look at the serialized data.
+    // Tuple = Seqs for our use case
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         self.serialize_seq(Some(len))
     }
 
-    // Tuple structs look just like sequences in JSON.
+    // Tuple Structs = Seqs for our use case
     fn serialize_tuple_struct(
         self,
         _name: &'static str,

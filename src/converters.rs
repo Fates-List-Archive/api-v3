@@ -7,10 +7,12 @@ use pulldown_cmark::{html::push_html, Options, Parser};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sha2::Sha512;
+use serde_json::json;
+use std::sync::Arc;
 
 type HmacSha512 = Hmac<Sha512>;
 
-pub fn invite_link(client_id: String, invite: String) -> String {
+pub fn invite_link(client_id: &str, invite: &str) -> String {
     if invite.starts_with("P:") && invite.len() > 2 {
         let inv_split = invite.split(':');
         let inv_vec = inv_split.collect::<Vec<&str>>();
@@ -27,10 +29,10 @@ pub fn invite_link(client_id: String, invite: String) -> String {
             perm = 0,
         );
     }
-    invite
+    invite.to_string()
 }
 
-pub fn owner_html(id: String, username: String) -> String {
+pub fn owner_html(id: &str, username: &str) -> String {
     return format!(
         "<a class='long-desc-link' href='/profile/{id}'>{username}</a><br/>",
         id = id,
@@ -98,13 +100,50 @@ pub fn create_token(length: usize) -> String {
         .collect()
 }
 
-pub fn flags_check(flag_list: Vec<i32>, flag_vec: Vec<i32>) -> bool {
+pub fn flags_check(flag_list: &[i32], flag_vec: Vec<i32>) -> bool {
     for flag in flag_vec {
         if flag_list.contains(&flag) {
             return true;
         }
     }
-    return false;
+    false
+}
+
+// Moved here due to 'static requirement
+pub async fn send_discord_integration(
+    client: Arc<serenity::http::client::Http>,
+    webhook: String,
+    vote_event: models::VoteWebhookEvent,
+) {
+    // Extract token from webhook
+    let url = webhook.parse();
+    if url.is_err() {
+        error!("Webhook is not a valid URL!");
+        return;
+    }
+    let url = url.unwrap();
+    let parsed = serenity::utils::parse_webhook(&url);
+    if parsed.is_none() {
+        error!("Failed to parse webhook");
+        return;
+    }
+    let (id, token) = parsed.unwrap();
+
+    let vote = serenity::model::channel::Embed::fake(|e| {
+        e.title("New Vote!")
+            .description(format!("<@{}> has voted for your bot! You now have {} votes. **GG**", vote_event.user, vote_event.votes))
+            .colour(serenity::utils::Colour::from_rgb(17, 247, 79))
+    });    
+
+    let mut map = serde_json::Map::new();
+
+    map.insert("embeds".to_string(), json!(vec![vote]));
+
+    let err = client.execute_webhook(id, token, true, &map).await;
+
+    if err.is_err() {
+        error!("Failed to send webhook: {:?}", err);
+    }
 }
 
 // Moved here due to 'static requirement
@@ -158,18 +197,12 @@ pub async fn send_vote_webhook(
         }
         let res = res.unwrap();
         let status = res.status();
-        if !status.is_success()
-            && !(status == StatusCode::TOO_MANY_REQUESTS
-                || status == StatusCode::BAD_REQUEST
-                || status == StatusCode::UNAUTHORIZED
-                || status == StatusCode::FORBIDDEN)
-        {
+        if !(status.is_success() || status == StatusCode::TOO_MANY_REQUESTS || status == StatusCode::BAD_REQUEST || status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN) {
             error!("Failed to send webhook: {}", res.text().await.unwrap());
             tries += 1;
             continue;
-        } else {
-            debug!("Sent webhook with status code: {}", status);
-            break;
-        }
+        } 
+        debug!("Sent webhook with status code: {}", status);
+        break;
     }
 }

@@ -340,7 +340,7 @@ async fn vote_bot(
             return models::CustomError::NotFoundGeneric.error_response();
         }
         let bot = bot.unwrap();
-        if converters::flags_check(bot.flags, vec![models::Flags::System as i32]) {
+        if converters::flags_check(&bot.flags, vec![models::Flags::System as i32]) {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
                 reason: Some("You can't vote for system bots!".to_string()),
@@ -397,7 +397,7 @@ async fn vote_server(
             return models::CustomError::NotFoundGeneric.error_response();
         }
         let server = server.unwrap();
-        if converters::flags_check(server.flags, vec![models::Flags::System as i32]) {
+        if converters::flags_check(&server.flags, vec![models::Flags::System as i32]) {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
                 done: false,
                 reason: Some("You can't vote for system servers!".to_string()),

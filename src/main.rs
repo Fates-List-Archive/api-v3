@@ -15,6 +15,7 @@ use bytes::Bytes;
 use futures::future::FutureExt;
 use inflector;
 use log::{debug, error, info};
+use std::sync::Arc;
 
 mod appeal;
 mod botactions;
@@ -54,10 +55,20 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "fates=debug,actix_web=info");
     env_logger::init();
     info!("Starting up...");
+
+    /* We have to create a new AppConfig to get a discord_http client
+    This is also negligible cost
+    */
+    let discord = models::AppConfig::default().discord_http;
+
     let pool = database::Database::new(
         7,
         "postgres://localhost/fateslist",
         "redis://127.0.0.1:1001/1",
+        /* Arc is used here for discord to provide shared ownership which is needed by discord integration support
+        Cost for Arc is negligible here
+        */
+        Arc::new(discord)
     )
     .await;
 
