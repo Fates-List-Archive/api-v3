@@ -102,7 +102,7 @@ pub enum ImportSource {
 }
 
 impl ImportSource {
-    pub fn to_source_name(&self) -> String {
+    pub fn source_name(&self) -> String {
         match self {
             ImportSource::Rdl => "Rovel Discord List".to_string(),
             ImportSource::Topgg => "Top.gg".to_string(),
@@ -272,6 +272,11 @@ pub struct GetUserBotPath {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ImportQuery {
     pub src: ImportSource,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct WsModeStruct {
+    pub mode: TargetType,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -1041,6 +1046,7 @@ pub struct JAPIApplication {
 pub struct Profile {
     pub user: User,
     pub bots: Vec<IndexBot>,
+    pub description_raw: String,
     pub description: String,
     pub profile_css: String,
     pub user_css: String,
@@ -1149,9 +1155,7 @@ pub enum CustomError {
     #[error("Not Found")]
     NotFoundGeneric,
     #[error("Forbidden")]
-    ForbiddenGeneric,
-    #[error("Unknown Internal Error")]
-    Unknown,
+    ForbiddenGeneric
 }
 
 #[derive(Debug)]
@@ -1377,15 +1381,21 @@ impl VoteBotError {
 
 pub enum StatsError {
     BadStats(String), // TODO
+    JAPIError(reqwest::Error),
+    JAPIDeserError(reqwest::Error),
     Locked,
     SQLError(sqlx::Error),
+    ClientIDNeeded,
 }
 
 impl StatsError {
     pub fn to_string(&self) -> String {
         match self {
             Self::BadStats(e) => format!("Bad stats caught and flagged: {}", e),
+            Self::JAPIError(e) => format!("Our anti-abuse provider is currently down right now: {}!", e),
+            Self::JAPIDeserError(e) => format!("JAPI Deserialize Error: {}", e),
             Self::Locked => "You have been banned from using this API endpoint!".to_string(),
+            Self::ClientIDNeeded => "Client ID is required for this bot or is incorrect".to_string(),
             Self::SQLError(e) => format!("SQL error: {}", e),
         }
     }
@@ -1396,7 +1406,6 @@ impl CustomError {
         match self {
             Self::NotFoundGeneric => "Not Found".to_string(),
             Self::ForbiddenGeneric => "Forbidden".to_string(),
-            Self::Unknown => "Unknown".to_string(),
         }
     }
 }
@@ -1406,7 +1415,6 @@ impl ResponseError for CustomError {
         match *self {
             Self::NotFoundGeneric => http::StatusCode::NOT_FOUND,
             Self::ForbiddenGeneric => http::StatusCode::FORBIDDEN,
-            Self::Unknown => http::StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

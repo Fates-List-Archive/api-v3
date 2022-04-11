@@ -1,7 +1,6 @@
 use crate::converters;
 use crate::inflector::Inflector;
 use crate::models;
-use crate::ws;
 use async_recursion::async_recursion;
 use bigdecimal::FromPrimitive;
 use chrono::TimeZone;
@@ -15,12 +14,11 @@ use serde_json::json;
 use serenity::model::prelude::*;
 use sqlx::postgres::PgPool;
 use sqlx::postgres::PgPoolOptions;
-use std::borrow::Cow;
 use tokio::task;
-use std::time::{SystemTime, UNIX_EPOCH};
 use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub struct Database {
     pool: PgPool,
@@ -542,9 +540,12 @@ impl Database {
                 let long_description_type =
                     models::LongDescriptionType::try_from(data.long_description_type)
                         .unwrap_or(models::LongDescriptionType::MarkdownServerSide);
-                let long_description = converters::sanitize_description(
+
+                let long_description = data.long_description.unwrap_or_default();
+
+                let long_description_parsed = converters::sanitize_description(
                     long_description_type,
-                    data.long_description.clone().unwrap_or_default(),
+                    &long_description,
                 );
 
                 // Tags
@@ -743,8 +744,8 @@ impl Database {
                     resources,
                     commands,
                     long_description_type,
-                    long_description,
-                    long_description_raw: data.long_description.unwrap_or_default(),
+                    long_description: long_description_parsed,
+                    long_description_raw: long_description,
                     owners,
                     vanity: self
                         .get_vanity_from_id(bot_id)
@@ -814,9 +815,12 @@ impl Database {
                         .unwrap_or(models::LongDescriptionType::MarkdownServerSide as i32),
                 )
                 .unwrap_or(models::LongDescriptionType::MarkdownServerSide);
-                let long_description = converters::sanitize_description(
+                
+                let long_description = row.long_description.unwrap_or_default();
+
+                let long_description_parsed = converters::sanitize_description(
                     long_description_type,
-                    row.long_description.clone().unwrap_or_default(),
+                    &long_description,
                 );
 
                 // Tags
@@ -849,8 +853,8 @@ impl Database {
                     description: row
                         .description
                         .unwrap_or_else(|| "No description set".to_string()),
-                    long_description,
-                    long_description_raw: row.long_description.unwrap_or_default(),
+                    long_description: long_description_parsed,
+                    long_description_raw: long_description,
                     long_description_type,
                     banner_card: row.banner_card,
                     banner_page: row.banner_page,
@@ -1349,12 +1353,49 @@ impl Database {
         &self,
         bot_id: i64,
         stats: models::BotStats,
+        japi_key: &str,
     ) -> Result<(), models::StatsError> {
         // Firstly make sure user does not have the StatsLocked flag
         let bot = self.get_bot(bot_id).await.unwrap();
 
         if converters::flags_check(&bot.flags, vec![models::Flags::StatsLocked as i32]) {
             return Err(models::StatsError::Locked);
+        }
+
+        // Next check server count
+        let resp = self
+            .requests
+            .get(format!(
+                "https://japi.rest/discord/v1/application/{bot_id}",
+                bot_id = bot.client_id
+            ))
+            .timeout(Duration::from_secs(10))
+            .header("Authorization", japi_key)
+            .send()
+            .await
+            .map_err(models::StatsError::JAPIError)?;
+    
+        let status = resp.status();
+        if !status.is_success() {
+            return Err(models::StatsError::ClientIDNeeded);
+        }    
+
+        let resp_json: models::JAPIApplication = resp
+            .json()
+            .await
+            .map_err(models::StatsError::JAPIDeserError)?;
+
+        let approx_count = resp_json.data.bot.approximate_guild_count;
+
+        // Now perform some basic sanity checks
+        if stats.guild_count < 0 {
+            return Err(models::StatsError::BadStats(
+                "Server count cannot be less than 0".to_string(),
+            ));
+        } else if stats.guild_count < 100 && (approx_count - stats.guild_count) > 100 {
+            return Err(models::StatsError::BadStats(
+                format!("Server count is way too high! This bot only has a approximate guild count of {}", approx_count),
+            ));
         }
 
         // Shard count
@@ -2091,13 +2132,19 @@ impl Database {
             })
         }
 
+        let description = row.description.unwrap_or_else(|| "This user prefers to be an enigma".to_string());
+
+        let description_parsed = converters::sanitize_description(
+            models::LongDescriptionType::MarkdownServerSide,
+            &description
+        );
+
         Some(models::Profile {
             bots,
             packs,
             action_logs,
-            description: row
-                .description
-                .unwrap_or_else(|| "This user prefers to be an enigma".to_string()),
+            description_raw: description,
+            description: description_parsed, 
             vote_reminder_channel: row.vote_reminder_channel,
             state: models::UserState::try_from(row.state).unwrap_or(models::UserState::Normal),
             user: self.get_user(user_id).await,
@@ -2532,7 +2579,7 @@ impl Database {
                 description: row
                     .description
                     .unwrap_or_else(|| "No description found!".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| {
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 guild_count: row.guild_count.unwrap_or_default(),
@@ -2575,7 +2622,7 @@ impl Database {
                 description: row
                     .description
                     .unwrap_or_else(|| "No description found!".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| {
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 guild_count: row.guild_count.unwrap_or_default(),

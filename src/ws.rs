@@ -1,12 +1,11 @@
 use actix_web::{get, web, Error, HttpRequest, HttpResponse};
-use std::time::{Duration, Instant};
+use std::time::{Instant};
 
 use crate::converters;
 use crate::models;
 use actix_ws::Message;
 use futures::StreamExt;
-use log::{debug, error};
-use serde::Deserialize;
+use log::{error};
 use sqlx::postgres::PgPool;
 
 #[get("/ws/_preview")]
@@ -53,7 +52,7 @@ pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpRespons
                             serde_json::to_string(&models::PreviewResponse {
                                 preview: converters::sanitize_description(
                                     data.long_description_type,
-                                    data.text.replace("\\n", "\n"),
+                                    &data.text.replace("\\n", "\n"),
                                 ),
                             })
                             .unwrap(),
@@ -80,25 +79,14 @@ pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpRespons
     Ok(response)
 }
 
-#[derive(Deserialize, Copy, Clone)]
-pub enum WsMode {
-    Bot,
-    Server,
-}
-
-#[derive(Deserialize)]
-pub struct WsModeStruct {
-    mode: WsMode,
-}
-
-async fn bot_gateway_task_sub(mode: WsMode, id: i64, session: actix_ws::Session) {
+async fn bot_gateway_task_sub(mode: models::TargetType, id: i64, session: actix_ws::Session) {
     let client = redis::Client::open("redis://127.0.0.1:1001/1").unwrap();
 
     let mut pubsub_conn = client.get_async_connection().await.unwrap().into_pubsub();
 
     let mode = match mode {
-        WsMode::Bot => "bot",
-        WsMode::Server => "server",
+        models::TargetType::Bot => "bot",
+        models::TargetType::Server => "server",
     };
 
     let res = pubsub_conn
@@ -125,10 +113,10 @@ async fn bot_gateway_task_sub(mode: WsMode, id: i64, session: actix_ws::Session)
     }
 }
 
-async fn bot_gateway_task_archive(pool: PgPool, mode: WsMode, id: i64, session: actix_ws::Session) {
+async fn bot_gateway_task_archive(pool: PgPool, mode: models::TargetType, id: i64, session: actix_ws::Session) {
     let mode = match mode {
-        WsMode::Bot => "bot",
-        WsMode::Server => "server",
+        models::TargetType::Bot => "bot",
+        models::TargetType::Server => "server",
     };
 
     let mut session = session.clone();
@@ -165,7 +153,7 @@ async fn bot_gateway_task_archive(pool: PgPool, mode: WsMode, id: i64, session: 
 pub async fn bot_ws(
     req: HttpRequest,
     id: web::Path<i64>,
-    mode: web::Query<WsModeStruct>,
+    mode: web::Query<models::WsModeStruct>,
     body: web::Payload,
 ) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
@@ -242,9 +230,11 @@ pub async fn bot_ws(
                             });
                             break;
                         }
-                        if gw_task.is_some() {
-                            gw_task.unwrap().abort();
+                        
+                        if let Some(task) = gw_task {
+                            task.abort();
                         }
+
                         gw_task = None;
                         if session.text("GWTASK NONE").await.is_err() {
                             break;
@@ -262,8 +252,8 @@ pub async fn bot_ws(
         }
 
         let _ = session.close(close_reason).await;
-        if gw_task.is_some() {
-            gw_task.unwrap().abort();
+        if let Some(task) = gw_task {
+            task.abort();
         }
     });
 

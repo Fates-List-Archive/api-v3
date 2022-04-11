@@ -74,7 +74,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
 /// 'Deletes' (logs out) a oauth2 login
 #[delete("/oauth2")]
-async fn del_oauth2(req: HttpRequest) -> HttpResponse {
+async fn del_oauth2(_req: HttpRequest) -> HttpResponse {
     let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", "")
         .path("/")
         .domain("fateslist.xyz")

@@ -42,9 +42,8 @@ pub fn owner_html(id: &str, username: &str) -> String {
 
 pub fn sanitize_description(
     long_desc_type: models::LongDescriptionType,
-    description: String,
+    description: &str,
 ) -> String {
-    // TODO: Check if stored in redis
     debug!("Sanitizing description");
     let mut html = String::new();
     if long_desc_type == models::LongDescriptionType::MarkdownServerSide {
@@ -52,7 +51,7 @@ pub fn sanitize_description(
         let md_parse = Parser::new_ext(description.as_ref(), options);
         push_html(&mut html, md_parse);
     } else {
-        html = description.clone();
+        html = description.to_string();
     }
 
     ammonia::Builder::new()

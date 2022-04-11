@@ -3,7 +3,6 @@ use crate::converters;
 use crate::models;
 use actix_web::http::header::HeaderValue;
 use actix_web::{get, http, patch, post, web, web::Json, HttpRequest, HttpResponse, ResponseError};
-use chrono::Utc;
 use log::error;
 use uuid::Uuid;
 
@@ -531,7 +530,7 @@ async fn post_stats(
         .to_str()
         .unwrap();
     if data.database.authorize_bot(bot_id, auth).await {
-        let resp = data.database.post_stats(bot_id, stats.into_inner()).await;
+        let resp = data.database.post_stats(bot_id, stats.into_inner(), &data.config.secrets.japi_key).await;
         match resp {
             Ok(()) => HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
                 done: true,

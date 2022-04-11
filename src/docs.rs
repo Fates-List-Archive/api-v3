@@ -47,17 +47,17 @@ fn doc<T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize>(
     let auth_lengths = route.auth_types.clone().len();
     for auth in route.auth_types {
         if auth == models::RouteAuthType::Bot {
-            auth_needed += "[Bot](https://docs.fateslist.xyz/endpoints#authorization)";
+            auth_needed += "[Bot](https://lynx.fateslist.xyz/docs/endpoints#authorization)";
             if i < auth_lengths {
                 auth_needed += ", ";
             }
         } else if auth == models::RouteAuthType::User {
-            auth_needed += "[User](https://docs.fateslist.xyz/endpoints#authorization)";
+            auth_needed += "[User](https://lynx.fateslist.xyz/docs/endpoints#authorization)";
             if i < auth_lengths {
                 auth_needed += ", ";
             }
         } else if auth == models::RouteAuthType::Server {
-            auth_needed += "[Server](https://docs.fateslist.xyz/endpoints#authorization)";
+            auth_needed += "[Server](https://lynx.fateslist.xyz/docs/endpoints#authorization)";
             if i < auth_lengths {
                 auth_needed += ", ";
             }
@@ -1062,9 +1062,9 @@ Imports a bot from a source listed in ``Get Import Sources``.
         description: r#"
 Creates a appeal/request for a bot.
 
-``request_type`` is a ``BotRequestType``, see [Enum Reference](https://docs.fateslist.xyz/structures/enums.autogen/)
+``request_type`` is a [BotRequestType](https://lynx.fateslist.xyz/docs/enums-ref#botrequesttype)
 
-**Ideally should only be used for custom clients**
+**Ideally only useful for custom clients**
 "#,
         path_params: &models::GetUserBotPath {
             user_id: 0,

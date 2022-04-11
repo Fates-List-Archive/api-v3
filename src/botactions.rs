@@ -697,7 +697,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
 
 // Get Import Sources
 #[get("/import-sources")]
-async fn import_sources(req: HttpRequest) -> HttpResponse {
+async fn import_sources(_req: HttpRequest) -> HttpResponse {
     return HttpResponse::Ok().json(models::ImportSourceList {
         sources: vec![
             models::ImportSourceListItem {
@@ -1046,7 +1046,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                         user = UserId(user_id as u64).mention(),
                         bot_name = bot.user.username,
                         bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention(),
-                        source = src.src.to_source_name()
+                        source = src.src.source_name()
                     ));
 
                     e.field("Guild Count (approx)", bot.guild_count.to_string(), true);
