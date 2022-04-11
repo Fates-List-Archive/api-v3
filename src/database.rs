@@ -1459,7 +1459,7 @@ impl Database {
         Ok(())
     }
 
-    /// Calls get bot and then fills in api_token, webhook and webhook_secret
+    /// Calls get bot and then fills in `api_token`, `webhook` and `webhook_secret`
     pub async fn get_bot_settings(
         &self,
         bot_id: i64,
