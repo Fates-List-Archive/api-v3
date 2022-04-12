@@ -1167,7 +1167,7 @@ Gets reviews for a reviewable entity.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1215,10 +1215,11 @@ so there should not be an error even if provided.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
+The ``parent_id`` is optional and is used to create a reply to a review.
 
-This reviewable entities id which is a ``i64`` is the id that is specifed in the
-path.
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+``review`` is a [Review](https://lynx.fateslist.xyz/docs/models-ref#review)
 
 ``user_id`` is *required* for this endpoint and must be the user making the review. It must
 also match the user token sent in the ``Authorization`` header
@@ -1229,7 +1230,10 @@ also match the user token sent in the ``Authorization`` header
             user_id: Some(0),
             target_type: models::TargetType::Bot,
         },
-        request_body: &models::Review::default(),
+        request_body: &models::Review {
+            parent_id: Some(uuid::Uuid::new_v4()),
+            ..models::Review::default()
+        },
         response_body: &models::APIResponse {
             done: true,
             reason: None,
@@ -1251,7 +1255,7 @@ so there should not be an error even if provided.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1296,10 +1300,10 @@ also match the user token sent in the ``Authorization`` header. ``page`` is curr
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
 
 ``target_type`` is not currently checked but it is a good idea to set it anyways. You must
-set this a TargetType anyways so you might as well set it correctly.
+set this anyways so you might as well set it correctly.
 "#,
         path_params: &models::ReviewDeletePath {
             rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
@@ -1335,7 +1339,7 @@ also match the user token sent in the ``Authorization`` header.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-A bot has a TargetType of 0 while a server has a TargetType of 1. This is the ``target_type``
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
 
 **This endpoint does not require ``target_type`` at all. You can safely omit it**
 "#,
@@ -1390,8 +1394,7 @@ support the frontend resource creator in Bot Settings as of right now.
 
 The ``id`` here must be the resource id
 
-A bot has a TargetType of 0 while a server has a TargetType of 1. 
-This is the ``target_type``
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
 "#,
         path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::TargetQuery {
@@ -1416,8 +1419,7 @@ support the frontend resource creator in Bot Settings as of right now.
 
 The ``id`` here must be the resource id
 
-A bot has a TargetType of 0 while a server has a TargetType of 1. 
-This is the ``target_type``
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
 "#,
         path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::ResourceDeleteQuery {
@@ -1450,6 +1452,8 @@ the command depending on its ``name``.**
 **Only post up to 10-20 commands at a time, otherwise requests may be truncated
 or otherwise fail with odd errors.  If you have more than this, then perform 
 multiple requests**
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
 "#,
         path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::TargetQuery {
