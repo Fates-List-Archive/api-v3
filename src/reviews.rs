@@ -58,7 +58,7 @@ async fn get_reviews(
         }
     }
 
-    return HttpResponse::Ok().json(parsed_review);
+    HttpResponse::Ok().json(parsed_review)
 }
 
 /// Page is there are it is needed for the future
@@ -188,11 +188,11 @@ async fn add_review(
         });
     }
 
-    return HttpResponse::Ok().json(models::APIResponse {
+    HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Successfully added review".to_string()),
         context: None,
-    });
+    })
 }
 
 /// The FetchBotPath is not needed but we need to maintain a uniform API
@@ -292,11 +292,11 @@ async fn edit_review(
         });
     }
 
-    return HttpResponse::Ok().json(models::APIResponse {
+    HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Successfully edited review".to_string()),
         context: None,
-    });
+    })
 }
 
 #[delete("/reviews/{rid}")]
@@ -375,11 +375,11 @@ async fn delete_review(
         });
     }
 
-    return HttpResponse::Ok().json(models::APIResponse {
+    HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Successfully deleted review".to_string()),
         context: None,
-    });
+    })
 }
 
 #[patch("/reviews/{rid}/votes")]
@@ -456,9 +456,9 @@ async fn vote_review(
         });
     }
 
-    return HttpResponse::Ok().json(models::APIResponse {
+    HttpResponse::Ok().json(models::APIResponse {
         done: true,
         reason: Some("Successfully voted for this review".to_string()),
         context: None,
-    });
+    })
 }

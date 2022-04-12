@@ -1061,22 +1061,20 @@ pub struct Profile {
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ParsedReviewVotes {
+    pub upvotes: Vec<String>,
+    pub downvotes: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct ReviewVote {
     pub user_id: String,
     pub upvote: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
-pub struct ParsedReviewVotes {
-    pub votes: Vec<ReviewVote>,
-    pub upvotes: Vec<String>,
-    pub downvotes: Vec<String>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Review {
     pub id: Option<uuid::Uuid>,
-    pub reply: bool,
     pub star_rating: bigdecimal::BigDecimal,
     pub review_text: String,
     pub votes: ParsedReviewVotes,

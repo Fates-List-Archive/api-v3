@@ -2219,7 +2219,6 @@ impl Database {
                 flagged: row.flagged,
                 replies: self.get_review_replies(row.id).await,
                 parent_id: Some(parent_id),
-                reply: true,
             });
         }
 
@@ -2264,7 +2263,6 @@ impl Database {
                 votes: self.get_review_votes(row.id).await,
                 star_rating: row.star_rating,
                 replies: self.get_review_replies(row.id).await,
-                reply: false,
                 parent_id: None,
             });
         }
@@ -2339,7 +2337,6 @@ impl Database {
             votes: self.get_review_votes(row.id).await,
             star_rating: row.star_rating,
             replies: self.get_review_replies(row.id).await,
-            reply: false,
             parent_id: None,
         });
     }
@@ -2406,14 +2403,12 @@ impl Database {
             return models::ParsedReviewVotes {
                 upvotes: Vec::new(),
                 downvotes: Vec::new(),
-                votes: Vec::new(),
             };
         }
         let votes = votes.unwrap();
 
         let mut upvotes: Vec<String> = Vec::new();
         let mut downvotes: Vec<String> = Vec::new();
-        let mut review_votes = Vec::new();
         for vote in votes {
             let id = vote.user_id.unwrap_or_default();
             if vote.upvote {
@@ -2421,14 +2416,9 @@ impl Database {
             } else {
                 downvotes.push(id.to_string());
             }
-            review_votes.push(models::ReviewVote {
-                user_id: id.to_string(),
-                upvote: vote.upvote,
-            });
         }
 
         models::ParsedReviewVotes {
-            votes: review_votes,
             upvotes,
             downvotes,
         }
@@ -2459,7 +2449,6 @@ impl Database {
             votes: self.get_review_votes(row.id).await,
             star_rating: row.star_rating,
             replies: Vec::new(),
-            reply: false,
             parent_id: row.parent_id,
         });
     }
