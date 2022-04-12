@@ -732,10 +732,15 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
         // Fetch bot from RDL
         let bot_id = id.bot_id;
 
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert("Lightleap-Dest", HeaderValue::from_str("Fates List").unwrap());
+        headers.insert("Lightleap-Site", HeaderValue::from_str("https://fateslist.xyz").unwrap());
+
         let mut bot = match src.src {
             models::ImportSource::Rdl => {
                 let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://discord.rovelstars.com/api/bots/".to_owned()+&bot_id.to_string())
                 .timeout(Duration::from_secs(10))
+                .headers(headers)
                 .send()
                 .await
                 .unwrap()
