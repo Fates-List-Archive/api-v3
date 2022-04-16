@@ -71,7 +71,7 @@ async fn update_profile(
     models::CustomError::ForbiddenGeneric.error_response()
 }
 
-#[put("/profiles/{id}/roles")]
+#[put("/profiles/{id}/old-roles")]
 async fn recieve_profile_roles(
     req: HttpRequest,
     info: web::Path<models::FetchBotPath>,
@@ -100,6 +100,64 @@ async fn recieve_profile_roles(
             });
         }
 
+        let res = data
+            .database
+            .update_user_roles(info.id, &data.config.discord)
+            .await;
+
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some(res.unwrap_err().to_string()),
+                context: Some("Profile update error".to_string()),
+            });
+        }
+        return HttpResponse::Ok().json(res.unwrap());
+    }
+    error!("Update profile auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
+}
+
+#[put("/profiles/{id}/server-roles")]
+async fn recieve_server_roles(
+    req: HttpRequest,
+    info: web::Path<models::FetchBotPath>,
+) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
+    if data.database.authorize_user(info.id, auth).await {
+        let profile = data.database.get_profile(info.id).await;
+        if profile.is_none() {
+            return models::CustomError::NotFoundGeneric.error_response();
+        }
+        let profile = profile.unwrap();
+
+        if profile.state == models::UserState::ProfileEditBan {
+            return HttpResponse::BadRequest().json(models::APIResponse {
+                done: false,
+                reason: Some("You have been banned from using this API endpoint".to_string()),
+                context: Some("Profile edit ban".to_string()),
+            });
+        }
+
+        // Remove when deploying
+        if !profile.user_experiments.contains(&models::UserExperiments::GetRolesSelector) {
+            error!("Experiment not enabled");
+            return HttpResponse::UnavailableForLegalReasons().json(models::APIResponse {
+                done: false,
+                reason: Some("Experiment not enabled".to_string()),
+                context: Some(format!("{:?}", models::UserExperiments::GetRolesSelector)),
+            });
+        }
+
+        // TODO
         let res = data
             .database
             .update_user_roles(info.id, &data.config.discord)

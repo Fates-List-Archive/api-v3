@@ -15,6 +15,17 @@ use thiserror::Error;
 use std::collections::HashMap;
 use strum_macros::EnumIter;
 
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
+)]
+#[repr(i32)]
+pub enum UserExperiments {
+    #[default]
+    Unknown = 0,
+    GetRolesSelector = 1, // The 'Get Roles' selector in profile settings
+    LynxExperimentRolloutView = 2, // The 'Experiment Rollout' view in lynx
+}
+
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct User {
     pub id: String,
@@ -1063,6 +1074,7 @@ pub struct Profile {
     pub state: UserState,
     pub site_lang: String,
     pub action_logs: Vec<ActionLog>,
+    pub user_experiments: Vec<UserExperiments>
     //pub vote_reminders: Option<Vec<String>>,
     //pub vote_reminders_servers: Option<Vec<String>>,
     // TODO: Ack data

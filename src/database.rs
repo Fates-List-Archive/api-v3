@@ -2034,7 +2034,7 @@ impl Database {
     pub async fn get_profile(&self, user_id: i64) -> Option<models::Profile> {
         let row = sqlx::query!(
             "SELECT description, site_lang, state, user_css, profile_css, 
-            vote_reminder_channel::text FROM users WHERE user_id = $1",
+            vote_reminder_channel::text, experiments FROM users WHERE user_id = $1",
             user_id
         )
         .fetch_one(&self.pool)
@@ -2045,6 +2045,12 @@ impl Database {
         }
 
         let row = row.unwrap();
+
+        // Fetch enabled experiments
+        let mut user_experiments = Vec::new();
+        for experiment in row.experiments {
+            user_experiments.push(models::UserExperiments::try_from(experiment).unwrap_or(models::UserExperiments::Unknown))
+        }
 
         let packs_row = sqlx::query!(
             "SELECT id, icon, banner, created_at, owner, bots, description, name FROM bot_packs WHERE owner = $1",
@@ -2135,6 +2141,7 @@ impl Database {
             bots,
             packs,
             action_logs,
+            user_experiments,
             description_raw: description,
             description: description_parsed, 
             vote_reminder_channel: row.vote_reminder_channel,

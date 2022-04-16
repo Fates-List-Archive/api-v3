@@ -176,6 +176,20 @@ It is semi-automatically generated
         },
     });
 
+    // Experiments
+    docs += &new_enum(models::EnumDesc {
+        name: "UserExperiments",
+        alt_names: vec!["user_experiments"],
+        description: "All available user experiments",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::UserExperiments::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
     // Status
     docs += &new_enum(models::EnumDesc {
         name: "Status",
