@@ -1695,7 +1695,11 @@ impl Database {
             id,
             bot.prefix,
             bot.library,
-            bot.invite,
+            if bot.invite.is_none() {
+                "P:0"
+            } else {
+                bot.invite.as_ref().unwrap()
+            },
             bot.website,
             bot.banner_card,
             bot.banner_page,
@@ -1792,7 +1796,11 @@ impl Database {
             bot.website,
             bot.support,
             bot.banner_card,
-            bot.invite,
+            if bot.invite.is_none() {
+                "P:0"
+            } else {
+                bot.invite.as_ref().unwrap()
+            },
             bot.github,
             &features,
             bot.long_description_type as i32,
