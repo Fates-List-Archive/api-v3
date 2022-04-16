@@ -24,11 +24,12 @@ pub struct Database {
     pool: PgPool,
     redis: deadpool_redis::Pool,
     requests: reqwest::Client,
-    discord: Arc<serenity::http::client::Http>,
+    discord_main: Arc<serenity::http::client::Http>,
+    discord_server: Arc<serenity::http::client::Http>,
 }
 
 impl Database {
-    pub async fn new(max_connections: u32, url: &str, redis_url: &str, discord: Arc<serenity::http::client::Http>) -> Self {
+    pub async fn new(max_connections: u32, url: &str, redis_url: &str, discord_main: Arc<serenity::http::client::Http>, discord_server: Arc<serenity::http::client::Http>) -> Self {
         let cfg = Config::from_url(redis_url);
         Database {
             pool: PgPoolOptions::new()
@@ -41,7 +42,8 @@ impl Database {
                 .user_agent("Lightleap/0.1.0")
                 .build()
                 .unwrap(),
-            discord,
+            discord_main,
+            discord_server
         }
     }
 
@@ -593,7 +595,7 @@ impl Database {
                         action: action_row.action,
                         action_time: action_row.action_time,
                         context: action_row.context,
-                    })
+                    });
                 }
 
                 // Commands
@@ -613,8 +615,8 @@ impl Database {
 
                 for command in commands_rows {
                     let groups = command.groups.clone();
-                    for group in groups.iter() {
-                        if !commands.contains_key(group) {
+                    for group in groups {
+                        if !commands.contains_key(&group) {
                             debug!("Dropping command key {key}", key = &group.to_string());
                             commands.insert(group.clone(), Vec::new());
                         }
@@ -2112,14 +2114,14 @@ impl Database {
         .await
         .unwrap();
 
-        for action_row in action_log_rows.iter() {
+        for action_row in action_log_rows {
             action_logs.push(models::ActionLog {
                 user_id: user_id.to_string(),
                 bot_id: action_row.bot_id.to_string(),
                 action: action_row.action,
                 action_time: action_row.action_time,
-                context: action_row.context.clone(),
-            })
+                context: action_row.context,
+            });
         }
 
         let description = row.description.unwrap_or_else(|| "This user prefers to be an enigma".to_string());
@@ -2166,6 +2168,91 @@ impl Database {
         .map_err(models::ProfileCheckError::SQLError)?;
 
         Ok(())
+    }
+
+    /// Updates user roles based on their bots
+    pub async fn update_user_roles(&self, user_id: i64, discord_data: &models::DiscordData) -> Result<models::RoleUpdate, models::ProfileRolesUpdate> {
+
+        // Check ratelimit
+        let mut conn = self.redis.get().await.unwrap();
+
+        let rl = conn.ttl("uur-".to_owned() + &user_id.to_string()).await.unwrap();
+
+        if rl < 0 {
+            conn.set_ex("uur-".to_owned() + &user_id.to_string(), "0".to_string(), 30)
+                .await
+                .unwrap_or_else(|_| "".to_string());
+        } else {
+            return Err(models::ProfileRolesUpdate::RateLimited(rl));
+        }
+
+        let rows = sqlx::query!(
+            "SELECT DISTINCT bots.bot_id, bots.state FROM bots
+            INNER JOIN bot_owner ON bot_owner.bot_id = bots.bot_id
+            WHERE bot_owner.owner = $1",
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(models::ProfileRolesUpdate::SQLError)?;
+
+        let mut has_approved_bots = false;
+        let mut has_certified_bots = false;
+
+        for row in rows {  
+            let state = models::State::try_from(row.state).unwrap_or(models::State::Banned); 
+
+            match state {
+                models::State::Approved => {
+                    if has_approved_bots {
+                        continue
+                    }
+
+                    // Give Approved role
+                    let member = discord_data.servers.main
+                        .member(&self.discord_main, user_id as u64)
+                        .await;
+                    if member.is_err() {
+                        return Err(models::ProfileRolesUpdate::MemberNotFound);
+                    }
+
+                    let mut member = member.unwrap();
+
+                    member.add_role(&self.discord_main, discord_data.roles.bot_dev_role)
+                        .await
+                        .map_err(models::ProfileRolesUpdate::DiscordError)?;
+    
+                    has_approved_bots = true;
+                },
+                models::State::Certified => {
+                    if has_certified_bots {
+                        continue
+                    }
+
+                    // Give Certified role
+                    let member = discord_data.servers.main
+                        .member(&self.discord_main, user_id as u64)
+                        .await;
+                    if member.is_err() {
+                        return Err(models::ProfileRolesUpdate::MemberNotFound);
+                    }
+
+                    let mut member = member.unwrap();
+
+                    member.add_role(&self.discord_main, discord_data.roles.certified_dev_role)
+                        .await
+                        .map_err(models::ProfileRolesUpdate::DiscordError)?;
+
+                    has_certified_bots = true;
+                },
+                _ => continue
+            }
+        }
+
+        Ok(models::RoleUpdate {
+            bot_developer: has_approved_bots,
+            certified_developer: has_certified_bots,
+        })
     }
 
     // Reviews
@@ -3005,7 +3092,7 @@ impl Database {
             }
             let webhook_type = row.webhook_type.unwrap();
             if webhook_type == (models::WebhookType::DiscordIntegration as i32) {
-                let discord = self.discord.clone();
+                let discord = self.discord_server.clone();
                 task::spawn(converters::send_discord_integration(
                     discord,
                     webhook,
@@ -3156,7 +3243,7 @@ impl Database {
             }
             let webhook_type = row.webhook_type.unwrap();
             if webhook_type == (models::WebhookType::DiscordIntegration as i32) {
-                let discord = self.discord.clone();
+                let discord = self.discord_server.clone();
                 task::spawn(converters::send_discord_integration(
                     discord,
                     webhook,
@@ -3180,9 +3267,7 @@ impl Database {
                 .member(&discord_server_http, user_id as u64)
                 .await;
             if member.is_err() {
-                return Err(models::VoteBotError::UnknownError(
-                    "Failed to find you on server for auto roles!".to_string(),
-                ));
+                return Err(models::VoteBotError::AutoroleError);
             }
             let mut member = member.unwrap();
             for role in autorole_votes {

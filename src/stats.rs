@@ -2,7 +2,6 @@
 
 use crate::models;
 use actix_web::{get, web, HttpRequest, HttpResponse};
-use procfs;
 
 #[get("/stats")]
 async fn get_botlist_stats(req: HttpRequest) -> HttpResponse {

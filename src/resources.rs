@@ -136,8 +136,7 @@ async fn delete_resource(
                 context: Some("Check error".to_string()),
             });
         }
-    } else {
-        error!("Resource post auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
     }
+    error!("Resource post auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
 }

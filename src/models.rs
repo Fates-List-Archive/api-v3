@@ -5,7 +5,7 @@ use log::debug;
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
-use serenity::model::id::ChannelId;
+use serenity::model::id::{ChannelId, RoleId, GuildId};
 use std::env;
 use std::fmt;
 use std::fs::File;
@@ -457,11 +457,19 @@ pub struct DiscordChannels {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct DiscordRoles {
-    pub staff_ping_add_role: String,
+    pub staff_ping_add_role: RoleId,
+    pub bot_dev_role: RoleId,
+    pub certified_dev_role: RoleId,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct DiscordServers {
+    pub main: GuildId,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct DiscordData {
+    pub servers: DiscordServers,
     pub channels: DiscordChannels,
     pub roles: DiscordRoles,
 }
@@ -1085,6 +1093,12 @@ pub struct Review {
     pub parent_id: Option<uuid::Uuid>,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct RoleUpdate {
+    pub bot_developer: bool,
+    pub certified_developer: bool,
+}
+
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct ReviewStats {
     pub average_stars: bigdecimal::BigDecimal,
@@ -1116,6 +1130,25 @@ impl ProfileCheckError {
     pub fn to_string(&self) -> String {
         match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ProfileRolesUpdate {
+    SQLError(sqlx::Error),
+    MemberNotFound,
+    RateLimited(i32),
+    DiscordError(serenity::Error),
+}
+
+impl ProfileRolesUpdate {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::SQLError(e) => format!("SQL Error: {}", e),
+            Self::MemberNotFound => "You are not on our support system!".to_string(),
+            Self::RateLimited(i) => format!("You have been rate limited for {} seconds", i),
+            Self::DiscordError(e) => format!("Discord Error: {}", e),
         }
     }
 }
@@ -1357,6 +1390,7 @@ pub enum VoteBotError {
     Wait(String),
     UnknownError(String),
     SQLError(sqlx::Error),
+    AutoroleError,
 }
 
 impl VoteBotError {
@@ -1369,6 +1403,7 @@ impl VoteBotError {
                     + e
             }
             Self::SQLError(e) => format!("SQL error: {}", e),
+            Self::AutoroleError => "Failed to find you on server for auto roles! This might be because this server does not have Squirrelflight with the 'Manage Roles' permission".to_string(),
         }
     }
 }

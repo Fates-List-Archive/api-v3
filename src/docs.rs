@@ -433,6 +433,32 @@ def post_stats(bot_id: int, guild_count: int):
         auth_types: vec![]
     });
 
+    // Docs Template route
+    docs += &doc(models::Route {
+        title: "Docs Template",
+        method: "GET",
+        path: "/_docs_template",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        description: "Internal route to return docs template",
+        request_body: &models::Empty {},
+        response_body: &models::Empty {},
+        auth_types: vec![]
+    });
+
+    // Enum Docs Template route
+    docs += &doc(models::Route {
+        title: "Enum Docs Template",
+        method: "GET",
+        path: "/_enum_docs_template",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        description: "Internal route to return enum docs template",
+        request_body: &models::Empty {},
+        response_body: &models::Empty {},
+        auth_types: vec![]
+    });
+
     // - Vanity route
     docs += &doc( models::Route {
         title: "Resolve Vanity",
@@ -1131,7 +1157,7 @@ Gets a user profile.
     });
 
     docs += &doc(models::Route {
-        title: "Edit Profile",
+        title: "Update Profile",
         method: "PATCH",
         path: "/profiles/{id}",
         description: r#"
@@ -1152,7 +1178,21 @@ be present
             reason: None,
             context: None,
         },
-        auth_types: vec![],
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Put User Roles",
+        method: "PUT",
+        path: "/profiles/{id}/roles",
+        description: r#"
+Gives user roles on the Fates List support server
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::RoleUpdate::default(),
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc_category("Reviews");

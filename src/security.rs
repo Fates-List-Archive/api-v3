@@ -8,7 +8,7 @@ use log::error;
 #[delete("/bots/{id}/token")]
 async fn new_bot_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let bot_id = id.id.clone();
+    let bot_id = id.id;
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()
@@ -33,7 +33,7 @@ async fn new_bot_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) ->
 #[delete("/users/{id}/token")]
 async fn new_user_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let user_id = id.id.clone();
+    let user_id = id.id;
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()
@@ -58,7 +58,7 @@ async fn new_user_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -
 #[delete("/servers/{id}/token")]
 async fn new_server_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let server_id = id.id.clone();
+    let server_id = id.id;
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()

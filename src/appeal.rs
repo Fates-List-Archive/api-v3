@@ -94,11 +94,11 @@ async fn appeal_bot(
     }
 
     let msg = data.config.discord.channels.appeals_channel.send_message(&data.config.discord_http, |m| {
-        m.content("<@&".to_string()+&data.config.discord.roles.staff_ping_add_role.clone()+">");
+        m.content(data.config.discord.roles.staff_ping_add_role.mention());
         m.embed(|e| {
             e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
             e.title(title);
-            e.color(0x00ff00 as u64);
+            e.color(0x00ff00);
             e.description(
                 format!(
                     "{user} has requested {req_type} for {bot} ({bot_name})\n\n**Please check this bot again!**",
@@ -124,9 +124,9 @@ async fn appeal_bot(
         });
     }
 
-    return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
+    HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
         done: true,
         reason: Some("Successfully posted appeal request :)".to_string()),
         context: None,
-    });
+    })
 }

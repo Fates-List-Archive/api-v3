@@ -68,9 +68,8 @@ async fn check_bot(
         if let Some(ref bot_res) = bot_dat {
             if bot_res.state == models::State::Denied || bot_res.state == models::State::Banned {
                 return Err(models::CheckBotError::BotBannedOrDenied(bot_res.state));
-            } else {
-                return Err(models::CheckBotError::AlreadyExists);
-            }
+            } 
+            return Err(models::CheckBotError::AlreadyExists);
         }
         // TODO JAPI checks
 
@@ -249,12 +248,12 @@ async fn check_bot(
 
     // Banner
     if let Some(ref banner) = bot.banner_card {
-        check_banner_img(&data, banner)
+        check_banner_img(data, banner)
             .await
             .map_err(models::CheckBotError::BannerCardError)?;
     }
     if let Some(ref banner) = bot.banner_page {
-        check_banner_img(&data, banner)
+        check_banner_img(data, banner)
             .await
             .map_err(models::CheckBotError::BannerPageError)?;
     }
@@ -287,7 +286,7 @@ async fn check_bot(
         }
 
         done_owners.push(models::BotOwner {
-            user: user,
+            user,
             main: false,
         });
         done_owners_lst.push(id);
@@ -306,7 +305,6 @@ async fn add_bot(
     bot: web::Json<models::Bot>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let user_id = id.id.clone();
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()
@@ -315,7 +313,7 @@ async fn add_bot(
         .to_str()
         .unwrap();
     let mut bot = bot.into_inner();
-    if data.database.authorize_user(user_id, auth).await {
+    if data.database.authorize_user(id.id, auth).await {
         let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse {
@@ -326,7 +324,7 @@ async fn add_bot(
         }
         bot.owners.push(models::BotOwner {
             user: models::User {
-                id: user_id.clone().to_string(),
+                id: id.id.to_string(),
                 username: "".to_string(),
                 avatar: "".to_string(),
                 disc: "0000".to_string(),
@@ -349,18 +347,14 @@ async fn add_bot(
             .channels
             .bot_logs
             .send_message(&data.config.discord_http, |m| {
-                m.content(
-                    "<@&".to_string()
-                        + &data.config.discord.roles.staff_ping_add_role.clone()
-                        + ">",
-                );
+                m.content(data.config.discord.roles.staff_ping_add_role.mention());
                 m.embed(|e| {
                     e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
                     e.title("New Bot!");
                     e.color(0x00ff00 as u64);
                     e.description(format!(
                         "{user} has added {bot} ({bot_name}) to the queue!",
-                        user = UserId(user_id as u64).mention(),
+                        user = UserId(id.id as u64).mention(),
                         bot_name = bot.user.username,
                         bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
                     ));
@@ -391,7 +385,6 @@ async fn edit_bot(
     bot: web::Json<models::Bot>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let user_id = id.id.clone();
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()
@@ -400,7 +393,7 @@ async fn edit_bot(
         .to_str()
         .unwrap();
     let mut bot = bot.into_inner();
-    if data.database.authorize_user(user_id, auth).await {
+    if data.database.authorize_user(id.id, auth).await {
         // Before doing anything else, get the bot from db and check if user is owner
         let bot_user = data
             .database
@@ -412,7 +405,7 @@ async fn edit_bot(
 
         let mut got_owner = false;
         for owner in bot_user.unwrap().owners {
-            if owner.user.id == user_id.to_string() {
+            if owner.user.id == id.id.to_string() {
                 got_owner = true;
                 break;
             }
@@ -434,7 +427,7 @@ async fn edit_bot(
                 context: Some("Check error".to_string()),
             });
         }
-        let res = data.database.edit_bot(user_id, &bot).await;
+        let res = data.database.edit_bot(id.id, &bot).await;
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
@@ -454,7 +447,7 @@ async fn edit_bot(
                     e.color(0x00ff00 as u64);
                     e.description(format!(
                         "{user} has edited {bot} ({bot_name})!",
-                        user = UserId(user_id as u64).mention(),
+                        user = UserId(id.id as u64).mention(),
                         bot_name = bot.user.username,
                         bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention()
                     ));
@@ -493,7 +486,6 @@ async fn transfer_ownership(
     owner: web::Json<models::BotOwner>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let user_id = id.user_id.clone();
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()
@@ -501,17 +493,16 @@ async fn transfer_ownership(
         .unwrap_or(auth_default)
         .to_str()
         .unwrap();
-    let bot_id = id.bot_id.clone();
-    if data.database.authorize_user(user_id, auth).await {
+    if data.database.authorize_user(id.user_id, auth).await {
         // Before doing anything else, get the bot from db and check if user is owner
-        let bot_user = data.database.get_bot(bot_id).await;
+        let bot_user = data.database.get_bot(id.bot_id).await;
         if bot_user.is_none() {
             return models::CustomError::NotFoundGeneric.error_response();
         }
 
         let mut got_owner = false;
         for owner in bot_user.clone().unwrap().owners {
-            if owner.main && owner.user.id == user_id.to_string() {
+            if owner.main && owner.user.id == id.user_id.to_string() {
                 got_owner = true;
                 break;
             }
@@ -539,7 +530,7 @@ async fn transfer_ownership(
             });
         }
 
-        if owner_copy.user.id == user_id.to_string() {
+        if owner_copy.user.id == id.user_id.to_string() {
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
                 reason: Some("You can't transfer ownership to yourself!".to_string()),
@@ -572,7 +563,7 @@ async fn transfer_ownership(
         }
 
         data.database
-            .transfer_ownership(user_id, bot_id, owner.clone())
+            .transfer_ownership(id.user_id, id.bot_id, owner.clone())
             .await;
         let _ = data
             .config
@@ -581,14 +572,14 @@ async fn transfer_ownership(
             .bot_logs
             .send_message(&data.config.discord_http, |m| {
                 m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned() + &bot_id.to_string());
+                    e.url("https://fateslist.xyz/bot/".to_owned() + &id.bot_id.to_string());
                     e.title("Bot Ownership Transfer!");
                     e.color(0x00ff00 as u64);
                     e.description(format!(
                         "{user} has transferred ownership of {bot} ({bot_name}) to {new_owner}!",
-                        user = UserId(user_id as u64).mention(),
+                        user = UserId(id.user_id as u64).mention(),
                         bot_name = bot_user.unwrap().user.username,
-                        bot = UserId(bot_id as u64).mention(),
+                        bot = UserId(id.bot_id as u64).mention(),
                         new_owner = UserId(owner.user.id.parse::<u64>().unwrap_or(0)).mention()
                     ));
 
@@ -613,7 +604,6 @@ async fn transfer_ownership(
 async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let user_id = id.user_id;
     let auth_default = &HeaderValue::from_str("").unwrap();
     let auth = req
         .headers()
@@ -621,18 +611,17 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         .unwrap_or(auth_default)
         .to_str()
         .unwrap();
-    let bot_id = id.bot_id;
 
-    if data.database.authorize_user(user_id, auth).await {
+    if data.database.authorize_user(id.user_id, auth).await {
         // Before doing anything else, get the bot from db and check if user is owner
-        let bot_user = data.database.get_bot(bot_id).await;
+        let bot_user = data.database.get_bot(id.bot_id).await;
         if bot_user.is_none() {
             return models::CustomError::NotFoundGeneric.error_response();
         }
 
         let mut got_owner = false;
         for owner in bot_user.clone().unwrap().owners {
-            if owner.main && owner.user.id == user_id.to_string() {
+            if owner.main && owner.user.id == id.user_id.to_string() {
                 got_owner = true;
                 break;
             }
@@ -649,7 +638,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         }
 
         // Delete the bot
-        let res = data.database.delete_bot(user_id, bot_id).await;
+        let res = data.database.delete_bot(id.user_id, id.bot_id).await;
 
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse {
@@ -669,14 +658,14 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
             .bot_logs
             .send_message(&data.config.discord_http, |m| {
                 m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned() + &bot_id.to_string());
+                    e.url("https://fateslist.xyz/bot/".to_owned() + &id.bot_id.to_string());
                     e.title("Bot Deleted :(");
                     e.color(0x00ff00 as u64);
                     e.description(format!(
                         "{user} has deleted {bot} ({bot_name})",
-                        user = UserId(user_id as u64).mention(),
+                        user = UserId(id.user_id as u64).mention(),
                         bot_name = bot_user.unwrap().user.username,
-                        bot = UserId(bot_id as u64).mention(),
+                        bot = UserId(id.bot_id as u64).mention(),
                     ));
 
                     e
@@ -1037,11 +1026,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
             .channels
             .bot_logs
             .send_message(&data.config.discord_http, |m| {
-                m.content(
-                    "<@&".to_string()
-                        + &data.config.discord.roles.staff_ping_add_role.clone()
-                        + ">",
-                );
+                m.content(data.config.discord.roles.staff_ping_add_role.mention());
                 m.embed(|e| {
                     e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
                     e.title("New Bot!");

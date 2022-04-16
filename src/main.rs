@@ -59,7 +59,11 @@ async fn main() -> std::io::Result<()> {
     /* We have to create a new AppConfig to get a discord_http client
     This is also negligible cost
     */
-    let discord = models::AppConfig::default().discord_http;
+
+    let app_config = models::AppConfig::default();
+
+    let discord_main = app_config.discord_http;
+    let discord_server = app_config.discord_http_server;
 
     let pool = database::Database::new(
         7,
@@ -68,7 +72,8 @@ async fn main() -> std::io::Result<()> {
         /* Arc is used here for discord to provide shared ownership which is needed by discord integration support
         Cost for Arc is negligible here
         */
-        Arc::new(discord)
+        Arc::new(discord_main),
+        Arc::new(discord_server)
     )
     .await;
 
@@ -153,6 +158,7 @@ async fn main() -> std::io::Result<()> {
                 srv.call(req).map(|res| res)
             })
             .default_service(web::route().to(not_found))
+            // Core
             .service(core::index)
             .service(core::mini_index) // Add Bot
             .service(core::get_vanity)
@@ -171,34 +177,57 @@ async fn main() -> std::io::Result<()> {
             .service(core::vote_server)
             .service(core::post_stats)
             .service(core::get_bot_settings)
+            
+            // Login
             .service(login::get_oauth2)
             .service(login::del_oauth2)
             .service(login::do_oauth2)
+            
+            // Security
             .service(security::new_bot_token)
             .service(security::new_user_token)
             .service(security::new_server_token)
+            
+            // Bot Actions
             .service(botactions::add_bot)
             .service(botactions::edit_bot)
             .service(botactions::transfer_ownership)
             .service(botactions::delete_bot)
             .service(botactions::import_rdl)
             .service(botactions::import_sources)
+
+            // Appeal
             .service(appeal::appeal_bot)
+
+            // Packs
             .service(packs::add_pack)
             .service(packs::edit_pack)
             .service(packs::delete_pack)
+
+            // User
             .service(user::get_profile)
             .service(user::update_profile)
+            .service(user::recieve_profile_roles)
+
+            // Review
             .service(reviews::get_reviews)
             .service(reviews::add_review)
             .service(reviews::edit_review)
             .service(reviews::delete_review)
             .service(reviews::vote_review)
+
+            // Stats
             .service(stats::get_botlist_stats)
+
+            // Resources
             .service(resources::add_resource)
             .service(resources::delete_resource)
+
+            // Commands
             .service(commands::add_command)
             .service(commands::delete_commands)
+
+            // WS
             .service(ws::preview)
             .service(ws::bot_ws)
     })
