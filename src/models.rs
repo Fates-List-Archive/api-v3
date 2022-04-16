@@ -388,7 +388,7 @@ pub struct Secrets {
     pub client_id: String,
     pub client_secret: String,
     pub token_main: String,
-    pub token_server: String,
+    pub token_squirrelflight: String,
     pub japi_key: String,
     pub ibl_fates_key: String,
 }
@@ -523,7 +523,7 @@ impl Default for AppConfig {
         let discord: DiscordData = serde_json::from_str(&discord).expect("Discord data is invalid");
 
         let token_main = secrets.token_main.clone();
-        let token_server = secrets.token_server.clone();
+        let token_squirrelflight = secrets.token_squirrelflight.clone();
 
         AppConfig {
             secrets,
@@ -531,7 +531,7 @@ impl Default for AppConfig {
             partners,
             discord,
             discord_http: serenity::http::Http::new_with_token(&token_main),
-            discord_http_server: serenity::http::Http::new_with_token(&token_server),
+            discord_http_server: serenity::http::Http::new_with_token(&token_squirrelflight),
         }
     }
 }
@@ -572,7 +572,7 @@ pub struct BotCommand {
     pub examples: Vec<String>,
     pub premium_only: bool,
     pub notes: Vec<String>,
-    pub doc_link: String,
+    pub doc_link: Option<String>,
     pub id: Option<String>,
     pub nsfw: bool,
 }
@@ -1110,16 +1110,12 @@ pub struct ReviewQuery {
 // Error Handling
 pub enum ProfileCheckError {
     SQLError(sqlx::Error),
-    InvalidVoteReminderChannel,
 }
 
 impl ProfileCheckError {
     pub fn to_string(&self) -> String {
         match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
-            Self::InvalidVoteReminderChannel => {
-                "Invalid vote reminder channel. Are you sure its a valid channel ID?".to_string()
-            }
         }
     }
 }

@@ -174,20 +174,17 @@ impl Database {
             .fetch_all(&self.pool)
             .await
             .unwrap();
-        for row in rows.iter() {
+        for row in rows {
             let bot = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| {
+                description: row.description,
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.clone().unwrap_or_default(),
+                flags: row.flags.unwrap_or_default(),
                 user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
@@ -201,12 +198,12 @@ impl Database {
             .fetch_all(&self.pool)
             .await
             .unwrap();
-        for row in rows.iter() {
+        for row in rows {
             let feature = models::Feature {
-                id: row.id.clone(),
-                name: row.name.clone(),
-                viewed_as: row.viewed_as.clone(),
-                description: row.description.clone(),
+                id: row.id,
+                name: row.name,
+                viewed_as: row.viewed_as,
+                description: row.description,
             };
             features.push(feature);
         }
@@ -222,20 +219,17 @@ impl Database {
             .fetch_all(&self.pool)
             .await
             .unwrap();
-        for row in rows.iter() {
+        for row in rows {
             let bot = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| {
+                description: row.description,
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.clone().unwrap_or_default(),
+                flags: row.flags.unwrap_or_default(),
                 user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
@@ -250,7 +244,7 @@ impl Database {
             .unwrap();
         models::User {
             id: row.id.unwrap(),
-            username: row.username.clone(),
+            username: row.username,
             disc: "0000".to_string(),
             avatar: row.avatar.unwrap_or_else(|| "".to_string()),
             bot: false,
@@ -267,20 +261,17 @@ impl Database {
             .fetch_all(&self.pool)
             .await
             .unwrap();
-        for row in rows.iter() {
+        for row in rows {
             let server = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| {
+                description: row.description,
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.clone().unwrap_or_default(),
+                flags: row.flags.unwrap_or_default(),
                 user: self.get_server_user(row.guild_id).await,
             };
             servers.push(server);
@@ -297,20 +288,17 @@ impl Database {
             .fetch_all(&self.pool)
             .await
             .unwrap();
-        for row in rows.iter() {
+        for row in rows {
             let server = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner_card.clone().unwrap_or_else(|| {
+                description: row.description,
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.clone().unwrap_or_default(),
+                flags: row.flags.unwrap_or_default(),
                 user: self.get_server_user(row.guild_id).await,
             };
             servers.push(server);
@@ -541,11 +529,9 @@ impl Database {
                     models::LongDescriptionType::try_from(data.long_description_type)
                         .unwrap_or(models::LongDescriptionType::MarkdownServerSide);
 
-                let long_description = data.long_description.unwrap_or_default();
-
                 let long_description_parsed = converters::sanitize_description(
                     long_description_type,
-                    &long_description,
+                    &data.long_description,
                 );
 
                 // Tags
@@ -556,16 +542,16 @@ impl Database {
 
                 let mut tags = Vec::new();
 
-                for tag in tag_rows.iter() {
+                for tag in tag_rows {
                     // Get tag info
                     let tag_info =
-                        sqlx::query!("SELECT icon FROM bot_list_tags WHERE id = $1", tag.tag,)
+                        sqlx::query!("SELECT icon FROM bot_list_tags WHERE id = $1", tag.tag)
                             .fetch_one(&self.pool)
                             .await
                             .unwrap();
                     tags.push(models::Tag {
                         name: tag.tag.to_title_case(),
-                        iconify_data: tag_info.icon.clone(),
+                        iconify_data: tag_info.icon,
                         id: tag.tag.to_string(),
                         owner_guild: None,
                     });
@@ -581,11 +567,11 @@ impl Database {
                 .unwrap();
                 let mut owners = Vec::new();
                 let mut owners_html = "".to_string();
-                for row in owner_rows.iter() {
+                for row in owner_rows {
                     let user = self.get_user(row.owner).await;
                     owners_html += &converters::owner_html(&user.id, &user.username);
                     owners.push(models::BotOwner {
-                        user: user.clone(),
+                        user,
                         main: row.main.unwrap_or(false),
                     });
                 }
@@ -600,13 +586,13 @@ impl Database {
                 .await
                 .unwrap();
 
-                for action_row in action_log_rows.iter() {
+                for action_row in action_log_rows {
                     action_logs.push(models::ActionLog {
                         user_id: action_row.user_id.to_string(),
                         bot_id: bot_id.to_string(),
                         action: action_row.action,
                         action_time: action_row.action_time,
-                        context: action_row.context.clone(),
+                        context: action_row.context,
                     })
                 }
 
@@ -625,13 +611,19 @@ impl Database {
 
                 debug!("Commands: {:?}", commands_rows);
 
-                for command in commands_rows.iter() {
+                for command in commands_rows {
                     let groups = command.groups.clone();
-                    for group in groups {
-                        if !commands.contains_key(&group) {
+                    for group in groups.iter() {
+                        if !commands.contains_key(group) {
                             debug!("Dropping command key {key}", key = &group.to_string());
                             commands.insert(group.clone(), Vec::new());
                         }
+                        
+                        /* 
+                        To future readers of this code, yes clone is needed as we are moving
+                        the command multiple times, hence each value has to be clones onto the 
+                        struct. Should kinda make sense intuitively.
+                        */
                         commands
                             .get_mut(&group.clone())
                             .unwrap()
@@ -640,14 +632,14 @@ impl Database {
                                 nsfw: command.nsfw.unwrap_or(false),
                                 cmd_type: models::CommandType::try_from(command.cmd_type)
                                     .unwrap_or(models::CommandType::SlashCommandGlobal),
-                                description: command.description.clone().unwrap_or_default(),
-                                args: command.args.clone().unwrap_or_default(),
-                                examples: command.examples.clone().unwrap_or_default(),
-                                premium_only: command.premium_only.unwrap_or_default(),
-                                notes: command.notes.clone().unwrap_or_default(),
-                                doc_link: command.doc_link.clone().unwrap_or_default(),
+                                description: command.description.clone().to_string(),
+                                args: command.args.clone(),
+                                examples: command.examples.clone(),
+                                premium_only: command.premium_only,
+                                notes: command.notes.clone(),
+                                doc_link: command.doc_link.clone(),
                                 name: command.name.clone(),
-                                vote_locked: command.vote_locked.unwrap_or_default(),
+                                vote_locked: command.vote_locked,
                                 groups: command.groups.clone(),
                             });
                     }
@@ -663,12 +655,12 @@ impl Database {
                 .await
                 .unwrap();
 
-                for resource in resources_row.iter() {
+                for resource in resources_row {
                     resources.push(models::Resource {
                         id: Some(resource.id.to_string()),
-                        resource_title: resource.resource_title.clone(),
-                        resource_link: resource.resource_link.clone(),
-                        resource_description: resource.resource_description.clone(),
+                        resource_title: resource.resource_title,
+                        resource_link: resource.resource_link,
+                        resource_description: resource.resource_description,
                     });
                 }
 
@@ -697,15 +689,24 @@ impl Database {
                     });
                 }
 
+                let invite_link = converters::invite_link(
+                    &client_id,
+                    &data.invite,
+                );
+
+                let invite_api = if data.invite.is_empty() {
+                    None
+                } else {
+                    Some(data.invite)
+                };
+
                 // Make the struct
                 let bot = models::Bot {
                     created_at: data.created_at,
                     vpm: Some(vpm),
                     last_stats_post: data.last_stats_post,
                     last_updated_at: data.last_updated_at,
-                    description: data
-                        .description
-                        .unwrap_or_else(|| "No description set".to_string()),
+                    description: data.description,
                     css: "<style>".to_string()
                         + &data
                             .css
@@ -720,14 +721,11 @@ impl Database {
                     shard_count: data.shard_count.unwrap_or(0),
                     shards: data.shards.unwrap_or_default(),
                     prefix: data.prefix,
-                    invite: data.invite.clone(),
-                    invite_link: converters::invite_link(
-                        &client_id,
-                        &(data.invite.unwrap_or_else(|| "".to_string())),
-                    ),
+                    invite: invite_api,
+                    invite_link,
                     invite_amount: data.invite_amount.unwrap_or(0),
                     features: Vec::new(), // TODO
-                    library: data.library.clone().unwrap_or_else(|| "".to_string()),
+                    library: data.library.unwrap_or_else(|| "".to_string()),
                     state: models::State::try_from(data.state).unwrap_or(models::State::Approved),
                     website: data.website,
                     support: data.support,
@@ -745,7 +743,7 @@ impl Database {
                     commands,
                     long_description_type,
                     long_description: long_description_parsed,
-                    long_description_raw: long_description,
+                    long_description_raw: data.long_description,
                     owners,
                     vanity: self
                         .get_vanity_from_id(bot_id)
@@ -816,11 +814,9 @@ impl Database {
                 )
                 .unwrap_or(models::LongDescriptionType::MarkdownServerSide);
                 
-                let long_description = row.long_description.unwrap_or_default();
-
                 let long_description_parsed = converters::sanitize_description(
                     long_description_type,
-                    &long_description,
+                    &row.long_description,
                 );
 
                 // Tags
@@ -850,11 +846,9 @@ impl Database {
 
                 let res = Some(models::Server {
                     flags: row.flags.unwrap_or_default(),
-                    description: row
-                        .description
-                        .unwrap_or_else(|| "No description set".to_string()),
+                    description: row.description,
                     long_description: long_description_parsed,
-                    long_description_raw: long_description,
+                    long_description_raw: row.long_description,
                     long_description_type,
                     banner_card: row.banner_card,
                     banner_page: row.banner_page,
@@ -902,7 +896,7 @@ impl Database {
             if let Ok(desc) = description {
                 resolved_bots.push(models::ResolvedPackBot {
                     user: self.get_user(bot).await,
-                    description: desc.description.unwrap_or_default(),
+                    description: desc.description,
                 });
             } else {
                 // The bot does not exist, maybe deleted? TODO: Delete
@@ -939,7 +933,7 @@ impl Database {
         for bot in bots_row {
             bots.push(models::IndexBot {
                 guild_count: bot.guild_count.unwrap_or_default(),
-                description: bot.description.unwrap_or_default(),
+                description: bot.description,
                 banner: bot.banner.unwrap_or_default(),
                 nsfw: bot.nsfw.unwrap_or_default(),
                 votes: bot.votes.unwrap_or_default(),
@@ -952,7 +946,7 @@ impl Database {
         // Get servers row
         let servers_row = sqlx::query!(
             "SELECT DISTINCT servers.guild_id,
-            servers.description, servers.banner_card AS banner, servers.state,
+            servers.description, servers.banner_card, servers.state,
             servers.votes, servers.guild_count, servers.nsfw, servers.flags FROM servers
             WHERE (servers.description ilike $1
             OR servers.long_description ilike $1
@@ -970,17 +964,14 @@ impl Database {
         for server in servers_row {
             servers.push(models::IndexBot {
                 guild_count: server.guild_count.unwrap_or(0),
-                description: server
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
-                banner: server.banner.clone().unwrap_or_else(|| {
+                description: server.description,
+                banner: server.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(server.state).unwrap_or(models::State::Approved),
                 nsfw: server.nsfw.unwrap_or(false),
                 votes: server.votes.unwrap_or(0),
-                flags: server.flags.clone().unwrap_or_default(),
+                flags: server.flags.unwrap_or_default(),
                 user: self.get_server_user(server.guild_id).await,
             });
         }
@@ -1100,10 +1091,7 @@ impl Database {
         for row in rows {
             bots.push(models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
+                description: row.description,
                 banner: row.banner.clone().unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
@@ -1129,17 +1117,14 @@ impl Database {
         for row in server_rows {
             servers.push(models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner.clone().unwrap_or_else(|| {
+                description: row.description,
+                banner: row.banner.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: false,
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.clone().unwrap_or_default(),
+                flags: row.flags.unwrap_or_default(),
                 user: self.get_server_user(row.guild_id).await,
             });
         }
@@ -1165,7 +1150,7 @@ impl Database {
         .await
         .unwrap();
         let index_bot = models::IndexBot {
-            description: random_row.description.unwrap_or_default(),
+            description: random_row.description,
             banner: random_row.banner_card.unwrap_or_else(|| {
                 "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
             }),
@@ -1174,7 +1159,7 @@ impl Database {
             votes: random_row.votes.unwrap_or(0),
             guild_count: random_row.guild_count.unwrap_or(0),
             user: self.get_user(random_row.bot_id).await,
-            flags: random_row.flags.clone().unwrap_or_default(),
+            flags: random_row.flags.unwrap_or_default(),
         };
         if index_bot.user.username.starts_with("Deleted") {
             return self.random_bot().await;
@@ -1190,7 +1175,7 @@ impl Database {
         .await
         .unwrap();
         let index_bot = models::IndexBot {
-            description: random_row.description.unwrap_or_default(),
+            description: random_row.description,
             banner: random_row.banner_card.unwrap_or_else(|| {
                 "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
             }),
@@ -1199,7 +1184,7 @@ impl Database {
             votes: random_row.votes.unwrap_or(0),
             guild_count: random_row.guild_count.unwrap_or(0),
             user: self.get_server_user(random_row.guild_id).await,
-            flags: random_row.flags.clone().unwrap_or_default(),
+            flags: random_row.flags.unwrap_or_default(),
         };
         index_bot
     }
@@ -1603,9 +1588,9 @@ impl Database {
                 .unwrap();
             }
             return Ok(data.url);
-        } else {
-            return Err(models::GuildInviteError::NoChannelFound);
         }
+
+        return Err(models::GuildInviteError::NoChannelFound);
     }
 
     // Invite amount updater
@@ -1796,7 +1781,7 @@ impl Database {
             donate = $16, privacy_policy = $17, nsfw = $18, 
             webhook_secret = $19, webhook_hmac_only = $20,
             banner_page = $21, keep_banner_decor = $22, 
-            client_id = $23, page_style = $24, long_description_parsed = null,
+            client_id = $23, page_style = $24,
             last_updated_at = NOW() WHERE bot_id = $1",
             id,
             bot.library,
@@ -2082,7 +2067,7 @@ impl Database {
 
         let bots_row = sqlx::query!(
             "SELECT DISTINCT bots.bot_id, bots.description, bots.prefix, 
-            bots.banner_card AS banner, bots.state, bots.votes, 
+            bots.banner_card, bots.state, bots.votes, 
             bots.guild_count, bots.nsfw, bots.flags FROM bots 
             INNER JOIN bot_owner ON bot_owner.bot_id = bots.bot_id 
             WHERE bot_owner.owner = $1",
@@ -2096,11 +2081,8 @@ impl Database {
         for row in bots_row {
             let bot = models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
-                description: row
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| "No description set".to_string()),
-                banner: row.banner.clone().unwrap_or_else(|| {
+                description: row.description,
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
@@ -2159,32 +2141,16 @@ impl Database {
         user_id: i64,
         profile: models::Profile,
     ) -> Result<(), models::ProfileCheckError> {
-        // This only updates profile-editable fields, it does not create packs etc.
-        let vote_reminder_channel: Option<i64>;
-        if let Some(vrc) = profile.vote_reminder_channel {
-            if vrc.is_empty() {
-                vote_reminder_channel = None;
-            } else {
-                let parsed = vrc.parse::<i64>();
-
-                if parsed.is_err() {
-                    return Err(models::ProfileCheckError::InvalidVoteReminderChannel);
-                }
-                vote_reminder_channel = Some(parsed.unwrap());
-            }
-        } else {
-            vote_reminder_channel = None;
-        }
+        // This only updates profile-editable fields, it does not create packs etc. Vote reminders
+        // can also not be set using this
 
         sqlx::query!(
             "UPDATE users SET description = $1, site_lang = $2, 
-            user_css = $3, profile_css = $4, vote_reminder_channel = $5 
-            WHERE user_id = $6",
+            user_css = $3, profile_css = $4 WHERE user_id = $5",
             profile.description,
             profile.site_lang,
             profile.user_css,
             profile.profile_css,
-            vote_reminder_channel,
             user_id
         )
         .execute(&self.pool)
@@ -2565,9 +2531,7 @@ impl Database {
                     status: models::Status::Unknown,
                 },
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
-                description: row
-                    .description
-                    .unwrap_or_else(|| "No description found!".to_string()),
+                description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
@@ -2608,9 +2572,7 @@ impl Database {
                     status: models::Status::Unknown,
                 },
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
-                description: row
-                    .description
-                    .unwrap_or_else(|| "No description found!".to_string()),
+                description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
