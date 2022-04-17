@@ -964,6 +964,7 @@ pub enum BotRequestType {
     #[default]
     Appeal = 0,
     Certification = 1,
+    Report = 2,
 }
 
 // {"m": {"e": enums.APIEvents.bot_view}, "ctx": {"user": str(user_id), "widget": False, "vote_page": compact}}

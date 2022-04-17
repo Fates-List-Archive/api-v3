@@ -38,18 +38,28 @@ async fn appeal_bot(
 
     let req_data = request.into_inner();
 
+    if req_data.request_type == models::BotRequestType::Report {
+        let user_experiments = data.database.get_user_experiments(user_id).await;
+
+        if !user_experiments.contains(&models::UserExperiments::BotReport) {
+            return models::UserExperiments::BotReport.not_enabled();
+        }
+    }
+
     if req_data.appeal.len() < 7 || req_data.appeal.len() > 4000 {
-        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
             done: false,
             reason: Some("Appeal length must be between 7 and 4000 characters".to_string()),
             context: None,
         });
     }
 
-    let (title, request_type) = if req_data.request_type == models::BotRequestType::Certification {
-        ("Certification Request", "certification")
+    let (request_field, title, request_type) = if req_data.request_type == models::BotRequestType::Certification {
+        ("Reason/What's Unique?", "Certification Request", "certification")
+    } else if req_data.request_type == models::BotRequestType::Appeal {
+        ("Appeal", "Resubmission", "an appeal")
     } else {
-        ("Resubmission", "an appeal")
+        ("Report", "Report", "a staff member to look into a report on")
     };
 
     if req_data.request_type == models::BotRequestType::Certification {
@@ -95,6 +105,7 @@ async fn appeal_bot(
 
     let msg = data.config.discord.channels.appeals_channel.send_message(&data.config.discord_http, |m| {
         m.content(data.config.discord.roles.staff_ping_add_role.mention());
+
         m.embed(|e| {
             e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
             e.title(title);
@@ -109,7 +120,7 @@ async fn appeal_bot(
                 )
             );
 
-            e.field("Appeal", req_data.appeal, false);
+            e.field(request_field, req_data.appeal, false);
 
             e
         });
