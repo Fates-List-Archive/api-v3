@@ -1,7 +1,7 @@
 use crate::database;
 use actix_web::{error::ResponseError, http, HttpResponse};
 use indexmap::{indexmap, IndexMap};
-use log::debug;
+use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
@@ -21,9 +21,59 @@ use strum_macros::EnumIter;
 #[repr(i32)]
 pub enum UserExperiments {
     #[default]
-    Unknown = 0,
+    Unknown = 0, // Unknown experiment
     GetRolesSelector = 1, // The 'Get Roles' selector in profile settings
     LynxExperimentRolloutView = 2, // The 'Experiment Rollout' view in lynx
+    BotReport = 3, // Bot Reports
+}
+
+impl fmt::Display for UserExperiments {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl UserExperiments {
+    pub fn not_enabled(self) -> HttpResponse {
+        error!("Experiment {:?} not enabled", self);
+        return HttpResponse::UnavailableForLegalReasons().json(APIResponse {
+            done: false,
+            reason: Some("Experiment not enabled".to_string()),
+            context: Some(format!("{:?}", self)),
+        });
+    }
+}
+
+#[derive(
+    Deserialize, Serialize, Eq, PartialEq, Clone, Copy, Debug, Default, EnumIter
+)]
+pub enum SupportServerRole {
+    #[default]
+    NewBotPing,
+    OtherNews,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct UserExperimentListItem {
+    pub name: String,
+    pub value: UserExperiments,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ExperimentList {
+    pub user_experiments: Vec<UserExperimentListItem>
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+pub struct ServerRole {
+    pub id: SupportServerRole,
+    pub name: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct ServerRoleList {
+    pub roles: Vec<ServerRole>,
+    pub user_roles: Vec<ServerRole>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -339,6 +389,7 @@ pub struct OauthUserLogin {
     pub user: User,
     pub site_lang: String,
     pub css: Option<String>,
+    pub user_experiments: Vec<UserExperiments>
 }
 
 /// Bot Stats
@@ -471,6 +522,7 @@ pub struct DiscordRoles {
     pub staff_ping_add_role: RoleId,
     pub bot_dev_role: RoleId,
     pub certified_dev_role: RoleId,
+    pub i_love_pings_role: RoleId,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -1158,7 +1210,7 @@ impl ProfileRolesUpdate {
     pub fn to_string(&self) -> String {
         match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
-            Self::MemberNotFound => "You are not on our support system!".to_string(),
+            Self::MemberNotFound => "You are not on our support server!".to_string(),
             Self::RateLimited(i) => format!("You have been rate limited for {} seconds", i),
             Self::DiscordError(e) => format!("Discord Error: {}", e),
         }

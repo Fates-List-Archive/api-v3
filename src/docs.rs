@@ -232,6 +232,20 @@ It is semi-automatically generated
         },
     });
 
+    // SupportServerRole
+    docs += &new_enum(models::EnumDesc {
+        name: "SupportServerRole",
+        alt_names: vec!["id"],
+        description: "The role to give on the support server",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::SupportServerRole::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
     // PageStyle
     docs += &new_enum(models::EnumDesc {
         name: "PageStyle",
@@ -470,6 +484,24 @@ def post_stats(bot_id: int, guild_count: int):
         description: "Internal route to return enum docs template",
         request_body: &models::Empty {},
         response_body: &models::Empty {},
+        auth_types: vec![]
+    });
+
+    // Experiment List route
+    docs += &doc(models::Route {
+        title: "Experiment List",
+        method: "GET",
+        path: "/experiments",
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        description: "Returns all currently available experiments",
+        request_body: &models::Empty {},
+        response_body: &models::ExperimentList {
+            user_experiments: vec![models::UserExperimentListItem {
+                name: models::UserExperiments::Unknown.to_string(),
+                value: models::UserExperiments::Unknown,
+            }],
+        },
         auth_types: vec![]
     });
 
@@ -1206,6 +1238,33 @@ Gives user roles on the Fates List support server
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::RoleUpdate::default(),
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Get Available Roles",
+        method: "GET",
+        path: "/profiles/{id}/server-roles",
+        description: r#"
+Gets the user roles on the Fates List support server
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::ServerRoleList {
+            roles: vec![
+                models::ServerRole {
+                    id: models::SupportServerRole::NewBotPing,
+                    name: Some("New Bots Ping".to_string()),
+                },
+            ],
+            user_roles: vec![
+                models::ServerRole {
+                    id: models::SupportServerRole::NewBotPing,
+                    name: None,
+                },
+            ],
+        },
         auth_types: vec![models::RouteAuthType::User],
     });
 

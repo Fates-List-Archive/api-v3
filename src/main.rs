@@ -164,6 +164,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::get_vanity)
             .service(core::docs_tmpl)
             .service(core::enum_docs_tmpl)
+            .service(core::experiments)
             .service(core::policies)
             .service(core::partners)
             .service(core::get_bot)
@@ -208,6 +209,7 @@ async fn main() -> std::io::Result<()> {
             .service(user::get_profile)
             .service(user::update_profile)
             .service(user::recieve_profile_roles)
+            .service(user::get_available_server_roles)
 
             // Review
             .service(reviews::get_reviews)

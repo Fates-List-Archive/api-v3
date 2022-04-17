@@ -5,6 +5,7 @@ use actix_web::http::header::HeaderValue;
 use actix_web::{get, http, patch, post, web, web::Json, HttpRequest, HttpResponse, ResponseError};
 use log::error;
 use uuid::Uuid;
+use strum::IntoEnumIterator;
 
 #[get("/index")]
 async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<models::Index> {
@@ -56,18 +57,34 @@ async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
     }
 }
 
-// Docs template (not yet documented)
+// Docs template
 #[get("/_docs_template")]
 async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     HttpResponse::build(http::StatusCode::OK).body(data.docs.clone())
 }
 
-// Enum Docs template (not yet documented)
+// Enum Docs template
 #[get("/_enum_docs_template")]
 async fn enum_docs_tmpl(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     HttpResponse::build(http::StatusCode::OK).body(data.enum_docs.clone())
+}
+
+// Experiment List
+#[get("/experiments")]
+async fn experiments(_req: HttpRequest) -> HttpResponse {
+    let mut exp_map = Vec::new();
+    for exp in models::UserExperiments::iter() {
+        exp_map.push(models::UserExperimentListItem {
+            name: exp.to_string(),
+            value: exp,
+        });
+    }
+
+    HttpResponse::build(http::StatusCode::OK).json(models::ExperimentList {
+        user_experiments: exp_map,
+    })
 }
 
 // Policies

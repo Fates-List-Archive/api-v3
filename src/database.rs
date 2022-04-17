@@ -1282,6 +1282,7 @@ impl Database {
                 bot: false,
                 status: models::Status::Unknown,
             },
+            user_experiments: self.get_user_experiments(user_i64).await,
             token,
             state,
             site_lang: site_lang.unwrap_or_else(|| "en".to_string()),
@@ -1523,24 +1524,24 @@ impl Database {
             return self
                 .invite_resolver(guild_id, user_id, invite_channel, invite_url)
                 .await;
-        } else {
-            if state == models::State::PrivateViewable {
-                return Err(models::GuildInviteError::NotAcceptingInvites);
-            } else if whitelist_only {
-                let form = row.whitelist_form;
-                let form_html: String;
-                if form.is_none() {
-                    form_html = "There is no form to get access to this server!".to_string()
-                } else {
-                    form_html = format!(
-                        "<a href='{}'>You can get acces to this server here</a>",
-                        form.unwrap()
-                    );
-                }
-                return Err(models::GuildInviteError::WhitelistRequired(form_html));
-            } else if user_blacklist.contains(&user_id.to_string()) {
-                return Err(models::GuildInviteError::Blacklisted);
+        }
+
+        if state == models::State::PrivateViewable {
+            return Err(models::GuildInviteError::NotAcceptingInvites);
+        } else if whitelist_only {
+            let form = row.whitelist_form;
+            let form_html: String;
+            if form.is_none() {
+                form_html = "There is no form to get access to this server!".to_string()
+            } else {
+                form_html = format!(
+                    "<a href='{}'>You can get acces to this server here</a>",
+                    form.unwrap()
+                );
             }
+            return Err(models::GuildInviteError::WhitelistRequired(form_html));
+        } else if user_blacklist.contains(&user_id.to_string()) {
+            return Err(models::GuildInviteError::Blacklisted);
         }
 
         self.invite_resolver(guild_id, user_id, invite_channel, invite_url)
@@ -2031,6 +2032,30 @@ impl Database {
         }
     }
 
+    pub async fn get_user_experiments(&self, user_id: i64) -> Vec<models::UserExperiments> {
+        let mut user_experiments = Vec::new();
+        
+        let row = sqlx::query!(
+            "SELECT experiments FROM users WHERE user_id = $1",
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return user_experiments;
+        }
+
+        let row = row.unwrap();
+
+        // Fetch enabled experiments
+        for experiment in row.experiments {
+            user_experiments.push(models::UserExperiments::try_from(experiment).unwrap_or(models::UserExperiments::Unknown))
+        }
+
+        user_experiments
+    }
+
     pub async fn get_profile(&self, user_id: i64) -> Option<models::Profile> {
         let row = sqlx::query!(
             "SELECT description, site_lang, state, user_css, profile_css, 
@@ -2047,10 +2072,7 @@ impl Database {
         let row = row.unwrap();
 
         // Fetch enabled experiments
-        let mut user_experiments = Vec::new();
-        for experiment in row.experiments {
-            user_experiments.push(models::UserExperiments::try_from(experiment).unwrap_or(models::UserExperiments::Unknown))
-        }
+        let user_experiments = self.get_user_experiments(user_id).await;
 
         let packs_row = sqlx::query!(
             "SELECT id, icon, banner, created_at, owner, bots, description, name FROM bot_packs WHERE owner = $1",
@@ -2177,8 +2199,59 @@ impl Database {
         Ok(())
     }
 
+    /// Gets the user roles on the support server
+    pub async fn get_user_roles(&self, user_id: i64, discord_data: &models::DiscordData) -> Result<Vec<models::ServerRole>, models::ProfileRolesUpdate> {
+        // Check cache
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn
+            .get("user-roles".to_string() + &user_id.to_string())
+            .await
+            .unwrap_or_else(|_| "".to_string());
+        if !data.is_empty() {
+            let roles: Result<Vec<models::ServerRole>, serde_json::Error> = serde_json::from_str(&data);
+            if roles.is_ok() {
+                return Ok(roles.unwrap());
+            }
+        }
+
+        let member = discord_data.servers.main
+        .member(&self.discord_main, user_id as u64)
+        .await;
+        if member.is_err() {
+            return Err(models::ProfileRolesUpdate::MemberNotFound);
+        }
+
+        let member = member.unwrap();
+
+        let mut roles = Vec::new();
+
+        for role in member.roles {
+            if role == discord_data.roles.staff_ping_add_role {
+                roles.push(models::ServerRole {
+                    id: models::SupportServerRole::NewBotPing,
+                    name: None
+                });
+            } else if role == discord_data.roles.i_love_pings_role {
+                roles.push(models::ServerRole {
+                    id: models::SupportServerRole::OtherNews,
+                    name: None
+                });
+            }
+        }
+
+        conn.set_ex(
+            "user-roles".to_string() + &user_id.to_string(),
+            serde_json::to_string(&roles).unwrap(),
+            60,
+        )
+        .await
+        .unwrap_or_else(|_| "".to_string());
+
+        Ok(roles)
+    }
+
     /// Updates user roles based on their bots
-    pub async fn update_user_roles(&self, user_id: i64, discord_data: &models::DiscordData) -> Result<models::RoleUpdate, models::ProfileRolesUpdate> {
+    pub async fn update_user_bot_roles(&self, user_id: i64, discord_data: &models::DiscordData) -> Result<models::RoleUpdate, models::ProfileRolesUpdate> {
 
         // Check ratelimit
         let mut conn = self.redis.get().await.unwrap();
