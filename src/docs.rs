@@ -232,20 +232,6 @@ It is semi-automatically generated
         },
     });
 
-    // SupportServerRole
-    docs += &new_enum(models::EnumDesc {
-        name: "SupportServerRole",
-        alt_names: vec!["id"],
-        description: "The role to give on the support server",
-        gen: || {
-            let mut types = String::new();
-            for typ in models::SupportServerRole::iter() {
-                types += &enum_doc(typ);
-            }
-            types
-        },
-    });
-
     // PageStyle
     docs += &new_enum(models::EnumDesc {
         name: "PageStyle",
@@ -1242,29 +1228,16 @@ Gives user roles on the Fates List support server
     });
 
     docs += &doc(models::Route {
-        title: "Get Available Roles",
+        title: "Test Experiments",
         method: "GET",
-        path: "/profiles/{id}/server-roles",
+        path: "/profiles/{id}/test-experiments",
         description: r#"
-Gets the user roles on the Fates List support server
+Internal route to showcase experiments
 "#,
         path_params: &models::FetchBotPath { id: 0 },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
-        response_body: &models::ServerRoleList {
-            roles: vec![
-                models::ServerRole {
-                    id: models::SupportServerRole::NewBotPing,
-                    name: Some("New Bots Ping".to_string()),
-                },
-            ],
-            user_roles: vec![
-                models::ServerRole {
-                    id: models::SupportServerRole::NewBotPing,
-                    name: None,
-                },
-            ],
-        },
+        response_body: &models::Empty {},
         auth_types: vec![models::RouteAuthType::User],
     });
 

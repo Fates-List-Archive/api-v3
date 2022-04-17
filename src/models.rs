@@ -22,7 +22,7 @@ use strum_macros::EnumIter;
 pub enum UserExperiments {
     #[default]
     Unknown = 0, // Unknown experiment
-    GetRolesSelector = 1, // The 'Get Roles' selector in profile settings
+    TestExperiment = 1, // Test Experiment
     LynxExperimentRolloutView = 2, // The 'Experiment Rollout' view in lynx
     BotReport = 3, // Bot Reports
 }
@@ -44,15 +44,6 @@ impl UserExperiments {
     }
 }
 
-#[derive(
-    Deserialize, Serialize, Eq, PartialEq, Clone, Copy, Debug, Default, EnumIter
-)]
-pub enum SupportServerRole {
-    #[default]
-    NewBotPing,
-    OtherNews,
-}
-
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct UserExperimentListItem {
     pub name: String,
@@ -62,18 +53,6 @@ pub struct UserExperimentListItem {
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct ExperimentList {
     pub user_experiments: Vec<UserExperimentListItem>
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, Default)]
-pub struct ServerRole {
-    pub id: SupportServerRole,
-    pub name: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Default)]
-pub struct ServerRoleList {
-    pub roles: Vec<ServerRole>,
-    pub user_roles: Vec<ServerRole>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]

@@ -2199,57 +2199,6 @@ impl Database {
         Ok(())
     }
 
-    /// Gets the user roles on the support server
-    pub async fn get_user_roles(&self, user_id: i64, discord_data: &models::DiscordData) -> Result<Vec<models::ServerRole>, models::ProfileRolesUpdate> {
-        // Check cache
-        let mut conn = self.redis.get().await.unwrap();
-        let data: String = conn
-            .get("user-roles".to_string() + &user_id.to_string())
-            .await
-            .unwrap_or_else(|_| "".to_string());
-        if !data.is_empty() {
-            let roles: Result<Vec<models::ServerRole>, serde_json::Error> = serde_json::from_str(&data);
-            if roles.is_ok() {
-                return Ok(roles.unwrap());
-            }
-        }
-
-        let member = discord_data.servers.main
-        .member(&self.discord_main, user_id as u64)
-        .await;
-        if member.is_err() {
-            return Err(models::ProfileRolesUpdate::MemberNotFound);
-        }
-
-        let member = member.unwrap();
-
-        let mut roles = Vec::new();
-
-        for role in member.roles {
-            if role == discord_data.roles.staff_ping_add_role {
-                roles.push(models::ServerRole {
-                    id: models::SupportServerRole::NewBotPing,
-                    name: None
-                });
-            } else if role == discord_data.roles.i_love_pings_role {
-                roles.push(models::ServerRole {
-                    id: models::SupportServerRole::OtherNews,
-                    name: None
-                });
-            }
-        }
-
-        conn.set_ex(
-            "user-roles".to_string() + &user_id.to_string(),
-            serde_json::to_string(&roles).unwrap(),
-            60,
-        )
-        .await
-        .unwrap_or_else(|_| "".to_string());
-
-        Ok(roles)
-    }
-
     /// Updates user roles based on their bots
     pub async fn update_user_bot_roles(&self, user_id: i64, discord_data: &models::DiscordData) -> Result<models::RoleUpdate, models::ProfileRolesUpdate> {
 

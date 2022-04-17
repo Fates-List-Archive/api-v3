@@ -118,8 +118,8 @@ async fn recieve_profile_roles(
     models::CustomError::ForbiddenGeneric.error_response()
 }
 
-#[get("/profiles/{id}/server-roles")]
-async fn get_available_server_roles(
+#[get("/profiles/{id}/test-experiments")]
+async fn test_experiments(
     req: HttpRequest,
     info: web::Path<models::FetchBotPath>,
 ) -> HttpResponse {
@@ -135,33 +135,11 @@ async fn get_available_server_roles(
     if data.database.authorize_user(info.id, auth).await {
         let user_experiments = data.database.get_user_experiments(info.id).await;
 
-        if !user_experiments.contains(&models::UserExperiments::GetRolesSelector) {
-            return models::UserExperiments::GetRolesSelector.not_enabled();
+        if !user_experiments.contains(&models::UserExperiments::TestExperiment) {
+            return models::UserExperiments::TestExperiment.not_enabled();
         }
 
-        let user_roles = data.database.get_user_roles(info.id, &data.config.discord).await;
-
-        if user_roles.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(user_roles.unwrap_err().to_string()),
-                context: Some("Profile fetch error".to_string()),
-            });
-        }
-
-        return HttpResponse::Ok().json(models::ServerRoleList {
-            roles: vec![
-                models::ServerRole {
-                    id: models::SupportServerRole::NewBotPing,
-                    name: Some("New Bots Ping".to_string()),
-                },
-                models::ServerRole {
-                    id: models::SupportServerRole::OtherNews,
-                    name: Some("I Love Pings!".to_string()),
-                },
-            ],
-            user_roles: user_roles.unwrap(),
-        });
+        return HttpResponse::Ok().json(models::Empty {});
     }
     error!("Update profile auth error");
     models::CustomError::ForbiddenGeneric.error_response()

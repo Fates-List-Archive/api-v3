@@ -209,7 +209,7 @@ async fn main() -> std::io::Result<()> {
             .service(user::get_profile)
             .service(user::update_profile)
             .service(user::recieve_profile_roles)
-            .service(user::get_available_server_roles)
+            .service(user::test_experiments)
 
             // Review
             .service(reviews::get_reviews)
