@@ -135,8 +135,8 @@ async fn test_experiments(
     if data.database.authorize_user(info.id, auth).await {
         let user_experiments = data.database.get_user_experiments(info.id).await;
 
-        if !user_experiments.contains(&models::UserExperiments::TestExperiment) {
-            return models::UserExperiments::TestExperiment.not_enabled();
+        if !user_experiments.contains(&models::UserExperiments::GetRoleSelector) {
+            return models::UserExperiments::GetRoleSelector.not_enabled();
         }
 
         return HttpResponse::Ok().json(models::Empty {});

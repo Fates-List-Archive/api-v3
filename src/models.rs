@@ -22,7 +22,7 @@ use strum_macros::EnumIter;
 pub enum UserExperiments {
     #[default]
     Unknown = 0, // Unknown experiment
-    TestExperiment = 1, // Test Experiment
+    GetRoleSelector = 1, // We switched to native roles
     LynxExperimentRolloutView = 2, // The 'Experiment Rollout' view in lynx
     BotReport = 3, // Bot Reports
 }
