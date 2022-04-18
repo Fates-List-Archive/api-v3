@@ -199,6 +199,7 @@ async fn main() -> std::io::Result<()> {
 
             // Appeal
             .service(appeal::appeal_bot)
+            .service(appeal::appeal_server)
 
             // Packs
             .service(packs::add_pack)
