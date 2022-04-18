@@ -288,14 +288,14 @@ It is semi-automatically generated
         },
     });
 
-    // BotRequestType
+    // AppealType
     docs += &new_enum(models::EnumDesc {
-        name: "BotRequestType",
+        name: "AppealType",
         alt_names: vec!["request_type"],
         description: "The type of appeal being sent",
         gen: || {
             let mut types = String::new();
-            for typ in models::BotRequestType::iter() {
+            for typ in models::AppealType::iter() {
                 types += &enum_doc(typ);
             }
             types
@@ -1120,7 +1120,7 @@ Imports a bot from a source listed in ``Get Import Sources``.
         description: r#"
 Creates a appeal/request for a bot.
 
-``request_type`` is a [BotRequestType](https://lynx.fateslist.xyz/docs/enums-ref#botrequesttype)
+``request_type`` is a [AppealType](https://lynx.fateslist.xyz/docs/enums-ref#appealtype)
 
 **Ideally only useful for custom clients**
 "#,
@@ -1129,8 +1129,8 @@ Creates a appeal/request for a bot.
             bot_id: 0,
         },
         query_params: &models::Empty {},
-        request_body: &models::BotRequest {
-            request_type: models::BotRequestType::Appeal,
+        request_body: &models::Appeal {
+            request_type: models::AppealType::Appeal,
             appeal: "This bot deserves to be unbanned because...".to_string(),
         },
         response_body: &models::APIResponse {

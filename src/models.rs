@@ -25,6 +25,7 @@ pub enum UserExperiments {
     GetRoleSelector = 1, // We switched to native roles
     LynxExperimentRolloutView = 2, // The 'Experiment Rollout' view in lynx
     BotReport = 3, // Bot Reports
+    ServerAppealCertification = 4, // Ability to use request type of Appeal or Certification in server appeal
 }
 
 impl fmt::Display for UserExperiments {
@@ -960,7 +961,7 @@ pub enum UserBotAction {
     Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
 )]
 #[repr(i32)]
-pub enum BotRequestType {
+pub enum AppealType {
     #[default]
     Appeal = 0,
     Certification = 1,
@@ -1038,8 +1039,8 @@ pub struct Policies {
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
-pub struct BotRequest {
-    pub request_type: BotRequestType,
+pub struct Appeal {
+    pub request_type: AppealType,
     pub appeal: String,
 }
 
