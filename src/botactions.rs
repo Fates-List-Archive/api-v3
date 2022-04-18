@@ -882,6 +882,10 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
             models::ImportSource::Ibl => {
                 let mut headers = reqwest::header::HeaderMap::new();
                 headers.insert("Authorization", HeaderValue::from_str(&data.config.secrets.ibl_fates_key).unwrap());
+                headers.insert("Lightleap-Dest", HeaderValue::from_str("Fates List").unwrap());
+                headers.insert("Lightleap-Site", HeaderValue::from_str("https://fateslist.xyz").unwrap());
+
+
 
                 let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://api.infinitybotlist.com/fates/bots/".to_owned()+&bot_id.to_string())
                 .timeout(Duration::from_secs(10))
@@ -893,10 +897,12 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 .await
                 .unwrap();
 
-                if bot_data.get("message").is_some() {
+                let ibl_msg = bot_data.get("message");
+
+                if ibl_msg.is_some() {
                     return HttpResponse::BadRequest().json(models::APIResponse {
                         done: false,
-                        reason: Some("Bot not found on IBL".to_string()),
+                        reason: Some(format!("Bot not found on IBL: {}", ibl_msg.unwrap())),
                         context: None,
                     });
                 }
