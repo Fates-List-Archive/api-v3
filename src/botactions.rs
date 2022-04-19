@@ -811,24 +811,29 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 if let Some(ref mut bot_data) = ext_data {
                     debug!("{:?}", bot_data);
 
-                    let owners: Vec<String> = bot_data.remove("owners").unwrap().as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
+                    let owners: Vec<String> = bot_data.remove("owners").unwrap_or_else(|| json!([])).as_array().unwrap_or(&Vec::new()).iter().map(|x| x.as_str().unwrap().to_string()).collect();
                     
                     let mut extra_owners = Vec::new();
-
+                    
                     let mut got_owner = false;
-                    for owner in owners {
-                        if owner == user_id.to_string() {
-                            got_owner = true;
-                        } else {
-                            extra_owners.push(models::BotOwner {
-                                user: models::User {
-                                    id: owner,
-                                    ..models::User::default()
-                                },
-                                main: false
-                            });
-                        }
-                    }    
+
+                    if owners.is_empty() {
+                        got_owner = true
+                    } else {
+                        for owner in owners {
+                            if owner == user_id.to_string() {
+                                got_owner = true;
+                            } else {
+                                extra_owners.push(models::BotOwner {
+                                    user: models::User {
+                                        id: owner,
+                                        ..models::User::default()
+                                    },
+                                    main: false
+                                });
+                            }
+                        }    
+                    }
 
                     if !got_owner {
                         return HttpResponse::BadRequest().json(models::APIResponse {
