@@ -811,7 +811,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 if let Some(ref mut bot_data) = ext_data {
                     debug!("{:?}", bot_data);
 
-                    let owners: Vec<String> = bot_data.remove("owners").unwrap_or_else(|| json!([])).as_array().unwrap_or(&Vec::new()).iter().map(|x| x.as_str().unwrap().to_string()).collect();
+                    let owners: Vec<String> = bot_data.remove("owners").unwrap_or_else(|| json!([])).as_array().unwrap_or(&Vec::new()).iter().map(|x| x.as_str().unwrap_or_default().to_string()).collect();
                     
                     let mut extra_owners = Vec::new();
                     
