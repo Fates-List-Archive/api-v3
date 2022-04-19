@@ -383,10 +383,12 @@ async fn vote_bot(
             reason: Some(
 r#"Successfully voted for this bot!
 
-<em>Pro Tip</em>: You can vote for bots directly on your server using Squirrelflight. Squirrelflight 
+<em>Pro Tip</em>: You can vote for bots directly on your server using Fates List Helper. Fates List Helper
 also supports vote reminders as well!
 
-You can invite Squirrelflight to your server by <a style="color: blue !important" href="https://discord.com/api/oauth2/authorize?client_id=862696751482667068&permissions=2147486720&scope=bot%20applications.commands">clicking here</a>!
+You can invite Fates List Helper to your server by <a style="color: blue !important" href="https://discord.com/api/oauth2/authorize?client_id=811073947382579200&permissions=2048&scope=bot%20applications.commands">clicking here</a>!
+
+If you have previously invited Squirrelflight, please remove and add Fates List Helper instead.
 "#.to_string()),
             context: None,
         });

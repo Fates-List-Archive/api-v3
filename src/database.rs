@@ -1225,6 +1225,7 @@ impl Database {
         user: models::OauthUser,
     ) -> Result<models::OauthUserLogin, sqlx::Error> {
         let user_i64 = user.id.parse::<i64>().unwrap();
+
         let check = sqlx::query!(
             "SELECT state, api_token, user_css, js_allowed, username, site_lang FROM users WHERE user_id = $1",
             user_i64,
@@ -2035,6 +2036,19 @@ impl Database {
     pub async fn get_user_experiments(&self, user_id: i64) -> Vec<models::UserExperiments> {
         let mut user_experiments = Vec::new();
         
+        let default_user_experiments = sqlx::query!(
+            "SELECT default_user_experiments FROM lynx_data"
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if default_user_experiments.is_ok() {
+            let experiments = default_user_experiments.unwrap();
+            for experiment in experiments.default_user_experiments.unwrap_or_default() {
+                user_experiments.push(models::UserExperiments::try_from(experiment).unwrap_or(models::UserExperiments::Unknown))
+            }
+        }
+
         let row = sqlx::query!(
             "SELECT experiments FROM users WHERE user_id = $1",
             user_id

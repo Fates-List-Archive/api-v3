@@ -136,8 +136,8 @@ pub enum LongDescriptionType {
 #[repr(i32)]
 pub enum ImportSource {
     Rdl,
-    Topgg,
     Ibl,
+    Custom,
     #[default]
     Other
 }
@@ -146,7 +146,7 @@ impl ImportSource {
     pub fn source_name(&self) -> String {
         match self {
             ImportSource::Rdl => "Rovel Discord List".to_string(),
-            ImportSource::Topgg => "Top.gg".to_string(),
+            ImportSource::Custom => "Custom Source".to_string(),
             ImportSource::Ibl => "Infinity Bot List".to_string(),
             ImportSource::Other => "Unknown Source".to_string(),
         }
@@ -313,6 +313,7 @@ pub struct GetUserBotPath {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ImportQuery {
     pub src: ImportSource,
+    pub custom_source: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]

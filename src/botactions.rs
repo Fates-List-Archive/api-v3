@@ -151,9 +151,7 @@ async fn check_bot(
                     return Err(models::CheckBotError::InvalidInvitePermNum);
                 }
             }
-        }
-        debug!("Invite is {}", invite);
-        if !invite.replace('"', "").starts_with("https://") {
+        } else if !invite.replace('"', "").starts_with("https://") {
             debug!("Invite {} is not https", invite);
             return Err(models::CheckBotError::InvalidInvite);
         }
@@ -694,12 +692,12 @@ async fn import_sources(_req: HttpRequest) -> HttpResponse {
                 name: "Rovel Discord List".to_string()
             },
             models::ImportSourceListItem {
-                id: models::ImportSource::Topgg,
-                name: "Top.gg (ALPHA, may not work reliably)".to_string()
-            },
-            models::ImportSourceListItem {
                 id: models::ImportSource::Ibl,
                 name: "Infinity Bot List".to_string()
+            },
+            models::ImportSourceListItem {
+                id: models::ImportSource::Custom,
+                name: "Custom Source (top.gg etc.)".to_string()
             },
         ]
     });
@@ -807,7 +805,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     ..models::Bot::default()
                 }
             }
-            models::ImportSource::Topgg => {
+            models::ImportSource::Custom => {
                 let mut body = body.into_inner();
                 let ext_data = &mut body.ext_data;
                 if let Some(ref mut bot_data) = ext_data {
@@ -855,15 +853,14 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                             ..models::User::default()
                         },                    
                         vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
-                        description: bot_data.remove("shortdesc").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
-                        long_description: bot_data.remove("longdesc").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                        description: bot_data.remove("description").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
+                        long_description: bot_data.remove("long_description").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                         prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),   
                         invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()), 
                         shard_count: 0,
                         owners: extra_owners,    
                         website,
                         tags: vec![
-                            // top.gg provides tag but they usually don't match and can be arbitary anyways
                             models::Tag {
                                 id: "utility".to_string(),
                                 ..models::Tag::default()
@@ -874,7 +871,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 } else {
                     return HttpResponse::BadRequest().json(models::APIResponse {
                         done: false,
-                        reason: Some("Invalid ext_data".to_string()),
+                        reason: Some("Invalid bot data".to_string()),
                         context: None,
                     });
                 }
@@ -1042,7 +1039,11 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                         user = UserId(user_id as u64).mention(),
                         bot_name = bot.user.username,
                         bot = UserId(bot.user.id.parse::<u64>().unwrap()).mention(),
-                        source = src.src.source_name()
+                        source = if src.src == models::ImportSource::Custom {
+                            src.src.source_name() + "(" + &src.custom_source.clone().unwrap_or_else(|| "Unknown".to_string()) + ")"
+                        } else {
+                            src.src.source_name()
+                        }
                     ));
 
                     e.field("Guild Count (approx)", bot.guild_count.to_string(), true);

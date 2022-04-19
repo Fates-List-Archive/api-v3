@@ -1100,6 +1100,7 @@ Imports a bot from a source listed in ``Get Import Sources``.
         },
         query_params: &models::ImportQuery {
             src: models::ImportSource::Rdl,
+            custom_source: Some("".to_string()),
         },
         request_body: &models::Empty {},
         response_body: &models::APIResponse {
