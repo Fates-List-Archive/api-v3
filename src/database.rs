@@ -1497,8 +1497,8 @@ impl Database {
 
         let state = row.state;
         let invite_channel = row.invite_channel.unwrap_or(0);
-        let user_whitelist = row.user_whitelist.unwrap_or_default();
-        let user_blacklist = row.user_blacklist.unwrap_or_default();
+        let user_whitelist = row.user_whitelist;
+        let user_blacklist = row.user_blacklist;
         let invite_url = row.invite_url.unwrap_or_else(|| "".to_string());
         let mut login_required = row.login_required.unwrap_or_default();
         let whitelist_only = row.whitelist_only.unwrap_or_default();
@@ -1521,7 +1521,7 @@ impl Database {
             return Err(models::GuildInviteError::StaffReview);
         }
 
-        if user_whitelist.contains(&user_id.to_string()) {
+        if user_whitelist.contains(&user_id) {
             return self
                 .invite_resolver(guild_id, user_id, invite_channel, invite_url)
                 .await;
@@ -1541,7 +1541,7 @@ impl Database {
                 );
             }
             return Err(models::GuildInviteError::WhitelistRequired(form_html));
-        } else if user_blacklist.contains(&user_id.to_string()) {
+        } else if user_blacklist.contains(&user_id) {
             return Err(models::GuildInviteError::Blacklisted);
         }
 

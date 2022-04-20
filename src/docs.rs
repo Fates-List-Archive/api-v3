@@ -689,7 +689,7 @@ Differences from API v2:
 - All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
 - Some fields have been renamed or removed
 - ``invite_link`` is returned, however is always None unless ``Frostpaw-Invite`` header is set which then pushes you into 
-server privacy restrictions
+server privacy restrictions. **Note that when fetching invite links, requires login to join is now enabled by default for all new servers**
 
 **Set the Frostpaw header if you are a custom client**
 "#,
