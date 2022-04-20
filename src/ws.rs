@@ -185,7 +185,7 @@ pub async fn bot_ws(
                 }
                 Message::Text(text) => {
                     if text.starts_with("AUTH") {
-                        let token = text.split(" ").nth(1).unwrap_or("unknown");
+                        let token = text.split(' ').nth(1).unwrap_or("unknown");
                         match mode {
                             models::TargetType::Bot => {
                                 if database.authorize_bot(id, token).await {
@@ -203,7 +203,7 @@ pub async fn bot_ws(
 
                         close_reason = Some(actix_ws::CloseReason {
                             code: actix_ws::CloseCode::Other(4002),
-                            description: Some("Authentication failed".to_string())
+                            description: Some("Authentication failed!".to_string())
                         });
                         break;
                     }
