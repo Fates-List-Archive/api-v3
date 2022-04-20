@@ -129,7 +129,7 @@ async fn bot_gateway_task_archive(pool: PgPool, mode: models::TargetType, id: i6
         id,
         mode
     )
-    .fetch_all(&database.pool)
+    .fetch_all(&pool)
     .await
     .unwrap();
 
