@@ -260,8 +260,8 @@ pub async fn bot_ws(
                             database.get_postgres(),
                             mode,
                             id,
-                            session.clone(),
-                )));
+                            session.clone()
+                        )));
                     } else if text == "ENDGWTASK" {
                         if gw_task.is_none() {
                             // Error out, cannot UNSUB if you are not subscribed
