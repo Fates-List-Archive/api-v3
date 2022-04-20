@@ -83,7 +83,7 @@ async fn bot_gateway_task_sub(mode: models::TargetType, id: i64, session: actix_
     let client = redis::Client::open("redis://127.0.0.1:1001/1").unwrap();
 
     let mut pubsub_conn = client.get_async_connection().await.unwrap().into_pubsub();
-
+    
     let mode = match mode {
         models::TargetType::Bot => "bot",
         models::TargetType::Server => "server",
@@ -129,7 +129,7 @@ async fn bot_gateway_task_archive(pool: PgPool, mode: models::TargetType, id: i6
         id,
         mode
     )
-    .fetch_all(&pool)
+    .fetch_all(&database.pool)
     .await
     .unwrap();
 
@@ -160,10 +160,13 @@ pub async fn bot_ws(
 
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let pool = data.database.get_postgres();
+    let database = std::rc::Rc::new(data.database.clone());
+
+    //let pool = data.database.get_postgres();
 
     let mut close_reason = None;
     let mut gw_task = None;
+    let mut auth = false;
 
     actix_rt::spawn(async move {
         let id = id.into_inner();
@@ -181,16 +184,46 @@ pub async fn bot_ws(
                     hb = Instant::now();
                 }
                 Message::Text(text) => {
+                    if text.starts_with("AUTH") {
+                        let token = text.split(" ").nth(1).unwrap_or("unknown");
+                        match mode {
+                            models::TargetType::Bot => {
+                                if database.authorize_bot(id, token).await {
+                                    auth = true;
+                                    continue;        
+                                }
+                            },
+                            models::TargetType::Server => {
+                                if database.authorize_server(id, token).await {
+                                    auth = true;
+                                    continue;
+                                }
+                            }
+                        }
+
+                        close_reason = Some(actix_ws::CloseReason {
+                            code: actix_ws::CloseCode::Other(4002),
+                            description: Some("Authentication failed".to_string())
+                        });
+                        break;
+                    }
+
                     if text == "PING"
                         && session
                             .text(Instant::now().duration_since(hb).as_micros().to_string())
                             .await
-                            .is_err()
-                    {
+                            .is_err() {
                         break;
                     }
 
                     if text == "SUB" {
+                        if !auth {
+                            close_reason = Some(actix_ws::CloseReason {
+                                code: actix_ws::CloseCode::Other(4002),
+                                description: Some("You must now send AUTH first before calling ARCHIVE or SUB".to_string())
+                            });
+                            break;
+                        }
                         if gw_task.is_some() {
                             // Error out, you can only have one gateway task per session
                             close_reason = Some(actix_ws::CloseReason {
@@ -206,6 +239,14 @@ pub async fn bot_ws(
                             session.clone(),
                         )));
                     } else if text == "ARCHIVE" {
+                        if !auth {
+                            close_reason = Some(actix_ws::CloseReason {
+                                code: actix_ws::CloseCode::Other(4002),
+                                description: Some("You must now send AUTH first before calling ARCHIVE or SUB".to_string())
+                            });
+                            break;
+                        }
+
                         if gw_task.is_some() {
                             // Error out, you can only have one gateway task per session
                             close_reason = Some(actix_ws::CloseReason {
@@ -216,11 +257,11 @@ pub async fn bot_ws(
                         }
                         // Subscribe to messages sent to the bots websocket channel
                         gw_task = Some(actix_rt::spawn(bot_gateway_task_archive(
-                            pool.clone(),
+                            database.get_postgres(),
                             mode,
                             id,
                             session.clone(),
-                        )));
+                )));
                     } else if text == "ENDGWTASK" {
                         if gw_task.is_none() {
                             // Error out, cannot UNSUB if you are not subscribed

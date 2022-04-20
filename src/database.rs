@@ -20,6 +20,7 @@ use bigdecimal::ToPrimitive;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct Database {
     pool: PgPool,
     redis: deadpool_redis::Pool,
