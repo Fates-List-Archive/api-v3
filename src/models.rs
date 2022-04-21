@@ -15,6 +15,9 @@ use thiserror::Error;
 use std::collections::HashMap;
 use strum_macros::EnumIter;
 
+// Re-export common models
+pub use bristlefrost::models::{User, Status, State, Flags, UserState, LongDescriptionType, WebhookType, TargetType};
+
 #[derive(
     Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
 )]
@@ -56,59 +59,6 @@ pub struct ExperimentList {
     pub user_experiments: Vec<UserExperimentListItem>
 }
 
-#[derive(Deserialize, Serialize, Clone, Default)]
-pub struct User {
-    pub id: String,
-    pub username: String,
-    pub disc: String,
-    pub avatar: String,
-    pub bot: bool,
-    pub status: Status,
-}
-
-#[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
-)]
-#[repr(i32)]
-pub enum State {
-    #[default]
-    Approved = 0,
-    Pending = 1,
-    Denied = 2,
-    Hidden = 3,
-    Banned = 4,
-    UnderReview = 5,
-    Certified = 6,
-    Archived = 7,
-    PrivateViewable = 8,
-    PrivateStaffOnly = 9,
-}
-
-#[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
-)]
-#[repr(i32)]
-pub enum Flags {
-    #[default]
-    Unlocked = 0,
-    EditLocked = 1,
-    StaffLocked = 2,
-    StatsLocked = 3,
-    VoteLocked = 4,
-    System = 5,
-}
-
-#[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
-)]
-#[repr(i32)]
-pub enum UserState {
-    #[default]
-    Normal = 0,
-    GlobalBan = 1,
-    ProfileEditBan = 2,
-}
-
 #[derive(
     Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
@@ -118,16 +68,6 @@ pub enum CommandType {
     PrefixCommand = 0,
     SlashCommandGlobal = 1,
     SlashCommandGuild = 2,
-}
-
-#[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
-)]
-#[repr(i32)]
-pub enum LongDescriptionType {
-    Html = 0,
-    #[default]
-    MarkdownServerSide = 1,
 }
 
 #[derive(
@@ -143,7 +83,7 @@ pub enum ImportSource {
 }
 
 impl ImportSource {
-    pub fn source_name(&self) -> String {
+    pub fn source_name(self) -> String {
         match self {
             ImportSource::Rdl => "Rovel Discord List".to_string(),
             ImportSource::Custom => "Custom Source".to_string(),
@@ -402,16 +342,6 @@ pub struct SearchQuery {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Empty {}
-
-#[derive(Deserialize, Serialize, Clone, PartialEq, Default, Debug, EnumIter)]
-pub enum Status {
-    #[default]
-    Unknown = 0,
-    Online = 1,
-    Offline = 2, // Or invisible
-    Idle = 3,
-    DoNotDisturb = 4,
-}
 
 // For the sake of documentation
 #[derive(Deserialize, Serialize)]
@@ -746,17 +676,6 @@ impl Default for Server {
     }
 }
 
-#[derive(
-    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
-)]
-#[repr(i32)]
-pub enum WebhookType {
-    #[default]
-    Vote = 0,
-    DiscordIntegration = 1,
-    DeprecatedFatesClient = 2,
-}
-
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct BotSettingsContext {
     pub tags: Vec<Tag>,
@@ -983,23 +902,6 @@ pub struct BotViewProp {
 pub struct BotVoteProp {
     pub test: bool,
     pub votes: i64,
-}
-
-#[derive(Eq, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter)]
-#[repr(i32)]
-pub enum TargetType {
-    #[default]
-    Bot = 0,
-    Server = 1,
-}
-
-impl TargetType {
-    pub fn to_arg(t: TargetType) -> &'static str {
-        match t {
-            TargetType::Bot => "bot",
-            TargetType::Server => "server",
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize, Clone)]

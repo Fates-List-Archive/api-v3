@@ -383,6 +383,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bristlefrost"
+version = "0.1.0"
+source = "git+https://github.com/Fates-List/bristlefrost#ad3516b694b3f72b0fe765b1ce8fb4cc462faf9a"
+dependencies = [
+ "num_enum",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "strum",
+ "strum_macros",
+]
+
+[[package]]
 name = "brotli"
 version = "3.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -741,6 +754,7 @@ dependencies = [
  "async-recursion",
  "base64 0.13.0",
  "bigdecimal",
+ "bristlefrost",
  "bytes 1.1.0",
  "chrono",
  "deadpool",

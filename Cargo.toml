@@ -45,3 +45,4 @@ hmac = { version = "0.12.1" }
 hex = "0.4.3"
 strum = "0.24.0"
 strum_macros = "0.24.0"
+bristlefrost = { git = "https://github.com/Fates-List/bristlefrost" }
