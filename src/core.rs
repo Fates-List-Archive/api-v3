@@ -335,7 +335,10 @@ async fn has_user_bot_voted(req: HttpRequest, info: web::Path<models::GetUserBot
     let user_flags = data.database.get_user_flags(info.user_id).await;
 
     if user_flags.contains(&models::UserFlags::VotesPrivate) {
-        return HttpResponse::build(http::StatusCode::OK).json(models::UserVoted::default())
+        return HttpResponse::build(http::StatusCode::OK).json(models::UserVoted {
+            vote_right_now: true,
+            ..models::UserVoted::default()
+        })
     }
 
     let resp = data.database.get_user_bot_voted(info.bot_id, info.user_id).await;
@@ -350,7 +353,10 @@ async fn has_user_server_voted(req: HttpRequest, info: web::Path<models::GetUser
     let user_flags = data.database.get_user_flags(info.user_id).await;
 
     if user_flags.contains(&models::UserFlags::VotesPrivate) {
-        return HttpResponse::build(http::StatusCode::OK).json(models::UserVoted::default())
+        return HttpResponse::build(http::StatusCode::OK).json(models::UserVoted {
+            vote_right_now: true,
+            ..models::UserVoted::default()
+        })
     }
     
     let resp = data.database.get_user_server_voted(info.server_id, info.user_id).await;
