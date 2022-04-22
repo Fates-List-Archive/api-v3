@@ -331,6 +331,13 @@ async fn random_server(req: HttpRequest) -> Json<models::IndexBot> {
 #[get("/users/{user_id}/bots/{bot_id}/votes")]
 async fn has_user_bot_voted(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    let user_flags = data.database.get_user_flags(info.user_id).await;
+
+    if user_flags.contains(&models::UserFlags::VotesPrivate) {
+        return HttpResponse::build(http::StatusCode::OK).json(models::UserVoted::default())
+    }
+
     let resp = data.database.get_user_bot_voted(info.bot_id, info.user_id).await;
     HttpResponse::build(http::StatusCode::OK).json(resp)
 }
@@ -339,6 +346,13 @@ async fn has_user_bot_voted(req: HttpRequest, info: web::Path<models::GetUserBot
 #[get("/users/{user_id}/servers/{server_id}/votes")]
 async fn has_user_server_voted(req: HttpRequest, info: web::Path<models::GetUserServerPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    
+    let user_flags = data.database.get_user_flags(info.user_id).await;
+
+    if user_flags.contains(&models::UserFlags::VotesPrivate) {
+        return HttpResponse::build(http::StatusCode::OK).json(models::UserVoted::default())
+    }
+    
     let resp = data.database.get_user_server_voted(info.server_id, info.user_id).await;
     HttpResponse::build(http::StatusCode::OK).json(resp)
 }

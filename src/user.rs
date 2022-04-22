@@ -49,6 +49,10 @@ async fn update_profile(
             });
         }
 
+        if body.flags.contains(&(models::UserFlags::VotesPrivate as i32)) && !profile.user_experiments.contains(&models::UserExperiments::UserVotePrivacy) {
+                return models::UserExperiments::UserVotePrivacy.not_enabled();
+        }
+
         let res = data
             .database
             .update_profile(info.id, body.into_inner())

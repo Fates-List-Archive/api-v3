@@ -176,6 +176,20 @@ It is semi-automatically generated
         },
     });
 
+    // UserFlags
+    docs += &new_enum(models::EnumDesc {
+        name: "UserFlags",
+        alt_names: vec!["flags"],
+        description: "The flags of the user (such as vote privacy)",
+        gen: || {
+            let mut types = String::new();
+            for typ in models::UserFlags::iter() {
+                types += &enum_doc(typ);
+            }
+            types
+        },
+    });
+
     // Experiments
     docs += &new_enum(models::EnumDesc {
         name: "UserExperiments",
@@ -724,7 +738,7 @@ because the last thing people want to scrape are Fates List user votes anyways. 
 this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
 - ``vts`` has been renamed to ``timestamps``
 
-**A method to opt out of this API is being made**
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**
 "#,
         request_body: &models::Empty {},
         response_body: &models::UserVoted {
@@ -763,7 +777,7 @@ because the last thing people want to scrape are Fates List user votes anyways. 
 this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
 - ``vts`` has been renamed to ``timestamps``
 
-**A method to opt out of this API is being made**
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**
 "#,
         request_body: &models::Empty {},
         response_body: &models::UserVoted {

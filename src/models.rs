@@ -29,6 +29,7 @@ pub enum UserExperiments {
     LynxExperimentRolloutView = 2, // The 'Experiment Rollout' view in lynx
     BotReport = 3, // Bot Reports
     ServerAppealCertification = 4, // Ability to use request type of Appeal or Certification in server appeal
+    UserVotePrivacy = 5, // The ability for users to hide their votes from Get Bot Votes and Get Server Votes API
 }
 
 impl fmt::Display for UserExperiments {
@@ -1070,12 +1071,14 @@ pub struct ReviewQuery {
 // Error Handling
 pub enum ProfileCheckError {
     SQLError(sqlx::Error),
+    InvalidFlag(i32),
 }
 
 impl ProfileCheckError {
     pub fn to_string(&self) -> String {
         match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
+            Self::InvalidFlag(f) => format!("Illegal or otherwise non-edittable flag: {}", f),
         }
     }
 }

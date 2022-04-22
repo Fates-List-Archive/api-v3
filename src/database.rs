@@ -2118,6 +2118,29 @@ impl Database {
         user_experiments
     }
 
+    pub async fn get_user_flags(&self, user_id: i64) -> Vec<models::UserFlags> {
+        let row = sqlx::query!(
+            "SELECT flags FROM users WHERE user_id = $1",
+            user_id
+        )   
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return Vec::new();
+        }
+
+        let row = row.unwrap();
+
+        let mut flags = Vec::new();
+
+        for flag in &row.flags {
+            flags.push(models::UserFlags::try_from(*flag).unwrap_or(models::UserFlags::Unknown)); 
+        }
+
+        flags
+    }
+
     pub async fn get_profile(&self, user_id: i64) -> Option<models::Profile> {
         let row = sqlx::query!(
             "SELECT flags, description, site_lang, state, user_css, profile_css, 
@@ -2246,11 +2269,23 @@ impl Database {
         // This only updates profile-editable fields, it does not create packs etc. Vote reminders
         // can also not be set using this
 
+        for flag in &profile.flags {
+            let _flag = models::UserFlags::try_from(*flag).unwrap_or(models::UserFlags::Unknown); 
+            match _flag {
+                models::UserFlags::VotesPrivate => continue,
+                _ => {
+                    return Err(models::ProfileCheckError::InvalidFlag(*flag));
+                }
+            }
+        }
+
         sqlx::query!(
             "UPDATE users SET description = $1, site_lang = $2, 
-            user_css = $3, profile_css = $4 WHERE user_id = $5",
+            flags = $3, user_css = $4, profile_css = $5 
+            WHERE user_id = $6",
             profile.description,
             profile.site_lang,
+            &profile.flags,
             profile.user_css,
             profile.profile_css,
             user_id
