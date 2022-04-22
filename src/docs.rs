@@ -712,7 +712,7 @@ description: r#"
 Endpoint to check amount of votes a user has.
 
 - votes | The amount of votes the bot has.
-- voted | Whether or not the user has *ever* voted for the bot.
+- voted | Whether or not the user has *ever* voted for a bot in the past 8 hours.
 - timestamps | A list of timestamps that the user has voted for the bot on that has been recorded.
 - expiry | The time when the user can next vote.
 - vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
@@ -721,8 +721,49 @@ Differences from API v2:
 
 - Unlike API v2, this does not require authorization to use. This is to speed up responses and 
 because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
-this however, it is prone to change *anytime* in the future**.
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
 - ``vts`` has been renamed to ``timestamps``
+
+**A method to opt out of this API is being made**
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::UserVoted {
+            votes: 10,
+            voted: true,
+            expiry: 101,
+            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+            vote_right_now: false,
+        },
+        auth_types: vec![]
+    });
+
+    // - Get User Votes
+    docs += &doc( models::Route {
+        title: "Get Server Votes",
+        method: "GET",
+        path: "/users/{user_id}/servers/{server_id}/votes",
+        path_params: &models::GetUserServerPath {
+            user_id: 0,
+            server_id: 0,
+        },
+        query_params: &models::Empty {},
+description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the server has.
+- voted | Whether or not the user has *ever* voted for a server in the past 8 hours.
+- timestamps | A list of timestamps that the user has voted for the server on that has been recorded.
+- expiry | The time when the user can next vote.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+
+Differences from API v2:
+
+- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
+- ``vts`` has been renamed to ``timestamps``
+
+**A method to opt out of this API is being made**
 "#,
         request_body: &models::Empty {},
         response_body: &models::UserVoted {

@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use strum_macros::EnumIter;
 
 // Re-export common models
-pub use bristlefrost::models::{User, Status, State, Flags, UserState, LongDescriptionType, WebhookType, TargetType};
+pub use bristlefrost::models::{User, Status, State, UserFlags, Flags, UserState, LongDescriptionType, WebhookType, TargetType};
 
 #[derive(
     Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
@@ -1009,9 +1009,8 @@ pub struct Profile {
     pub state: UserState,
     pub site_lang: String,
     pub action_logs: Vec<ActionLog>,
-    pub user_experiments: Vec<UserExperiments>
-    //pub vote_reminders: Option<Vec<String>>,
-    //pub vote_reminders_servers: Option<Vec<String>>,
+    pub user_experiments: Vec<UserExperiments>,
+    pub flags: Vec<i32>
     // TODO: Ack data
 }
 

@@ -187,7 +187,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
                 user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
@@ -232,7 +232,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
                 user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
@@ -274,7 +274,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
                 user: self.get_server_user(row.guild_id).await,
             };
             servers.push(server);
@@ -301,7 +301,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
                 user: self.get_server_user(row.guild_id).await,
             };
             servers.push(server);
@@ -717,7 +717,7 @@ impl Database {
                             .replace("\\n", "\n")
                             .replace("\\t", "\t")
                         + "</style>",
-                    flags: data.flags.unwrap_or_default(),
+                    flags: data.flags,
                     banner_card: data.banner_card,
                     banner_page: data.banner_page,
                     guild_count: data.guild_count.unwrap_or(0),
@@ -848,7 +848,7 @@ impl Database {
                 }
 
                 let res = Some(models::Server {
-                    flags: row.flags.unwrap_or_default(),
+                    flags: row.flags,
                     description: row.description,
                     long_description: long_description_parsed,
                     long_description_raw: row.long_description,
@@ -941,7 +941,7 @@ impl Database {
                 nsfw: bot.nsfw.unwrap_or_default(),
                 votes: bot.votes.unwrap_or_default(),
                 state: models::State::try_from(bot.state).unwrap_or(models::State::Approved),
-                flags: bot.flags.clone().unwrap_or_default(),
+                flags: bot.flags,
                 user: self.get_user(bot.bot_id).await,
             });
         }
@@ -974,7 +974,7 @@ impl Database {
                 state: models::State::try_from(server.state).unwrap_or(models::State::Approved),
                 nsfw: server.nsfw.unwrap_or(false),
                 votes: server.votes.unwrap_or(0),
-                flags: server.flags.unwrap_or_default(),
+                flags: server.flags,
                 user: self.get_server_user(server.guild_id).await,
             });
         }
@@ -1101,7 +1101,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: false,
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.clone().unwrap_or_default(),
+                flags: row.flags,
                 user: self.get_user(row.bot_id).await,
             });
         }
@@ -1127,7 +1127,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: false,
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
                 user: self.get_server_user(row.guild_id).await,
             });
         }
@@ -1162,7 +1162,7 @@ impl Database {
             votes: random_row.votes.unwrap_or(0),
             guild_count: random_row.guild_count.unwrap_or(0),
             user: self.get_user(random_row.bot_id).await,
-            flags: random_row.flags.unwrap_or_default(),
+            flags: random_row.flags,
         };
         if index_bot.user.username.starts_with("Deleted") {
             return self.random_bot().await;
@@ -1187,7 +1187,7 @@ impl Database {
             votes: random_row.votes.unwrap_or(0),
             guild_count: random_row.guild_count.unwrap_or(0),
             user: self.get_server_user(random_row.guild_id).await,
-            flags: random_row.flags.unwrap_or_default(),
+            flags: random_row.flags,
         };
         index_bot
     }
@@ -1292,7 +1292,7 @@ impl Database {
         })
     }
 
-    pub async fn get_user_voted(&self, bot_id: i64, user_id: i64) -> models::UserVoted {
+    pub async fn get_user_bot_voted(&self, bot_id: i64, user_id: i64) -> models::UserVoted {
         let voter_ts = sqlx::query!(
             "SELECT timestamps FROM bot_voters WHERE bot_id = $1 AND user_id = $2",
             bot_id,
@@ -1303,6 +1303,53 @@ impl Database {
 
         let voted = sqlx::query!(
             "SELECT extract(epoch from expires_on) AS expiry FROM user_vote_table WHERE user_id = $1",
+            user_id,
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        let expiry = match voted {
+            Ok(voted) => {
+                voted.expiry.unwrap_or_default()
+            },
+            Err(_) => {
+                BigDecimal::from_u64(0).unwrap_or_default()
+            }
+        }.to_u64().unwrap_or_default();
+
+        let vote_ts = match voter_ts {
+            Ok(ts) => {
+                ts.timestamps.unwrap_or_default()
+            }
+            _ => {
+                Vec::new()
+            }
+        };
+
+        let now = chrono::Utc::now().timestamp() as u64;
+        
+        let vote_len = vote_ts.len().try_into().unwrap();
+
+        models::UserVoted {
+            votes: vote_len,
+            expiry,
+            vote_right_now: now > expiry,
+            voted: vote_len > 0,
+            timestamps: vote_ts,
+        }
+    }
+
+    pub async fn get_user_server_voted(&self, server_id: i64, user_id: i64) -> models::UserVoted {
+        let voter_ts = sqlx::query!(
+            "SELECT timestamps FROM server_voters WHERE guild_id = $1 AND user_id = $2",
+            server_id,
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        let voted = sqlx::query!(
+            "SELECT extract(epoch from expires_on) AS expiry FROM user_server_vote_table WHERE user_id = $1",
             user_id,
         )
         .fetch_one(&self.pool)
@@ -2073,7 +2120,7 @@ impl Database {
 
     pub async fn get_profile(&self, user_id: i64) -> Option<models::Profile> {
         let row = sqlx::query!(
-            "SELECT description, site_lang, state, user_css, profile_css, 
+            "SELECT flags, description, site_lang, state, user_css, profile_css, 
             vote_reminder_channel::text, experiments FROM users WHERE user_id = $1",
             user_id
         )
@@ -2141,7 +2188,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
                 user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
@@ -2179,6 +2226,7 @@ impl Database {
             packs,
             action_logs,
             user_experiments,
+            flags: row.flags,
             description_raw: description,
             description: description_parsed, 
             vote_reminder_channel: row.vote_reminder_channel,
@@ -2677,7 +2725,7 @@ impl Database {
                 guild_count: row.guild_count.unwrap_or_default(),
                 votes: row.votes.unwrap_or_default(),
                 nsfw: row.nsfw.unwrap_or_default(),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
             });
         }
 
@@ -2718,7 +2766,7 @@ impl Database {
                 guild_count: row.guild_count.unwrap_or_default(),
                 votes: row.votes.unwrap_or_default(),
                 nsfw: row.nsfw.unwrap_or_default(),
-                flags: row.flags.unwrap_or_default(),
+                flags: row.flags,
             });
         }
 
