@@ -1152,7 +1152,7 @@ impl fmt::Display for GuildInviteError {
             Self::LoginRequired => "You must login in order to join this server!".to_string(),
             Self::StaffReview => "This server is currently under review by Fates List Staff and not accepting invites at this time!".to_string(),
             Self::NotAcceptingInvites => "This server is private and not accepting invites at this time!".to_string(),
-            Self::ServerBanned => "This server has been banned from Fates List. If you are a staff member of this server, contact Fates List Support for more information.".to_string(),
+            Self::ServerBanned => "This server has been banned (or denied due to requiring small changes) from Fates List. If you are a staff member of this server, contact Fates List Support for more information.".to_string(),
             Self::WhitelistRequired(s) => format!("You need to be whitelisted to join this server!<br/>{}", s),
             Self::Blacklisted => "You have been blacklisted from joining this server!".to_string(),
             Self::NoChannelFound => "Could not find channel to invite you to... Please ask the owner of this server to set an invite or set the invite channel for this server".to_string(),

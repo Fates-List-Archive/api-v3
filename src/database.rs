@@ -1563,7 +1563,7 @@ impl Database {
         // Get a state
         let state = models::State::try_from(state).unwrap_or(models::State::Approved);
 
-        if state == models::State::Banned {
+        if state == models::State::Banned || state == models::State::Denied {
             return Err(models::GuildInviteError::ServerBanned);
         } else if state == models::State::PrivateStaffOnly {
             return Err(models::GuildInviteError::StaffReview);
