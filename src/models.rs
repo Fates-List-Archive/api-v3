@@ -71,9 +71,8 @@ pub enum CommandType {
 }
 
 #[derive(
-    Eq, TryFromPrimitive, Serialize, Deserialize, PartialEq, Clone, Copy, Default, Debug, EnumIter
+    Eq, Serialize, Deserialize, PartialEq, Clone, Copy, Default, Debug, EnumIter
 )]
-#[repr(i32)]
 pub enum ImportSource {
     Rdl,
     Ibl,

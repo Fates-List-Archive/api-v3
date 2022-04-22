@@ -4,7 +4,6 @@
 use env_logger;
 
 use actix_cors::Cors;
-use actix_web::error::JsonPayloadError;
 use actix_web::dev::Service;
 use actix_web::http::uri::PathAndQuery;
 use actix_web::http::Uri;

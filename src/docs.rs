@@ -321,7 +321,7 @@ It is semi-automatically generated
 
 
 pub fn document_routes() -> String {
-    let mut docs: String = "**API URL**: ``https://next.fateslist.xyz`` *or* ``https://api.fateslist.xyz`` (for now, can change in future)\n".to_string();
+    let mut docs: String = "**API URL**: ``https://api.fateslist.xyz``\n**Widgets URL:** ``https://lynx.fateslist.xyz/widgets`` (docs for widgets available at https://lynx.fateslist.xyz/widgets)\n\n".to_string();
 
     // Add basic auth stuff
     docs += r#"
