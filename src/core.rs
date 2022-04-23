@@ -281,7 +281,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
     }
 }
 
-/// Search route. Uses PUT because request body
+/// Search route.
 #[get("/search")]
 async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();

@@ -1228,7 +1228,7 @@ impl Database {
         let user_i64 = user.id.parse::<i64>().unwrap();
 
         let check = sqlx::query!(
-            "SELECT state, api_token, user_css, js_allowed, username, site_lang FROM users WHERE user_id = $1",
+            "SELECT state, api_token, user_css, username, site_lang FROM users WHERE user_id = $1",
             user_i64,
         )
         .fetch_one(&self.pool)
