@@ -1319,7 +1319,7 @@ impl Database {
 
         let vote_ts = match voter_ts {
             Ok(ts) => {
-                ts.timestamps.unwrap_or_default()
+                ts.timestamps
             }
             _ => {
                 Vec::new()
@@ -1366,7 +1366,7 @@ impl Database {
 
         let vote_ts = match voter_ts {
             Ok(ts) => {
-                ts.timestamps.unwrap_or_default()
+                ts.timestamps
             }
             _ => {
                 Vec::new()
@@ -2941,6 +2941,88 @@ impl Database {
         }
     }
 
+    async fn avid_voter_flag(&self, user_id: i64) -> Result<(), models::VoteBotError> {
+        let rows = sqlx::query!(
+            "select distinct on (user_id, bot_id) timestamps from bot_voters where user_id = $1",
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if rows.is_err() {
+            let err = rows.err().unwrap();
+            error!("{:?}", err);
+            return Err(models::VoteBotError::SQLError(err));
+        }
+
+        let rows = rows.unwrap();
+
+        if rows.len() < 5 {
+            debug!("User {} has not voted for at least 5 different bots", user_id);
+            return Ok(());
+        }
+
+        let mut has_enough_bots = false;
+
+        for row in rows {
+            if row.timestamps.len() >= 3 {
+                has_enough_bots = true;
+            }
+        }
+
+        if !has_enough_bots {
+            debug!("User {} has not voted for at least one bot 3 seperate times", user_id);
+            return Ok(());
+        }
+
+        let rows = sqlx::query!(
+            "select distinct on (user_id, guild_id) timestamps from server_voters where user_id = $1",
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if rows.is_err() {
+            let err = rows.err().unwrap();
+            error!("{:?}", err);
+            return Err(models::VoteBotError::SQLError(err));
+        }
+
+        let rows = rows.unwrap();
+
+        if rows.len() < 3 {
+            debug!("User {} has not voted for at least 3 different servers", user_id);
+            return Ok(());
+        }
+
+        debug!("User {} meets requirements", user_id);
+        let err = sqlx::query!(
+            "UPDATE users SET flags = array_remove(flags, $1) WHERE user_id = $2",
+            models::UserFlags::AvidVoter as i32,
+            user_id
+        )
+        .execute(&self.pool)
+        .await;
+
+        if err.is_err() {
+            error!("Failed to update flags for user {}", user_id);
+        }
+
+        let err = sqlx::query!(
+            "UPDATE users SET flags = array_append(flags, $1) WHERE user_id = $2",
+            models::UserFlags::AvidVoter as i32,
+            user_id
+        )
+        .execute(&self.pool)
+        .await;
+
+        if err.is_err() {
+            error!("Failed to update flags for user {}", user_id);
+        }
+
+        Ok(())
+    }
+
     // Vote bot
     #[async_recursion]
     pub async fn vote_bot(
@@ -2984,28 +3066,27 @@ impl Database {
                     .await
                     .unwrap();
                 return self.vote_bot(user_id, bot_id, test).await;
-            } else {
-                let expiry_time = sqlx::query!(
-                    "SELECT expires_on FROM user_vote_table WHERE user_id = $1",
-                    user_id
-                )
-                .fetch_one(&self.pool)
-                .await;
-                if expiry_time.is_err() {
-                    return Err(models::VoteBotError::UnknownError(
-                        "Failed to get expiry time".to_string(),
-                    ));
-                }
-                let expiry_time = expiry_time.unwrap().expires_on.unwrap();
-                let time_left = expiry_time.timestamp() - chrono::offset::Utc::now().timestamp();
-                let seconds = time_left % 60;
-                let minutes = (time_left / 60) % 60;
-                let hours = (time_left / 60) / 60;
-                return Err(models::VoteBotError::Wait(format!(
-                    "{} hours, {} minutes, {} seconds",
-                    hours, minutes, seconds
-                )));
+            } 
+            let expiry_time = sqlx::query!(
+                "SELECT expires_on FROM user_vote_table WHERE user_id = $1",
+                user_id
+            )
+            .fetch_one(&self.pool)
+            .await;
+            if expiry_time.is_err() {
+                return Err(models::VoteBotError::UnknownError(
+                    "Failed to get expiry time".to_string(),
+                ));
             }
+            let expiry_time = expiry_time.unwrap().expires_on.unwrap();
+            let time_left = expiry_time.timestamp() - chrono::offset::Utc::now().timestamp();
+            let seconds = time_left % 60;
+            let minutes = (time_left / 60) % 60;
+            let hours = (time_left / 60) / 60;
+            return Err(models::VoteBotError::Wait(format!(
+                "{} hours, {} minutes, {} seconds",
+                hours, minutes, seconds
+            )));
         }
 
         self.final_vote_handler_bot(user_id, bot_id, test).await
@@ -3147,6 +3228,8 @@ impl Database {
                 .await
                 .map_err(models::VoteBotError::SQLError)?;
             }
+
+            self.avid_voter_flag(user_id).await?;
         }
 
         tx.commit().await.map_err(models::VoteBotError::SQLError)?;
@@ -3298,6 +3381,8 @@ impl Database {
                 .await
                 .map_err(models::VoteBotError::SQLError)?;
             }
+
+            self.avid_voter_flag(user_id).await?;
         }
 
         tx.commit().await.map_err(models::VoteBotError::SQLError)?;
