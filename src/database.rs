@@ -532,9 +532,12 @@ impl Database {
                     models::LongDescriptionType::try_from(data.long_description_type)
                         .unwrap_or(models::LongDescriptionType::MarkdownServerSide);
 
+                
+                let css = data.css.unwrap_or_default().replace("\\n", "\n").replace("\\t", "\t");
+
                 let long_description_parsed = converters::sanitize_description(
                     long_description_type,
-                    &data.long_description,
+                    &("<style>".to_string() + &css + "</style>\n\n" + &data.long_description),
                 );
 
                 // Tags
@@ -710,13 +713,7 @@ impl Database {
                     last_stats_post: data.last_stats_post,
                     last_updated_at: data.last_updated_at,
                     description: data.description,
-                    css: "<style>".to_string()
-                        + &data
-                            .css
-                            .unwrap_or_else(|| "".to_string())
-                            .replace("\\n", "\n")
-                            .replace("\\t", "\t")
-                        + "</style>",
+                    css: css, 
                     flags: data.flags,
                     banner_card: data.banner_card,
                     banner_page: data.banner_page,
