@@ -530,7 +530,7 @@ def post_stats(bot_id: int, guild_count: int):
         path: "/partners",
         path_params: &models::Empty {},
         query_params: &models::Empty {},
-        description: "Get policies (rules, privacy policy, terms of service)",
+        description: "Get current partnership list",
         request_body: &models::Empty {},
         response_body: &models::Partners::default(),
         auth_types: vec![]

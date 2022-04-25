@@ -1,6 +1,6 @@
 use crate::database;
 use actix_web::{error::ResponseError, http, HttpResponse};
-use indexmap::{indexmap, IndexMap};
+use indexmap::IndexMap;
 use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -387,6 +387,12 @@ pub struct ListStats {
     pub mem_committed: u64,
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct PartnerLinks {
+    discord: String,
+    website: String,
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Partner {
     pub id: String,
@@ -394,13 +400,13 @@ pub struct Partner {
     pub owner: String,
     pub image: String,
     pub description: String,
-    pub links: IndexMap<String, String>,
+    pub links: PartnerLinks,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Partners {
     pub partners: Vec<Partner>,
-    pub icons: IndexMap<String, String>,
+    pub icons: PartnerLinks,
 }
 
 impl Default for Partners {
@@ -412,12 +418,12 @@ impl Default for Partners {
                 owner: "12345678901234567".to_string(),
                 image: "".to_string(),
                 description: "Some random description".to_string(),
-                links: indexmap![
-                    "discord".to_string() => "https://discord.com/lmao".to_string(),
-                    "website".to_string() => "https://example.com".to_string(),
-                ],
+                links: PartnerLinks {
+                    discord: "https://discord.com/lmao".to_string(),
+                    website: "https://example.com".to_string(),
+                },
             }],
-            icons: IndexMap::new(),
+            icons: PartnerLinks::default(),
         }
     }
 }
@@ -450,7 +456,6 @@ pub struct DiscordData {
 
 pub struct AppConfig {
     pub secrets: Secrets,
-    pub policies: Policies,
     pub partners: Partners,
     pub discord: DiscordData,
     pub discord_http: serenity::http::Http,
@@ -478,15 +483,6 @@ impl Default for AppConfig {
 
         let secrets: Secrets = serde_json::from_str(&data).expect("JSON was not well-formatted");
 
-        // open policy.json, handle config
-        let mut file =
-            File::open(data_dir.to_owned() + "policy.json").expect("No policy.json file found");
-        let mut policies = String::new();
-        file.read_to_string(&mut policies).unwrap();
-
-        let policies: Policies =
-            serde_json::from_str(&policies).expect("JSON was not well-formatted");
-
         // open partners.json, handle config
         let mut file =
             File::open(data_dir.to_owned() + "partners.json").expect("No partners.json file found");
@@ -509,7 +505,6 @@ impl Default for AppConfig {
 
         AppConfig {
             secrets,
-            policies,
             partners,
             discord,
             discord_http: serenity::http::Http::new_with_token(&token_main),
@@ -933,12 +928,6 @@ pub struct VoteWebhookEvent {
     pub votes: i64,
     pub eid: String,
     pub test: bool,
-}
-
-#[derive(Deserialize, Serialize, Clone, Default)]
-pub struct Policies {
-    rules: IndexMap<String, IndexMap<String, Vec<String>>>,
-    privacy_policy: IndexMap<String, IndexMap<String, Vec<String>>>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]

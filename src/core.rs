@@ -87,13 +87,6 @@ async fn experiments(_req: HttpRequest) -> HttpResponse {
     })
 }
 
-// Policies
-#[get("/policies")]
-async fn policies(req: HttpRequest) -> HttpResponse {
-    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    HttpResponse::build(http::StatusCode::OK).json(&data.config.policies)
-}
-
 // Partners
 #[get("/partners")]
 async fn partners(req: HttpRequest) -> HttpResponse {

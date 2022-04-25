@@ -165,7 +165,6 @@ async fn main() -> std::io::Result<()> {
             .service(core::docs_tmpl)
             .service(core::enum_docs_tmpl)
             .service(core::experiments)
-            .service(core::policies)
             .service(core::partners)
             .service(core::get_bot)
             .service(core::get_server)
