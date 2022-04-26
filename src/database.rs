@@ -532,12 +532,16 @@ impl Database {
                     models::LongDescriptionType::try_from(data.long_description_type)
                         .unwrap_or(models::LongDescriptionType::MarkdownServerSide);
 
+                let css_raw = data.css.unwrap_or_default().replace("\\n", "\n").replace("\\t", "\t");
                 
-                let css = data.css.unwrap_or_default().replace("\\n", "\n").replace("\\t", "\t");
+                let css = converters::sanitize_description(
+                    models::LongDescriptionType::Html,
+                    &("<style>".to_string() + &css_raw + "</style>")
+                );
 
                 let long_description_parsed = converters::sanitize_description(
                     long_description_type,
-                    &("<style>".to_string() + &css + "</style>\n\n" + &data.long_description),
+                    &data.long_description,
                 );
 
                 // Tags
@@ -713,7 +717,8 @@ impl Database {
                     last_stats_post: data.last_stats_post,
                     last_updated_at: data.last_updated_at,
                     description: data.description,
-                    css: css, 
+                    css,
+                    css_raw: css_raw,
                     flags: data.flags,
                     banner_card: data.banner_card,
                     banner_page: data.banner_page,
@@ -814,6 +819,13 @@ impl Database {
                 )
                 .unwrap_or(models::LongDescriptionType::MarkdownServerSide);
                 
+                let css_raw = row.css.unwrap_or_default().replace("\\n", "\n").replace("\\t", "\t");
+
+                let css = converters::sanitize_description(
+                    models::LongDescriptionType::Html,
+                    &("<style>".to_string() + &css_raw + "</style>")
+                );
+
                 let long_description_parsed = converters::sanitize_description(
                     long_description_type,
                     &row.long_description,
@@ -856,7 +868,8 @@ impl Database {
                     guild_count: row.guild_count.unwrap_or_default(),
                     invite_amount: row.invite_amount.unwrap_or_default(),
                     invite_link: None,
-                    css: "<style>".to_string() + &row.css.unwrap_or_default() + "</style>",
+                    css,
+                    css_raw: css_raw, 
                     state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                     website: row.website,
                     total_votes: row.total_votes.unwrap_or_default(),
