@@ -7,7 +7,7 @@ use chrono::TimeZone;
 use chrono::Utc;
 use deadpool_redis::redis::AsyncCommands;
 use deadpool_redis::{Config, Runtime};
-use indexmap::{indexmap, IndexMap};
+use indexmap::indexmap;
 use log::{debug, error};
 use serde::Serialize;
 use serde_json::json;
@@ -607,7 +607,7 @@ impl Database {
                 }
 
                 // Commands
-                let mut commands = IndexMap::new();
+                let mut commands = Vec::new();
 
                 let commands_rows = sqlx::query!(
                     "SELECT id, cmd_type, description, args, examples, 
@@ -622,37 +622,21 @@ impl Database {
                 debug!("Commands: {:?}", commands_rows);
 
                 for command in commands_rows {
-                    let groups = command.groups.clone();
-                    for group in groups {
-                        if !commands.contains_key(&group) {
-                            debug!("Dropping command key {key}", key = &group.to_string());
-                            commands.insert(group.clone(), Vec::new());
-                        }
-                        
-                        /* 
-                        To future readers of this code, yes clone is needed as we are moving
-                        the command multiple times, hence each value has to be clones onto the 
-                        struct. Should kinda make sense intuitively.
-                        */
-                        commands
-                            .get_mut(&group.clone())
-                            .unwrap()
-                            .push(models::BotCommand {
-                                id: Some(command.id.to_string()),
-                                nsfw: command.nsfw.unwrap_or(false),
-                                cmd_type: models::CommandType::try_from(command.cmd_type)
-                                    .unwrap_or(models::CommandType::SlashCommandGlobal),
-                                description: command.description.clone().to_string(),
-                                args: command.args.clone(),
-                                examples: command.examples.clone(),
-                                premium_only: command.premium_only,
-                                notes: command.notes.clone(),
-                                doc_link: command.doc_link.clone(),
-                                name: command.name.clone(),
-                                vote_locked: command.vote_locked,
-                                groups: command.groups.clone(),
-                            });
-                    }
+                    commands.push(models::BotCommand {
+                        id: Some(command.id.to_string()),
+                        nsfw: command.nsfw.unwrap_or(false),
+                        cmd_type: models::CommandType::try_from(command.cmd_type)
+                            .unwrap_or(models::CommandType::SlashCommandGlobal),
+                        description: command.description.to_string(),
+                        args: command.args,
+                        examples: command.examples,
+                        premium_only: command.premium_only,
+                        notes: command.notes,
+                        doc_link: command.doc_link,
+                        name: command.name,
+                        vote_locked: command.vote_locked,
+                        groups: command.groups,
+                    });
                 }
 
                 // Resources
