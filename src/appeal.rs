@@ -28,6 +28,16 @@ async fn appeal_bot(
         return models::CustomError::ForbiddenGeneric.error_response();
     }
 
+    let rl = data.database.get_ratelimit(models::Ratelimit::Appeal, user_id).await;
+
+    if rl.is_some() && rl.unwrap() > 0 {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: true,
+            reason: Some(format!("Please wait {} seconds before retrying this appeal!", rl.unwrap())),
+            context: Some("Ratelimit".to_string()),
+        })
+    }
+
     let bot = data.database.get_bot(bot_id).await;
 
     if bot.is_none() {
@@ -102,6 +112,8 @@ async fn appeal_bot(
             });
         }
     }
+
+    data.database.set_ratelimit(models::Ratelimit::Appeal, user_id).await;
 
     let msg = data.config.discord.channels.appeals_channel.send_message(&data.config.discord_http, |m| {
         m.content(data.config.discord.roles.staff_ping_add_role.mention());

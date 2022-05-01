@@ -1,6 +1,5 @@
 use crate::database;
 use actix_web::{error::ResponseError, http, HttpResponse};
-use indexmap::IndexMap;
 use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -46,6 +45,20 @@ impl UserExperiments {
             reason: Some("Experiment not enabled".to_string()),
             context: Some(format!("{:?}", self)),
         });
+    }
+}
+
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, EnumIter
+)]
+#[repr(i32)]
+pub enum Ratelimit {
+    Appeal = 30,
+}
+
+impl fmt::Display for Ratelimit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }
 

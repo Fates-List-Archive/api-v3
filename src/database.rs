@@ -48,6 +48,21 @@ impl Database {
         }
     }
 
+    /// Get ratelimit
+    pub async fn get_ratelimit(&self, identifier: models::Ratelimit, user_id: i64) -> Option<i64> {
+        let mut conn = self.redis.get().await.unwrap();
+        let key = format!("rlratelimit:{}:{}", identifier.to_string(), user_id);
+        let ratelimit: Option<i64> = conn.ttl(&key).await.unwrap_or_else(|_| None);
+        ratelimit
+    }
+
+    /// Set ratelimit
+    pub async fn set_ratelimit(&self, identifier: models::Ratelimit, user_id: i64) {
+        let mut conn = self.redis.get().await.unwrap();
+        let key = format!("rlratelimit:{}:{}", identifier.to_string(), user_id);
+        conn.set_ex(&key, 0, identifier as usize).await.unwrap_or_else(|_| 0);
+    }
+
     /// Only call this when absolutely *needed*
     pub fn get_postgres(&self) -> PgPool {
         self.pool.clone()
