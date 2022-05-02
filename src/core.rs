@@ -6,42 +6,39 @@ use actix_web::{get, http, patch, post, web, web::Json, HttpRequest, HttpRespons
 use log::error;
 use uuid::Uuid;
 use strum::IntoEnumIterator;
+use std::sync::Arc;
+use log::debug;
 
 #[get("/index")]
-async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> Json<models::Index> {
+async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> HttpResponse {
     let mut index = models::Index::new();
 
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    if info.target_type.as_ref().unwrap_or(&"bot".to_string()) == "bot" {
-        let cache = data.database.get_index_bots_from_cache().await;
+    let cache = data.database.index_cache.get(&info.target_type);
+        
+    if cache.is_some() {
+        return HttpResponse::Ok().json(cache.unwrap());
+    }
 
-        if cache.is_some() {
-            return Json(cache.unwrap());
-        }
-
+    let index = Arc::new(if info.target_type == models::TargetType::Bot {
         index.top_voted = data.database.index_bots(models::State::Approved).await;
         index.certified = data.database.index_bots(models::State::Certified).await;
         index.tags = data.database.bot_list_tags().await;
         index.new = data.database.index_new_bots().await;
         index.features = data.database.bot_features().await;
 
-        data.database.set_index_bots_to_cache(&index).await;
+        index
     } else {
-        let cache = data.database.get_index_servers_from_cache().await;
-
-        if cache.is_some() {
-            return Json(cache.unwrap());
-        }
-
         index.top_voted = data.database.index_servers(models::State::Approved).await;
         index.certified = data.database.index_servers(models::State::Certified).await;
         index.new = data.database.index_new_servers().await;
         index.tags = data.database.server_list_tags().await;
 
-        data.database.set_index_servers_to_cache(&index).await;
-    }
-    Json(index)
+        index 
+   });
+    data.database.index_cache.insert(info.target_type, index.clone()).await;
+    return HttpResponse::Ok().json(index);
 }
 
 #[get("/code/{vanity}")]
@@ -157,13 +154,23 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
         data.database.update_bot_invite_amount(id.id).await;
     }
 
-    let cached_bot = data.database.get_bot_from_cache(id.id).await;
-    match cached_bot {
-        Some(bot) => HttpResponse::build(http::StatusCode::OK).json(bot),
+    // Check bot cache
+    let cache = data.database.bot_cache.get(&id.id);
+    
+    match cache {
+        Some(bot) => {
+            debug!("Bot cache hit for {}", id.id);
+            HttpResponse::Ok().json(bot)
+        },
         None => {
+            debug!("Bot cache miss for {}", id.id);
             let bot = data.database.get_bot(id.id).await;
             match bot {
-                Some(bot_data) => HttpResponse::build(http::StatusCode::OK).json(bot_data),
+                Some(bot_data) => {
+                    let bot_data = Arc::new(bot_data);
+                    data.database.bot_cache.insert(id.id, bot_data.clone()).await;
+                    HttpResponse::Ok().json(bot_data)
+                },
                 _ => models::CustomError::NotFoundGeneric.error_response(),
             }
         }

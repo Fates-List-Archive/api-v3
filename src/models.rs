@@ -249,7 +249,7 @@ pub struct Search {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct IndexQuery {
-    pub target_type: Option<String>,
+    pub target_type: TargetType,
 }
 
 #[derive(Deserialize, Serialize, Clone)]

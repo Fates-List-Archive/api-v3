@@ -19,6 +19,7 @@ use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
 use std::sync::Arc;
 use std::time::Duration;
+use moka::future::Cache;
 
 #[derive(Clone)]
 pub struct Database {
@@ -27,6 +28,9 @@ pub struct Database {
     requests: reqwest::Client,
     discord_main: Arc<serenity::http::client::Http>,
     discord_server: Arc<serenity::http::client::Http>,
+    // Our moka caches
+    pub bot_cache: Cache<i64, Arc<models::Bot>>,
+    pub index_cache: Cache<models::TargetType, Arc<models::Index>>
 }
 
 impl Database {
@@ -43,6 +47,21 @@ impl Database {
                 .user_agent("Lightleap/0.1.0")
                 .build()
                 .unwrap(),
+            // Create our caches
+            bot_cache: Cache::builder()
+                // Time to live (TTL): 1 minute
+                .time_to_live(Duration::from_secs(60))
+                // Time to idle (TTI):  30 seconds
+                .time_to_idle(Duration::from_secs(30))
+                // Create the cache.
+                .build(),
+            index_cache: Cache::builder()
+                // Time to live (TTL): 1 minute
+                .time_to_live(Duration::from_secs(60))
+                // Time to idle (TTI):  30 seconds
+                .time_to_idle(Duration::from_secs(30))
+                // Create the cache.
+                .build(),
             discord_main,
             discord_server
         }
@@ -118,69 +137,8 @@ impl Database {
             .await
             .unwrap_or_else(|_| "".to_string());
         }
-        return user;
-    }
-
-    // Index cache functions
-    pub async fn set_index_bots_to_cache(&self, cache: &models::Index) {
-        let mut conn = self.redis.get().await.unwrap();
-        conn.set_ex(
-            "index-bots".to_string(),
-            serde_json::to_string(cache).unwrap(),
-            60,
-        )
-        .await
-        .unwrap_or_else(|_| "".to_string());
-    }
-    pub async fn set_index_servers_to_cache(&self, cache: &models::Index) {
-        let mut conn = self.redis.get().await.unwrap();
-        conn.set_ex(
-            "index-servers".to_string(),
-            serde_json::to_string(cache).unwrap(),
-            60,
-        )
-        .await
-        .unwrap_or_else(|_| "".to_string());
-    }
-
-    pub async fn get_index_bots_from_cache(&self) -> Option<models::Index> {
-        let mut conn = self.redis.get().await.unwrap();
-        let data: String = conn
-            .get("index-bots".to_string())
-            .await
-            .unwrap_or_else(|_| "".to_string());
-        if !data.is_empty() {
-            let bot: Result<models::Index, serde_json::error::Error> = serde_json::from_str(&data);
-            match bot {
-                Ok(data) => {
-                    return Some(data);
-                }
-                Err(_) => {
-                    return None;
-                }
-            }
-        }
-        None
-    }
-
-    pub async fn get_index_servers_from_cache(&self) -> Option<models::Index> {
-        let mut conn = self.redis.get().await.unwrap();
-        let data: String = conn
-            .get("index-servers".to_string())
-            .await
-            .unwrap_or_else(|_| "".to_string());
-        if !data.is_empty() {
-            let bot: Result<models::Index, serde_json::error::Error> = serde_json::from_str(&data);
-            match bot {
-                Ok(data) => {
-                    return Some(data);
-                }
-                Err(_) => {
-                    return None;
-                }
-            }
-        }
-        None
+        
+        user
     }
 
     pub async fn index_bots(&self, state: models::State) -> Vec<models::IndexBot> {
@@ -447,27 +405,6 @@ impl Database {
             Ok(count) => count.count.unwrap_or(0) > 0,
             Err(_) => false,
         }
-    }
-
-    // Cache functions
-    pub async fn get_bot_from_cache(&self, bot_id: i64) -> Option<models::Bot> {
-        let mut conn = self.redis.get().await.unwrap();
-        let data: String = conn
-            .get("bot:".to_string() + &bot_id.to_string())
-            .await
-            .unwrap_or_else(|_| "".to_string());
-        if !data.is_empty() {
-            let bot: Result<models::Bot, serde_json::error::Error> = serde_json::from_str(&data);
-            match bot {
-                Ok(data) => {
-                    return Some(data);
-                }
-                Err(_) => {
-                    return None;
-                }
-            }
-        }
-        None
     }
 
     pub async fn get_search_from_cache(&self, search: &models::SearchQuery) -> Option<models::Search> {
@@ -780,14 +717,6 @@ impl Database {
                 .await
                 .unwrap();
 
-                let mut conn = self.redis.get().await.unwrap();
-                conn.set_ex(
-                    "bot:".to_string() + &bot_id.to_string(),
-                    serde_json::to_string(&bot).unwrap(),
-                    60,
-                )
-                .await
-                .unwrap_or_else(|_| "".to_string());
                 Some(bot)
             }
             Err(err) => {

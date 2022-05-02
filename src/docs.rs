@@ -447,7 +447,7 @@ def post_stats(bot_id: int, guild_count: int):
         path: "/index",
         path_params: &models::Empty {},
         query_params: &models::IndexQuery {
-            target_type: Some("bot".to_string()),
+            target_type: models::TargetType::Server,
         },
         description: "Returns the index for bots and servers",
         request_body: &models::Empty {},
