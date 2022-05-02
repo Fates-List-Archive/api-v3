@@ -283,17 +283,20 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
 
 /// Search route.
 #[get("/search")]
-async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> Json<models::Search> {
+async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let search = info.into_inner();
 
-    let cached_resp = data.database.get_search_from_cache(&search).await;
+    let search_key = format!("{query}-{gc_from}-{gc_to}", query = search.q, gc_from = search.gc_from, gc_to = search.gc_to);
+
+    let cached_resp = data.database.search_cache.get(&search_key);
     match cached_resp {
-        Some(resp) => Json(resp),
+        Some(resp) => HttpResponse::Ok().json(resp),
         None => {
-            let search_resp = data.database.search(search).await;
-            Json(search_resp)
+            let search_resp = Arc::new(data.database.search(search).await);
+            data.database.search_cache.insert(search_key, search_resp.clone()).await;
+            HttpResponse::Ok().json(search_resp)
         }
     }
 }

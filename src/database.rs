@@ -30,7 +30,8 @@ pub struct Database {
     discord_server: Arc<serenity::http::client::Http>,
     // Our moka caches
     pub bot_cache: Cache<i64, Arc<models::Bot>>,
-    pub index_cache: Cache<models::TargetType, Arc<models::Index>>
+    pub index_cache: Cache<models::TargetType, Arc<models::Index>>,
+    pub search_cache: Cache<String, Arc<models::Search>>
 }
 
 impl Database {
@@ -60,6 +61,13 @@ impl Database {
                 .time_to_live(Duration::from_secs(60))
                 // Time to idle (TTI):  30 seconds
                 .time_to_idle(Duration::from_secs(30))
+                // Create the cache.
+                .build(),
+            search_cache: Cache::builder()
+                // Time to live (TTL): 1 minute 15 seconds
+                .time_to_live(Duration::from_secs(75))
+                // Time to idle (TTI):  45 seconds
+                .time_to_idle(Duration::from_secs(45))
                 // Create the cache.
                 .build(),
             discord_main,
@@ -405,28 +413,6 @@ impl Database {
             Ok(count) => count.count.unwrap_or(0) > 0,
             Err(_) => false,
         }
-    }
-
-    pub async fn get_search_from_cache(&self, search: &models::SearchQuery) -> Option<models::Search> {
-        let filters_key = format!("{gc_from}-{gc_to}", gc_from=search.gc_from, gc_to=search.gc_to);
-        
-        let mut conn = self.redis.get().await.unwrap();
-        let data: String = conn
-            .get("search:".to_string() + &search.q + &filters_key)
-            .await
-            .unwrap_or_else(|_| "".to_string());
-        if !data.is_empty() {
-            let res: Result<models::Search, serde_json::error::Error> = serde_json::from_str(&data);
-            match res {
-                Ok(data) => {
-                    return Some(data);
-                }
-                Err(_) => {
-                    return None;
-                }
-            }
-        }
-        None
     }
 
     // Cache functions
@@ -989,26 +975,13 @@ impl Database {
             });
         }
 
-        let res = models::Search {
+        models::Search {
             bots,
             servers,
             tags,
             profiles,
             packs,
-        };
-
-        let filters_key = format!("{gc_from}-{gc_to}", gc_from=search.gc_from, gc_to=search.gc_to);
-
-        let mut conn = self.redis.get().await.unwrap();
-        conn.set_ex(
-            "search:".to_string() + &search.q + &filters_key,
-            serde_json::to_string(&res).unwrap(),
-            60,
-        )
-        .await
-        .unwrap_or_else(|_| "".to_string());
-
-        res
+        }
     }
 
     // Search bot/server tags
