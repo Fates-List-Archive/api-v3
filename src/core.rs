@@ -268,16 +268,16 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
     match cache {
         Some(server) => {
             debug!("Server cache hit for {}", id.id);
-            server.invite_link = invite_link;
-            HttpResponse::Ok().json(server)
+            let mut server_clone = (*server).clone();
+            server_clone.invite_link = invite_link;
+            HttpResponse::Ok().json(server_clone)
         },
         None => {
             debug!("Server cache miss for {}", id.id);
             let server = data.database.get_server(id.id).await;
             match server {
-                Some(server_data) => {
-                    let server_data = Arc::new(server_data);
-                    data.database.server_cache.insert(id.id, server_data.clone()).await;
+                Some(mut server_data) => {
+                    data.database.server_cache.insert(id.id, Arc::new(server_data.clone())).await;
                     // After inserting server into cache, then add invite link
                     server_data.invite_link = invite_link;
                     HttpResponse::Ok().json(server_data)
