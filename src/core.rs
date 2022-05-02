@@ -262,19 +262,26 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
         data.database.update_server_invite_amount(id.id).await;
     }
 
-    let cached_server = data.database.get_server_from_cache(id.id).await;
-    match cached_server {
-        Some(mut server) => {
+    // Check server cache
+    let cache = data.database.server_cache.get(&id.id);
+    
+    match cache {
+        Some(server) => {
+            debug!("Server cache hit for {}", id.id);
             server.invite_link = invite_link;
-            HttpResponse::build(http::StatusCode::OK).json(server)
-        }
+            HttpResponse::Ok().json(server)
+        },
         None => {
+            debug!("Server cache miss for {}", id.id);
             let server = data.database.get_server(id.id).await;
             match server {
-                Some(mut server_data) => {
+                Some(server_data) => {
+                    let server_data = Arc::new(server_data);
+                    data.database.server_cache.insert(id.id, server_data.clone()).await;
+                    // After inserting server into cache, then add invite link
                     server_data.invite_link = invite_link;
-                    HttpResponse::build(http::StatusCode::OK).json(server_data)
-                }
+                    HttpResponse::Ok().json(server_data)
+                },
                 _ => models::CustomError::NotFoundGeneric.error_response(),
             }
         }

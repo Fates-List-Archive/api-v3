@@ -30,8 +30,9 @@ pub struct Database {
     discord_server: Arc<serenity::http::client::Http>,
     // Our moka caches
     pub bot_cache: Cache<i64, Arc<models::Bot>>,
+    pub server_cache: Cache<i64, Arc<models::Server>>,
     pub index_cache: Cache<models::TargetType, Arc<models::Index>>,
-    pub search_cache: Cache<String, Arc<models::Search>>
+    pub search_cache: Cache<String, Arc<models::Search>>,
 }
 
 impl Database {
@@ -50,6 +51,13 @@ impl Database {
                 .unwrap(),
             // Create our caches
             bot_cache: Cache::builder()
+                // Time to live (TTL): 1 minute
+                .time_to_live(Duration::from_secs(60))
+                // Time to idle (TTI):  30 seconds
+                .time_to_idle(Duration::from_secs(30))
+                // Create the cache.
+                .build(),
+            server_cache: Cache::builder()
                 // Time to live (TTL): 1 minute
                 .time_to_live(Duration::from_secs(60))
                 // Time to idle (TTI):  30 seconds
@@ -415,28 +423,6 @@ impl Database {
         }
     }
 
-    // Cache functions
-    pub async fn get_server_from_cache(&self, server_id: i64) -> Option<models::Server> {
-        let mut conn = self.redis.get().await.unwrap();
-        let data: String = conn
-            .get("server:".to_string() + &server_id.to_string())
-            .await
-            .unwrap_or_else(|_| "".to_string());
-        if !data.is_empty() {
-            let server: Result<models::Server, serde_json::error::Error> =
-                serde_json::from_str(&data);
-            match server {
-                Ok(data) => {
-                    return Some(data);
-                }
-                Err(_) => {
-                    return None;
-                }
-            }
-        }
-        None
-    }
-
     // Get bot
     pub async fn get_bot(&self, bot_id: i64) -> Option<models::Bot> {
         let row = sqlx::query!(
@@ -770,7 +756,7 @@ impl Database {
                     }
                 }
 
-                let res = Some(models::Server {
+                Some(models::Server {
                     flags: row.flags,
                     description: row.description,
                     long_description: long_description_parsed,
@@ -793,18 +779,7 @@ impl Database {
                     user: self.get_server_user(server_id).await,
                     tags,
                     vanity: self.get_vanity_from_id(server_id).await,
-                });
-
-                let mut conn = self.redis.get().await.unwrap();
-                conn.set_ex(
-                    "server:".to_string() + &server_id.to_string(),
-                    serde_json::to_string(&res).unwrap(),
-                    60,
-                )
-                .await
-                .unwrap_or_else(|_| "".to_string());
-
-                res
+                })
             }
             Err(err) => {
                 error!("{}", err);
