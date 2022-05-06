@@ -106,6 +106,14 @@ impl Database {
         conn.set_ex(&key, 0, identifier as usize).await.unwrap_or_else(|_| 0);
     }
 
+    pub async fn add_refresh_token(&self, access_token: &str, client_id: &str, client_secret: &str, id: i64) -> String {
+        let mut conn = self.redis.get().await.unwrap();
+        let key = format!("clitoken:{}:{}:{}:{}", access_token, client_id, client_secret, id);
+        let refresh_token = converters::create_token(128);
+        conn.set_ex(&key, &refresh_token, 60*60*24).await.unwrap_or_else(|_| 0);    
+        refresh_token    
+    }
+
     /// Only call this when absolutely *needed*
     pub fn get_postgres(&self) -> PgPool {
         self.pool.clone()
@@ -384,6 +392,30 @@ impl Database {
     pub async fn authorize_user(&self, user_id: i64, token: &str) -> bool {
         if token.is_empty() {
             return false;
+        }
+
+        // Frostpaw = access token, 15 minutes time only
+        if token.starts_with("Frostpaw ") {
+            let data = self.client_data.get(&token.replace("Frostpaw ", ""));
+            if data.is_none() {
+                return false;
+            } 
+            let data = data.unwrap();
+            if data.user_id != user_id {
+                return false;
+            }
+
+            let row = sqlx::query!(
+                "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2",
+                user_id,
+                data.token,
+            )
+            .fetch_one(&self.pool)
+            .await;
+            return match row {
+                Ok(count) => count.count.unwrap_or(0) > 0,
+                Err(_) => false,
+            };
         }
 
         let row = sqlx::query!(
@@ -1178,6 +1210,7 @@ impl Database {
                 bot: false,
                 status: models::Status::Unknown,
             },
+            refresh_token: None,
             user_experiments: self.get_user_experiments(user_i64).await,
             token,
             state,

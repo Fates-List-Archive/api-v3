@@ -106,9 +106,9 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 // These clones arent easy to avoid
                 let blood = info.frostpaw_blood.clone().unwrap();
                 let claw = info.frostpaw_claw.clone().unwrap();
-                let claw_unseathe_time = info.frostpaw_claw_unseathe_time.clone().unwrap();
+                let claw_unseathe_time = info.frostpaw_claw_unseathe_time.unwrap();
 
-                let client = data.database.get_frostpaw_client(blood).await;
+                let client = data.database.get_frostpaw_client(blood.clone()).await;
                 if client.is_none() {
                     return HttpResponse::BadRequest().json(models::APIResponse {
                         done: false,
@@ -119,7 +119,9 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 let client = client.unwrap();
 
                 // Now check HMAC
-                let mac = HmacSha512::new_from_slice(client.secret.unwrap().as_bytes());
+                let secret = client.secret.unwrap();
+
+                let mac = HmacSha512::new_from_slice(secret.as_bytes());
     
                 if mac.is_err() {
                     error!("Failed to create HMAC");
@@ -153,8 +155,9 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                     token: user.token,
                 })).await;
 
-                // Put new access token in user struct
-                user.token = access_token;
+                // Put new access token and refresh token in user struct
+                user.token = access_token.clone();
+                user.refresh_token = Some(data.database.add_refresh_token(&access_token, &blood, &secret, user.user.id.parse().unwrap()).await);
 
                 return HttpResponse::Ok().json(user);
             }

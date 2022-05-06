@@ -312,13 +312,21 @@ pub struct OauthDoQuery {
     pub frostpaw_claw_unseathe_time: Option<i64>, // Custom client reported current time
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct FrostpawClient {
     pub id: String,
     pub name: String,
     pub domain: String,
     pub privacy_policy: String,
     pub secret: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct FrostpawTokenReset {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub client_id: String,
+    pub secret: String
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -340,6 +348,7 @@ pub struct OauthUser {
 pub struct OauthUserLogin {
     pub state: UserState,
     pub token: String,
+    pub refresh_token: Option<String>,
     pub user: User,
     pub site_lang: String,
     pub css: Option<String>,

@@ -919,6 +919,20 @@ Once login succeeds and is authorized by the user, then the user will be redirec
     });
 
     docs += &doc( models::Route {
+        title: "Get Frostpaw Client",
+        method: "GET",
+        path: "/frostpaw/clients/{id}",
+        description: r#"
+Returns the Frostpaw client with the given ID.
+        "#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::FrostpawClient::default(),
+        auth_types: vec![]
+    });
+
+    docs += &doc( models::Route {
         title: "Create OAuth2 Login",
         method: "POST",
         path: "/oauth2",
