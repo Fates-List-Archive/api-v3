@@ -904,6 +904,8 @@ Returns the oauth2 link used to login with. ``reason`` contains the state UUID
 - If you are a custom client, then ignore the state present here and instead set `state` to `Bayshine.${YOUR CLIENT ID}.${CURRENT TIME}.${HMAC PAYLOAD}` where 
 client ID is the client ID given during whitelisting, CURRENT TIME is the current time in Unix Epoch and HMAC PAYLOAD is that same current time HMAC-SHA256
 signed with your client secret given to you during whitelisting. **You must calculate state server side**
+
+Once login succeeds and is authorized by the user, then the user will be redirected to ${YOUR DOMAIN}/frostpaw?data=${BASE64 encoded OauthUserLogin}
 "#,
         path_params: &models::Empty {},
         query_params: &models::Empty {},
@@ -923,15 +925,23 @@ signed with your client secret given to you during whitelisting. **You must calc
         description: r#"
 Creates a oauth2 login given a code. 
 
+**The below is already done for you by the actual site**
+
 - Set `frostpaw` in the JSON if you are a custom client
 - `Frostpaw-Server` header must be set to `https://fateslist.xyz`
+- ``frostpaw_blood`` (client ID), ``frostpaw_claw`` (hmac'd time you sent) and 
+``frostpaw_claw_unseathe_time`` (time you sent) are internal fields used by the 
+site to login.
 "#,
         path_params: &models::Empty {},
         query_params: &models::Empty {},
         request_body: &models::OauthDoQuery {
             code: "code from discord oauth".to_string(),
             state: Some("Random UUID right now".to_string()),
-            frostpaw: true
+            frostpaw: true,
+            frostpaw_blood: None,
+            frostpaw_claw: None,
+            frostpaw_claw_unseathe_time: None
         },
         response_body: &models::OauthUserLogin::default(),
         auth_types: vec![]

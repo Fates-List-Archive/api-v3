@@ -1,5 +1,6 @@
 // Endpoints to handle login/logout
 use crate::models;
+use crate::converters;
 use actix_web::cookie::time::Duration as CookieDuration;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::http::header::HeaderValue;
@@ -7,7 +8,12 @@ use actix_web::{delete, get, post, web, HttpRequest, HttpResponse};
 use log::error;
 use std::collections::HashMap;
 use std::time::Duration;
+use std::sync::Arc;
 use uuid::Uuid;
+use sha2::Sha512;
+use hmac::{Hmac, Mac};
+
+type HmacSha512 = Hmac<Sha512>;
 
 /// Returns the oauth2 link to use for login
 #[get("/oauth2")]
@@ -25,6 +31,23 @@ async fn get_oauth2(req: HttpRequest) -> HttpResponse {
         reason: Some(state),
         context: Some(url),
     })
+}
+
+/// Get client info
+#[get("/frostpaw/clients/{client_id}")]
+async fn get_frostpaw_client(req: HttpRequest, client_id: web::Path<String>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let client = data.database.get_frostpaw_client(client_id.into_inner()).await;
+    if client.is_none() {
+        return HttpResponse::NotFound().json(models::APIResponse {
+            done: false,
+            reason: Some("Client not found".to_string()),
+            context: None,
+        });
+    }
+    let mut client = client.unwrap();
+    client.secret = None;
+    HttpResponse::Ok().json(client)
 }
 
 /// Creates a oauth2 login
@@ -67,10 +90,73 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 context: None,
             })
         }
-        Ok(user) => {
+        Ok(mut user) => {
             // Check for a frostpaw login
             if info.frostpaw {
                 // If a frostpaw custom client login is used 
+                // Check claw with blood
+                if info.frostpaw_blood.is_none() || info.frostpaw_claw.is_none() || info.frostpaw_claw_unseathe_time.is_none() {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some("Frostpaw login requires blood, claw, and claw unseathe time".to_string()),
+                        context: None,
+                    });
+                }
+
+                // These clones arent easy to avoid
+                let blood = info.frostpaw_blood.clone().unwrap();
+                let claw = info.frostpaw_claw.clone().unwrap();
+                let claw_unseathe_time = info.frostpaw_claw_unseathe_time.clone().unwrap();
+
+                let client = data.database.get_frostpaw_client(blood).await;
+                if client.is_none() {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some("Frostpaw login requires a valid client ID".to_string()),
+                        context: None,
+                    });
+                }
+                let client = client.unwrap();
+
+                // Now check HMAC
+                let mac = HmacSha512::new_from_slice(client.secret.unwrap().as_bytes());
+    
+                if mac.is_err() {
+                    error!("Failed to create HMAC");
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some("Failed to create HMAC".to_string()),
+                        context: None,
+                    });
+                }
+        
+                let mut mac = mac.unwrap();        
+
+                mac.update(claw_unseathe_time.to_string().as_bytes());
+
+                let expected_hmac = hex::encode(mac.finalize().into_bytes());
+
+                if expected_hmac != claw {
+                    return HttpResponse::BadRequest().json(models::APIResponse {
+                        done: false,
+                        reason: Some(format!("Expected HMAC of {expected} but got {got}", expected = expected_hmac, got = claw)),
+                        context: None,
+                    });
+                }
+
+                // OK, now that we are reasonably confident about client, we can create the frostpaw login
+                let access_token = converters::create_token(64);
+                
+                data.database.client_data.insert(access_token.clone(), Arc::new(models::FrostpawLogin {
+                    client_id: client.id,
+                    user_id: user.user.id.parse().unwrap(),
+                    token: user.token,
+                })).await;
+
+                // Put new access token in user struct
+                user.token = access_token;
+
+                return HttpResponse::Ok().json(user);
             }
 
             let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());

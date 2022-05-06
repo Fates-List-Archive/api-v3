@@ -33,6 +33,7 @@ pub struct Database {
     pub server_cache: Cache<i64, Arc<models::Server>>,
     pub index_cache: Cache<models::TargetType, Arc<models::Index>>,
     pub search_cache: Cache<String, Arc<models::Search>>,
+    pub client_data: Cache<String, Arc<models::FrostpawLogin>>,
 }
 
 impl Database {
@@ -76,6 +77,13 @@ impl Database {
                 .time_to_live(Duration::from_secs(75))
                 // Time to idle (TTI):  45 seconds
                 .time_to_idle(Duration::from_secs(45))
+                // Create the cache.
+                .build(),
+            client_data: Cache::builder()
+                // Time to live (TTL): 15 minutes
+                .time_to_live(Duration::from_secs(15 * 60))
+                // Time to idle (TTI):  45 seconds
+                .time_to_idle(Duration::from_secs(0))
                 // Create the cache.
                 .build(),
             discord_main,
@@ -3379,5 +3387,27 @@ impl Database {
         }
 
         Ok(())
+    }
+
+    pub async fn get_frostpaw_client(&self, id: String) -> Option<models::FrostpawClient> {
+        let row = sqlx::query!(
+            "SELECT id, name, domain, privacy_policy, secret FROM frostpaw_clients WHERE id = $1",
+            id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return None;
+        }
+        let row = row.unwrap();
+
+        Some(models::FrostpawClient {
+            id: row.id,
+            name: row.name,
+            domain: row.domain,
+            privacy_policy: row.privacy_policy,
+            secret: Some(row.secret),
+        })
     }
 }

@@ -306,7 +306,26 @@ pub struct PreviewResponse {
 pub struct OauthDoQuery {
     pub code: String,
     pub state: Option<String>,
-    pub frostpaw: bool
+    pub frostpaw: bool, // Custom client or not
+    pub frostpaw_blood: Option<String>, // Custom client ID
+    pub frostpaw_claw: Option<String>, // Custom client hmac data
+    pub frostpaw_claw_unseathe_time: Option<i64>, // Custom client reported current time
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct FrostpawClient {
+    pub id: String,
+    pub name: String,
+    pub domain: String,
+    pub privacy_policy: String,
+    pub secret: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct FrostpawLogin {
+    pub client_id: String,
+    pub user_id: i64,
+    pub token: String, // User token
 }
 
 #[derive(Deserialize, Serialize, Clone)]

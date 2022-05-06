@@ -184,6 +184,7 @@ async fn main() -> std::io::Result<()> {
             .service(login::get_oauth2)
             .service(login::del_oauth2)
             .service(login::do_oauth2)
+            .service(login::get_frostpaw_client)
             
             // Security
             .service(security::new_bot_token)
