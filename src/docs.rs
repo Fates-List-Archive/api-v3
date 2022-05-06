@@ -363,7 +363,9 @@ before the user token such as `User abcdef` is supported and can be
 used to avoid ambiguity but is not required outside of endpoints that 
 have both a user and a bot authentication option such as Get Votes. 
 In such endpoints, the default will always be a bot auth unless 
-you prefix the token with `User`
+you prefix the token with `User`. **A access token (for custom clients)
+can also be used on *most* endpoints as long as the token is prefixed with 
+``Frostpaw``**
 "#;
 
     // API Response route
@@ -925,10 +927,32 @@ Once login succeeds and is authorized by the user, then the user will be redirec
         description: r#"
 Returns the Frostpaw client with the given ID.
         "#,
-        path_params: &models::Empty {},
+        path_params: &models::StringIDPath {
+            id: "client id here".to_string(),
+        },
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::FrostpawClient::default(),
+        auth_types: vec![]
+    });
+
+    docs += &doc( models::Route {
+        title: "Refresh Frostpaw Token",
+        method: "POST",
+        path: "/frostpaw/clients/{client_id}/refresh",
+        description: r#"
+Returns the Frostpaw client with the given ID.
+        "#,
+        path_params: &models::StringIDPath {
+            id: "client id here".to_string(),
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: Some("Reason for error, if any".to_string()),
+            context: Some("Refresh token, if everything went ok :)".to_string()),
+        },
         auth_types: vec![]
     });
 
@@ -944,8 +968,8 @@ Creates a oauth2 login given a code.
 - Set `frostpaw` in the JSON if you are a custom client
 - `Frostpaw-Server` header must be set to `https://fateslist.xyz`
 - ``frostpaw_blood`` (client ID), ``frostpaw_claw`` (hmac'd time you sent) and 
-``frostpaw_claw_unseathe_time`` (time you sent) are internal fields used by the 
-site to login.
+``frostpaw_claw_unseathe_time`` (time you sent in state) are internal fields used 
+by the site to login.
 "#,
         path_params: &models::Empty {},
         query_params: &models::Empty {},

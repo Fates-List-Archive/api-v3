@@ -83,7 +83,7 @@ impl Database {
                 // Time to live (TTL): 15 minutes
                 .time_to_live(Duration::from_secs(15 * 60))
                 // Time to idle (TTI):  45 seconds
-                .time_to_idle(Duration::from_secs(0))
+                .time_to_idle(Duration::from_secs(15 * 60))
                 // Create the cache.
                 .build(),
             discord_main,
@@ -106,12 +106,66 @@ impl Database {
         conn.set_ex(&key, 0, identifier as usize).await.unwrap_or_else(|_| 0);
     }
 
-    pub async fn add_refresh_token(&self, access_token: &str, client_id: &str, client_secret: &str, id: i64) -> String {
-        let mut conn = self.redis.get().await.unwrap();
-        let key = format!("clitoken:{}:{}:{}:{}", access_token, client_id, client_secret, id);
+    pub async fn add_refresh_token(&self, client_id: &str, id: i64) -> String {
         let refresh_token = converters::create_token(128);
-        conn.set_ex(&key, &refresh_token, 60*60*24).await.unwrap_or_else(|_| 0);    
+        sqlx::query!(
+            "INSERT INTO user_connections (client_id, user_id, refresh_token) VALUES ($1, $2, $3)",
+            client_id,
+            id,
+            refresh_token
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
         refresh_token    
+    }
+
+    pub async fn get_user_token(&self, user_id: i64) -> String {
+        let row = sqlx::query!(
+            "SELECT api_token FROM users WHERE user_id = $1",
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return "".to_string()
+        }
+
+        row.unwrap().api_token
+    }
+
+    pub async fn get_frostpaw_refresh_token(&self, refresh_token: String) -> models::FrostpawRefreshTokenData {
+        sqlx::query!(
+            "delete from user_connections where expires_on < NOW()"
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
+        
+        let result = sqlx::query!(
+            "SELECT user_id, client_id, expires_on FROM user_connections WHERE refresh_token = $1",
+            refresh_token
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if result.is_err() {
+            error!("Could not get refresh token: {}", result.unwrap_err());
+            return models::FrostpawRefreshTokenData {
+                user_id: 0,
+                client_id: "".to_string(),
+                expires_on: chrono::Utc::now(),
+            }
+        }
+        
+        let result = result.unwrap();
+
+        models::FrostpawRefreshTokenData {
+            user_id: result.user_id,
+            client_id: result.client_id,
+            expires_on: result.expires_on,
+        }
     }
 
     /// Only call this when absolutely *needed*
@@ -396,8 +450,10 @@ impl Database {
 
         // Frostpaw = access token, 15 minutes time only
         if token.starts_with("Frostpaw ") {
+            debug!("Frostpaw token detected");
             let data = self.client_data.get(&token.replace("Frostpaw ", ""));
             if data.is_none() {
+                error!("Frostpaw token not found");
                 return false;
             } 
             let data = data.unwrap();

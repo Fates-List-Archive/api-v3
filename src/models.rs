@@ -323,11 +323,17 @@ pub struct FrostpawClient {
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct FrostpawTokenReset {
-    pub access_token: String,
     pub refresh_token: String,
-    pub client_id: String,
     pub secret: String
 }
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct FrostpawRefreshTokenData {
+    pub client_id: String,
+    pub user_id: i64,
+    pub expires_on: chrono::DateTime<chrono::Utc>
+}
+
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct FrostpawLogin {
@@ -573,6 +579,11 @@ pub struct APIResponse {
 #[derive(Deserialize, Serialize, Default)]
 pub struct ReviewDeletePath {
     pub rid: String,
+}
+
+#[derive(Deserialize, Serialize, Default, Clone)]
+pub struct StringIDPath {
+    pub id: String,
 }
 
 #[derive(Deserialize, Serialize, Default, Clone)]

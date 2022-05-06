@@ -50,6 +50,62 @@ async fn get_frostpaw_client(req: HttpRequest, client_id: web::Path<String>) -> 
     HttpResponse::Ok().json(client)
 }
 
+/// Regenerate access token from refresh token
+#[post("/frostpaw/clients/{client_id}/refresh")]
+async fn refresh_access_token(req: HttpRequest, client_id: web::Path<String>, info: web::Json<models::FrostpawTokenReset>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let client = data.database.get_frostpaw_client(client_id.clone()).await;
+
+    if client.is_none() {        
+        return HttpResponse::NotFound().json(models::APIResponse {
+            done: false,
+            reason: Some("Client not found".to_string()),
+            context: None,
+        });
+    }
+
+    let client = client.unwrap();
+    
+    if client.secret.unwrap() != info.secret {
+        return HttpResponse::Unauthorized().json(models::APIResponse {
+            done: false,
+            reason: Some("Invalid client secret".to_string()),
+            context: None,
+        });
+    }
+
+    let refresh_data = data.database.get_frostpaw_refresh_token(info.refresh_token.clone()).await;
+
+    if refresh_data.client_id != client_id.into_inner() {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("Invalid client ID for this refresh token".to_string()),
+            context: None,
+        });
+    }
+
+    // Invalidate all other tokens
+    for (key, value) in data.database.client_data.iter() {
+        if value.user_id == refresh_data.user_id && value.client_id == refresh_data.client_id {
+            data.database.client_data.invalidate(&key).await;
+        }
+    }
+
+    let access_token = converters::create_token(64);
+
+    data.database.client_data.insert(access_token.clone(), Arc::new(models::FrostpawLogin {
+        client_id: client.id,
+        user_id: refresh_data.user_id,
+        token: data.database.get_user_token(refresh_data.user_id).await,
+    })).await;
+
+    HttpResponse::Ok().json(models::APIResponse {
+        done: true,
+        reason: None,
+        context: Some(access_token),
+    })
+}
+
 /// Creates a oauth2 login
 #[post("/oauth2")]
 async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> HttpResponse {
@@ -157,7 +213,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
                 // Put new access token and refresh token in user struct
                 user.token = access_token.clone();
-                user.refresh_token = Some(data.database.add_refresh_token(&access_token, &blood, &secret, user.user.id.parse().unwrap()).await);
+                user.refresh_token = Some(data.database.add_refresh_token(&blood, user.user.id.parse().unwrap()).await);
 
                 return HttpResponse::Ok().json(user);
             }
