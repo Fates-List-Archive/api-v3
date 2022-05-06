@@ -97,6 +97,7 @@ async fn main() -> std::io::Result<()> {
     debug!("Connected to redis");
 
     debug!("Server is starting...");
+    
     HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin_fn(|origin, _req_head| origin.as_bytes().ends_with(b"fateslist.xyz"))
@@ -234,8 +235,8 @@ async fn main() -> std::io::Result<()> {
             .service(ws::preview)
             .service(ws::bot_ws)
     })
-    .workers(6)
-    .bind("127.0.0.1:8080")?
+    .workers(8)
+    .bind("localhost:3010")?
     .run()
     .await
 }

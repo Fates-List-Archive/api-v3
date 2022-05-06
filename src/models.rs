@@ -306,6 +306,7 @@ pub struct PreviewResponse {
 pub struct OauthDoQuery {
     pub code: String,
     pub state: Option<String>,
+    pub frostpaw: bool
 }
 
 #[derive(Deserialize, Serialize, Clone)]

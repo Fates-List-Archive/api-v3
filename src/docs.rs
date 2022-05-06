@@ -897,7 +897,14 @@ Due to massive changes, this API cannot be mapped onto any v2 API
         title: "Get OAuth2 Link",
         method: "GET",
         path: "/oauth2",
-        description: "Returns the oauth2 link used to login with. ``reason`` contains the state UUID",
+        description: r#"
+Returns the oauth2 link used to login with. ``reason`` contains the state UUID
+
+- `Frostpaw-Server` header must be set to `https://fateslist.xyz` if you are a custom client
+- If you are a custom client, then ignore the state present here and instead set `state` to `Bayshine.${YOUR CLIENT ID}.${CURRENT TIME}.${HMAC PAYLOAD}` where 
+client ID is the client ID given during whitelisting, CURRENT TIME is the current time in Unix Epoch and HMAC PAYLOAD is that same current time HMAC-SHA256
+signed with your client secret given to you during whitelisting. **You must calculate state server side**
+"#,
         path_params: &models::Empty {},
         query_params: &models::Empty {},
         request_body: &models::Empty {},
@@ -913,12 +920,18 @@ Due to massive changes, this API cannot be mapped onto any v2 API
         title: "Create OAuth2 Login",
         method: "POST",
         path: "/oauth2",
-        description: "Creates a oauth2 login given a code",
+        description: r#"
+Creates a oauth2 login given a code. 
+
+- Set `frostpaw` in the JSON if you are a custom client
+- `Frostpaw-Server` header must be set to `https://fateslist.xyz`
+"#,
         path_params: &models::Empty {},
         query_params: &models::Empty {},
         request_body: &models::OauthDoQuery {
             code: "code from discord oauth".to_string(),
-            state: Some("Random UUID right now".to_string())
+            state: Some("Random UUID right now".to_string()),
+            frostpaw: true
         },
         response_body: &models::OauthUserLogin::default(),
         auth_types: vec![]

@@ -16,10 +16,9 @@ async fn get_oauth2(req: HttpRequest) -> HttpResponse {
     let state = Uuid::new_v4().to_hyphenated().to_string();
     let auth_default = &HeaderValue::from_str("").unwrap();
     let url = format!(
-        "https://discord.com/oauth2/authorize?client_id={discord_client_id}&redirect_uri={redirect_url_domain}/frostpaw/login&state={state}&scope=identify&response_type=code",
+        "https://discord.com/oauth2/authorize?client_id={discord_client_id}&redirect_uri={redirect_url_domain}/frostpaw/login&scope=identify&response_type=code",
         discord_client_id = data.config.secrets.client_id,
         redirect_url_domain = req.headers().get("Frostpaw-Server").unwrap_or(auth_default).to_str().unwrap(),
-        state = state,
     );
     HttpResponse::Ok().json(models::APIResponse {
         done: true,
@@ -44,6 +43,17 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
         .to_str()
         .unwrap();
 
+    let valid_domains = vec!["https://fateslist.xyz", "https://www.fateslist.xyz", "https://sunbeam.fateslist.xyz"];
+    
+    
+    if !valid_domains.contains(&redirect_url_domain) {
+        return HttpResponse::BadRequest().json(models::APIResponse {
+            done: false,
+            reason: Some("Frostpaw-Server is not in valid format, perhaps your client isn't setting the header properly?".to_string()),
+            context: Some("Frostpaw-Server".to_string())
+        });
+    }
+
     let redirect_uri = format!("{}/frostpaw/login", redirect_url_domain);
 
     let login = login_user(data, code, redirect_uri).await;
@@ -58,6 +68,11 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
             })
         }
         Ok(user) => {
+            // Check for a frostpaw login
+            if info.frostpaw {
+                // If a frostpaw custom client login is used 
+            }
+
             let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());
             let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", cookie_val)
                 .path("/")
