@@ -183,7 +183,24 @@ impl Database {
         if !data.is_empty() {
             let user: Option<models::User> = serde_json::from_str(&data).unwrap_or(None);
             if user.is_some() {
-                return user.unwrap();
+                let user = user.unwrap();
+                if user.bot {
+                    // This is a good time to update the db's username_cached
+                    let update = sqlx::query!(
+                        "UPDATE bots SET username_cached = $1, avatar_cached = $2, disc_cached = $3 WHERE bot_id = $4",
+                        user.username.clone(),
+                        user.avatar.clone(),
+                        user.disc.clone(),
+                        user_id
+                    )
+                    .execute(&self.pool)
+                    .await;
+        
+                    if update.is_err() {
+                        error!("Could not update username_cached: {}", update.unwrap_err());
+                    }
+                }        
+                return user;
             }
         }
 
@@ -206,11 +223,28 @@ impl Database {
             bot: false,
         });
 
+        if user.bot {
+            // This is a good time to update the db's username_cached
+            let update = sqlx::query!(
+                "UPDATE bots SET username_cached = $1, avatar_cached = $2, disc_cached = $3 WHERE bot_id = $4",
+                user.username.clone(),
+                user.avatar.clone(),
+                user.disc.clone(),
+                user_id
+            )
+            .execute(&self.pool)
+            .await;
+
+            if update.is_err() {
+                error!("Could not update username_cached: {}", update.unwrap_err());
+            }
+        }
+
         if user.id.is_empty() {
             conn.set_ex(
                 "user-cache:".to_string() + &user_id.to_string(),
                 serde_json::to_string(&user).unwrap(),
-                60 * 60 * 1,
+                60 * 60,
             )
             .await
             .unwrap_or_else(|_| "".to_string());
@@ -774,16 +808,6 @@ impl Database {
                     owners_html,
                     action_logs,
                 };
-
-                // This is a good time to update the db's username_cached
-                sqlx::query!(
-                    "UPDATE bots SET username_cached = $1 WHERE bot_id = $2",
-                    bot.user.username.clone(),
-                    bot_id
-                )
-                .execute(&self.pool)
-                .await
-                .unwrap();
 
                 Some(bot)
             }
@@ -2698,9 +2722,9 @@ impl Database {
 
     pub async fn get_all_bots(&self) -> Vec<models::IndexBot> {
         let rows = sqlx::query!(
-            "SELECT bot_id, username_cached, guild_count, banner_card, 
-            description, votes, state, nsfw, flags FROM bots ORDER BY
-            votes DESC"
+            "SELECT bot_id, username_cached, avatar_cached, disc_cached,
+            guild_count, banner_card, description, votes, state, nsfw, flags 
+            FROM bots ORDER BY votes DESC"
         )
         .fetch_all(&self.pool)
         .await;
@@ -2714,27 +2738,21 @@ impl Database {
         let mut list = Vec::new();
 
         for row in rows {
-            let state = models::State::try_from(row.state).unwrap_or(models::State::Banned);
+            let mut user = models::User {
+                id: row.bot_id.to_string(),
+                username: row.username_cached,
+                disc: row.disc_cached, // This is unknown
+                avatar: row.avatar_cached,           // This is unknown
+                bot: true,
+                status: models::Status::Unknown,    
+            };
 
-            let mut avatar: String =
-                "https://api.fateslist.xyz/static/botlisticon.webp".to_string();
-
-            if state == models::State::Certified {
-                let user = self.get_user(row.bot_id).await;
-                avatar = user.avatar;
+            if user.avatar.is_empty() {
+                user.avatar = "https://api.fateslist.xyz/static/botlisticon.webp".to_string();
             }
 
             list.push(models::IndexBot {
-                user: models::User {
-                    id: row.bot_id.to_string(),
-                    username: row
-                        .username_cached
-                        .unwrap_or_else(|| "Unknown User".to_string()),
-                    disc: "0000".to_string(), // This is unknown
-                    avatar: avatar,           // This is unknown
-                    bot: true,
-                    status: models::Status::Unknown,
-                },
+                user,
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
