@@ -3515,7 +3515,7 @@ impl Database {
             domain: row.domain,
             privacy_policy: row.privacy_policy,
             secret: Some(row.secret),
-            owner_id: row.owner_id.to_string()
+            owner: self.get_user(row.owner_id).await
         })
     }
 }
