@@ -3498,7 +3498,7 @@ impl Database {
 
     pub async fn get_frostpaw_client(&self, id: String) -> Option<models::FrostpawClient> {
         let row = sqlx::query!(
-            "SELECT id, name, domain, privacy_policy, secret FROM frostpaw_clients WHERE id = $1",
+            "SELECT id, name, domain, privacy_policy, secret, owner_id FROM frostpaw_clients WHERE id = $1",
             id
         )
         .fetch_one(&self.pool)
@@ -3515,6 +3515,7 @@ impl Database {
             domain: row.domain,
             privacy_policy: row.privacy_policy,
             secret: Some(row.secret),
+            owner_id: row.owner_id.to_string()
         })
     }
 }

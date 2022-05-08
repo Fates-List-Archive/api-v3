@@ -320,6 +320,7 @@ pub struct FrostpawClient {
     pub domain: String,
     pub privacy_policy: String,
     pub secret: Option<String>,
+    pub owner_id: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
