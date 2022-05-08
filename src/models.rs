@@ -29,6 +29,7 @@ pub enum UserExperiments {
     BotReport = 3, // Bot Reports
     ServerAppealCertification = 4, // Ability to use request type of Appeal or Certification in server appeal
     UserVotePrivacy = 5, // The ability for users to hide their votes from Get Bot Votes and Get Server Votes API
+    DevPortal = 6, // The ability for users to access the dev portal. This needs explicit whitelisting and cannot be rolled out
 }
 
 impl fmt::Display for UserExperiments {
