@@ -208,6 +208,12 @@ pub async fn bot_ws(
                         break;
                     }
 
+                    if text == "CHECKAUTH" {
+                        if session.text(auth.to_string()).await.is_err() {
+                            break;
+                        }
+                    }
+
                     if text == "PING"
                         && session
                             .text(Instant::now().duration_since(hb).as_micros().to_string())
@@ -217,13 +223,6 @@ pub async fn bot_ws(
                     }
 
                     if text == "SUB" {
-                        if !auth {
-                            close_reason = Some(actix_ws::CloseReason {
-                                code: actix_ws::CloseCode::Other(4002),
-                                description: Some("You must now send AUTH first before calling ARCHIVE or SUB".to_string())
-                            });
-                            break;
-                        }
                         if gw_task.is_some() {
                             // Error out, you can only have one gateway task per session
                             close_reason = Some(actix_ws::CloseReason {
@@ -239,14 +238,6 @@ pub async fn bot_ws(
                             session.clone(),
                         )));
                     } else if text == "ARCHIVE" {
-                        if !auth {
-                            close_reason = Some(actix_ws::CloseReason {
-                                code: actix_ws::CloseCode::Other(4002),
-                                description: Some("You must now send AUTH first before calling ARCHIVE or SUB".to_string())
-                            });
-                            break;
-                        }
-
                         if gw_task.is_some() {
                             // Error out, you can only have one gateway task per session
                             close_reason = Some(actix_ws::CloseReason {
@@ -280,6 +271,13 @@ pub async fn bot_ws(
                         if session.text("GWTASK NONE").await.is_err() {
                             break;
                         }
+                    } else {
+                        // Error out, cannot send unknown command
+                        close_reason = Some(actix_ws::CloseReason {
+                            code: actix_ws::CloseCode::Other(4002),
+                            description: Some("Unknown command sent!".to_string())
+                        });
+                        break;
                     }
                 }
 
