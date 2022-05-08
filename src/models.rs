@@ -578,6 +578,28 @@ pub struct APIResponse {
     pub context: Option<String>, // This is the error itself
 }
 
+impl APIResponse {
+    /// Returns a success API response
+    pub fn ok() -> Self {
+        APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        }
+    }
+
+    /// Returns a failure API response
+    /// # Arguments
+    /// * `reason` - The reason for the failure
+    pub fn err(reason: &dyn ToString) -> Self {
+        APIResponse {
+            done: false,
+            reason: Some(reason.to_string()),
+            context: None,
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Default)]
 pub struct ReviewDeletePath {
     pub rid: String,
@@ -1293,11 +1315,12 @@ pub enum CheckBotError {
     OwnerIDParseError,
     OwnerNotFound,
     MainOwnerAddAttempt,
+    Forbidden,
 }
 
-impl CheckBotError {
-    pub fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for CheckBotError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(&match self {
             Self::AlreadyExists => "This bot already exists on Fates List".to_string(),
             Self::JAPIError(e) => format!("JAPI Error: {}", e),
             Self::JAPIDeserError(e) => format!("JAPI Deserialize Error: {}", e),
@@ -1328,7 +1351,8 @@ impl CheckBotError {
             Self::OwnerIDParseError => "An owner ID in your owner list is invalid".to_string(),
             Self::OwnerNotFound => "An owner ID in your owner list does not exist".to_string(),
             Self::MainOwnerAddAttempt => "You cannot add a main owner as an extra owner".to_string(),
-        }
+            Self::Forbidden => "You are not allowed to edit this bot!".to_string(),
+        })
     }
 }
 

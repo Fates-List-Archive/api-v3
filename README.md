@@ -11,3 +11,4 @@ Internally known as Lightleap (also from Warrior Cats)
 ## TODOs (for my knowledge)
 
 - Get Bot Filtered API (for dba etc)
+- Finish refactor into ``ok`` and ``err`` in ``APIResponse``

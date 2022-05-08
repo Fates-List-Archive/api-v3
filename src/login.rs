@@ -243,11 +243,7 @@ async fn del_oauth2(_req: HttpRequest) -> HttpResponse {
         .same_site(SameSite::Strict)
         .finish();
 
-    let mut resp = HttpResponse::Ok().json(models::APIResponse {
-        done: true,
-        reason: None,
-        context: None,
-    });
+    let mut resp = HttpResponse::Ok().json(models::APIResponse::ok());
     let cookie_del = resp.add_removal_cookie(&sunbeam_cookie);
 
     match cookie_del {

@@ -391,51 +391,6 @@ can also be used on *most* endpoints as long as the token is prefixed with
 
     docs += &doc_category("Core");
 
-    docs += &doc(
-        models::Route {
-            title: "Post Stats",
-            method: "POST",
-            path: "/bots/{id}/stats",
-            path_params: &models::FetchBotPath {
-                id: 0,
-            },
-            query_params: &models::Empty {},
-            request_body: &models::BotStats {
-                guild_count: 3939,
-                shard_count: Some(48484),
-                shards: Some(vec![149, 22020]),
-                user_count: Some(39393),
-            },
-            response_body: &models::APIResponse::default(),
-description: r#"
-Post stats to the list
-
-Example:
-```py
-import requests
-
-# On dpy, guild_count is usually the below
-guild_count = len(client.guilds)
-
-# If you are using sharding
-shard_count = len(client.shards)
-shards = client.shards.keys()
-
-# Optional: User count (this is not accurate for larger bots)
-user_count = len(client.users) 
-
-def post_stats(bot_id: int, guild_count: int):
-    res = requests.post(f"{api_url}/bots/{bot_id}/stats", json={"guild_count": guild_count})
-    json = res.json()
-    if res.status != 200:
-        # Handle an error in the api
-        ...
-    return json
-```
-"#,
-            auth_types: vec![models::RouteAuthType::Bot]
-    });
-
     // - Index route
     let index_bots = vec![models::IndexBot::default()];
 
@@ -551,35 +506,6 @@ def post_stats(bot_id: int, guild_count: int):
         auth_types: vec![]
     });
 
-    // - Fetch Bot route
-    docs += &doc(models::Route {
-        title: "Get Bot",
-        method: "GET",
-        path: "/bots/{id}",
-        path_params: &models::FetchBotPath::default(),
-        query_params: &models::Empty {},
-        description: r#"
-Fetches bot information given a bot ID. If not found, 404 will be returned. 
-
-This endpoint handles both bot IDs and client IDs
-
-Differences from API v2:
-
-- Unlike API v2, this does not support compact or no_cache. Owner order is also guaranteed
-- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
-- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
-- Some fields have been renamed or removed (such as ``promos`` which may be readded at a later date)
-
-This API returns some empty fields such as ``webhook``, ``webhook_secret``, ``api_token`` and more. 
-This is to allow reuse of the Bot struct in Get Bot Settings which *does* contain this sensitive data. 
-
-**Set the Frostpaw header if you are a custom client. Send Frostpaw-Invite header on invites**
-"#,
-        request_body: &models::Empty {},
-        response_body: &models::Bot::default(), // TODO
-        auth_types: vec![],
-    });
-
     // - Search List route
     docs += &doc(models::Route {
         title: "Search List",
@@ -633,210 +559,6 @@ Using -1 for ``gc_to`` will disable ``gc_to`` field"#,
         auth_types: vec![]
     });
 
-    docs += &doc(
-        models::Route {
-            title: "Random Bot",
-            method: "GET",
-            path: "/random-bot",
-            path_params: &models::Empty {},
-            query_params: &models::Empty {},
-            request_body: &models::Empty {},
-            response_body: &models::IndexBot::default(),
-description: r#"
-Fetches a random bot on the list
-
-Example:
-```py
-import requests
-
-def random_bot():
-    res = requests.get(api_url"/random-bot")
-    json = res.json()
-    if res.status != 200:
-        # Handle an error in the api
-        ...
-    return json
-```
-"#,
-            auth_types: vec![]
-    });
-
-    docs += &doc(
-        models::Route {
-            title: "Random Server",
-            method: "GET",
-            path: "/random-server",
-            path_params: &models::Empty {},
-            query_params: &models::Empty {},
-            request_body: &models::Empty {},
-            response_body: &models::IndexBot::default(),
-description: r#"
-Fetches a random server on the list
-
-Example:
-```py
-import requests
-
-def random_server():
-    res = requests.get(api_url"/random-server")
-    json = res.json()
-    if res.status != 200:
-        # Handle an error in the api
-        ...
-    return json
-```
-"#,
-            auth_types: vec![]
-    });
-
-    docs += &doc( models::Route {
-        title: "Get Server",
-        method: "GET",
-        path: "/servers/{id}",
-        path_params: &models::FetchBotPath::default(),
-        query_params: &models::Empty {},
-description: r#"
-Fetches server information given a server/guild ID. If not found, 404 will be returned. 
-
-Differences from API v2:
-
-- Unlike API v2, this does not support compact or no_cache.
-- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
-- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
-- Some fields have been renamed or removed
-- ``invite_link`` is returned, however is always None unless ``Frostpaw-Invite`` header is set which then pushes you into 
-server privacy restrictions. **Note that when fetching invite links, requires login to join is now enabled by default for all new servers**
-
-**Set the Frostpaw header if you are a custom client**
-"#,
-        request_body: &models::Empty{},
-        response_body: &models::Server::default(),
-        auth_types: vec![]
-    });
-
-    // - Get User Votes
-    docs += &doc( models::Route {
-        title: "Get Bot Votes",
-        method: "GET",
-        path: "/users/{user_id}/bots/{bot_id}/votes",
-        path_params: &models::GetUserBotPath {
-            user_id: 0,
-            bot_id: 0,
-        },
-        query_params: &models::Empty {},
-description: r#"
-Endpoint to check amount of votes a user has.
-
-- votes | The amount of votes the bot has.
-- voted | Whether or not the user has *ever* voted for a bot in the past 8 hours.
-- timestamps | A list of timestamps that the user has voted for the bot on that has been recorded.
-- expiry | The time when the user can next vote.
-- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
-
-Differences from API v2:
-
-- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
-because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
-this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
-- ``vts`` has been renamed to ``timestamps``
-
-**This endpoint will return bogus data if "Hide votes to other users" is enabled**
-"#,
-        request_body: &models::Empty {},
-        response_body: &models::UserVoted {
-            votes: 10,
-            voted: true,
-            expiry: 101,
-            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
-            vote_right_now: false,
-        },
-        auth_types: vec![]
-    });
-
-    // - Get User Votes
-    docs += &doc( models::Route {
-        title: "Get Server Votes",
-        method: "GET",
-        path: "/users/{user_id}/servers/{server_id}/votes",
-        path_params: &models::GetUserServerPath {
-            user_id: 0,
-            server_id: 0,
-        },
-        query_params: &models::Empty {},
-description: r#"
-Endpoint to check amount of votes a user has.
-
-- votes | The amount of votes the server has.
-- voted | Whether or not the user has *ever* voted for a server in the past 8 hours.
-- timestamps | A list of timestamps that the user has voted for the server on that has been recorded.
-- expiry | The time when the user can next vote.
-- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
-
-Differences from API v2:
-
-- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
-because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
-this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
-- ``vts`` has been renamed to ``timestamps``
-
-**This endpoint will return bogus data if "Hide votes to other users" is enabled**
-"#,
-        request_body: &models::Empty {},
-        response_body: &models::UserVoted {
-            votes: 10,
-            voted: true,
-            expiry: 101,
-            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
-            vote_right_now: false,
-        },
-        auth_types: vec![]
-    });
-
-    // - Create Bot Vote
-    docs += &doc(models::Route {
-        title: "Create Bot Vote",
-        method: "PATCH",
-        path: "/users/{user_id}/bots/{bot_id}/votes",
-        path_params: &models::GetUserBotPath {
-            user_id: 0,
-            bot_id: 0,
-        },
-        query_params: &models::VoteBotQuery { test: true },
-        description: r#"
-This endpoint creates a vote for a bot which can only be done *once* every 8 hours.
-"#,
-        request_body: &models::Empty {},
-        response_body: &models::APIResponse {
-            done: false,
-            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
-            context: Some("Some context on the vote".to_string()),
-        },
-        auth_types: vec![models::RouteAuthType::User],
-    });
-
-    // - Create Server Vote
-    docs += &doc(models::Route {
-        title: "Create Server Vote",
-        method: "PATCH",
-        path: "/users/{user_id}/servers/{server_id}/votes",
-        path_params: &models::GetUserServerPath {
-            user_id: 0,
-            server_id: 0,
-        },
-        query_params: &models::VoteBotQuery { test: true },
-        description: r#"
-This endpoint creates a vote for a server which can only be done *once* every 8 hours
-and is independent from a bot vote.
-"#,
-        request_body: &models::Empty {},
-        response_body: &models::APIResponse {
-            done: false,
-            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
-            context: Some("Some context on the vote".to_string()),
-        },
-        auth_types: vec![models::RouteAuthType::User],
-    });
-
     docs += &doc(models::Route {
         title: "Mini Index",
         method: "GET",
@@ -859,37 +581,6 @@ This is used internally by sunbeam for the add bot system where a full bot
 index is too costly and making a new struct is unnecessary.
 "#,
         auth_types: vec![],
-    });
-
-    docs += &doc(models::Route {
-        title: "Gets Bot Settings",
-        method: "GET",
-        path: "/users/{user_id}/bots/{bot_id}/settings",
-        path_params: &models::GetUserBotPath {
-            user_id: 0,
-            bot_id: 0,
-        },
-        query_params: &models::Empty {},
-        request_body: &models::Empty {},
-        response_body: &models::BotSettings {
-            bot: models::Bot::default(),
-            context: models::BotSettingsContext { tags, features },
-        },
-        description: r#"
-Returns the bot settings.
-
-The ``bot`` key here is equivalent to a Get Bot response with the following
-differences:
-
-- Sensitive fields (see examples) like ``webhook``, ``api_token``, 
-``webhook_secret`` and others are filled out here
-- This API only allows bot owners to use it, otherwise it will 400!
-
-Staff members *should* instead use Lynx.
-
-Due to massive changes, this API cannot be mapped onto any v2 API
-"#,
-        auth_types: vec![models::RouteAuthType::User],
     });
 
     docs += &doc_category("Auth");
@@ -1070,6 +761,139 @@ token ever gets leaked.
 
     docs += &doc_category("Bot Actions");
 
+    docs += &doc(
+        models::Route {
+            title: "Post Stats",
+            method: "POST",
+            path: "/bots/{id}/stats",
+            path_params: &models::FetchBotPath {
+                id: 0,
+            },
+            query_params: &models::Empty {},
+            request_body: &models::BotStats {
+                guild_count: 3939,
+                shard_count: Some(48484),
+                shards: Some(vec![149, 22020]),
+                user_count: Some(39393),
+            },
+            response_body: &models::APIResponse::default(),
+description: r#"
+Post stats to the list
+
+Example:
+```py
+import requests
+
+# On dpy, guild_count is usually the below
+guild_count = len(client.guilds)
+
+# If you are using sharding
+shard_count = len(client.shards)
+shards = client.shards.keys()
+
+# Optional: User count (this is not accurate for larger bots)
+user_count = len(client.users) 
+
+def post_stats(bot_id: int, guild_count: int):
+    res = requests.post(f"{api_url}/bots/{bot_id}/stats", json={"guild_count": guild_count})
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+"#,
+            auth_types: vec![models::RouteAuthType::Bot]
+    });
+
+    // - Fetch Bot route
+    docs += &doc(models::Route {
+            title: "Get Bot",
+            method: "GET",
+            path: "/bots/{id}",
+            path_params: &models::FetchBotPath::default(),
+            query_params: &models::Empty {},
+            description: r#"
+Fetches bot information given a bot ID. If not found, 404 will be returned. 
+
+This endpoint handles both bot IDs and client IDs
+
+Differences from API v2:
+
+- Unlike API v2, this does not support compact or no_cache. Owner order is also guaranteed
+- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
+- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
+- Some fields have been renamed or removed (such as ``promos`` which may be readded at a later date)
+
+This API returns some empty fields such as ``webhook``, ``webhook_secret``, ``api_token`` and more. 
+This is to allow reuse of the Bot struct in Get Bot Settings which *does* contain this sensitive data. 
+
+**Set the Frostpaw header if you are a custom client. Send Frostpaw-Invite header on invites**
+    "#,
+            request_body: &models::Empty {},
+            response_body: &models::Bot::default(), // TODO
+            auth_types: vec![],
+        });
+
+        docs += &doc(models::Route {
+            title: "Gets Bot Settings",
+            method: "GET",
+            path: "/users/{user_id}/bots/{bot_id}/settings",
+            path_params: &models::GetUserBotPath {
+                user_id: 0,
+                bot_id: 0,
+            },
+            query_params: &models::Empty {},
+            request_body: &models::Empty {},
+            response_body: &models::BotSettings {
+                bot: models::Bot::default(),
+                context: models::BotSettingsContext { tags, features },
+            },
+            description: r#"
+Returns the bot settings.
+
+The ``bot`` key here is equivalent to a Get Bot response with the following
+differences:
+
+- Sensitive fields (see examples) like ``webhook``, ``api_token``, 
+``webhook_secret`` and others are filled out here
+- This API only allows bot owners to use it, otherwise it will 400!
+
+Staff members *should* instead use Lynx.
+
+Due to massive changes, this API cannot be mapped onto any v2 API
+    "#,
+            auth_types: vec![models::RouteAuthType::User],
+        });
+
+        docs += &doc(
+            models::Route {
+                title: "Random Bot",
+                method: "GET",
+                path: "/random-bot",
+                path_params: &models::Empty {},
+                query_params: &models::Empty {},
+                request_body: &models::Empty {},
+                response_body: &models::IndexBot::default(),
+    description: r#"
+Fetches a random bot on the list
+
+Example:
+```py
+import requests
+
+def random_bot():
+    res = requests.get(api_url"/random-bot")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+    "#,
+                auth_types: vec![]
+        });
+
     docs += &doc(models::Route {
         title: "New Bot",
         method: "POST",
@@ -1225,6 +1049,186 @@ Imports a bot from a source listed in ``Get Import Sources``.
             context: None,
         },
         auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc_category("Server Actions");
+
+    docs += &doc( models::Route {
+        title: "Get Server",
+        method: "GET",
+        path: "/servers/{id}",
+        path_params: &models::FetchBotPath::default(),
+        query_params: &models::Empty {},
+description: r#"
+Fetches server information given a server/guild ID. If not found, 404 will be returned. 
+
+Differences from API v2:
+
+- Unlike API v2, this does not support compact or no_cache.
+- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
+- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
+- Some fields have been renamed or removed
+- ``invite_link`` is returned, however is always None unless ``Frostpaw-Invite`` header is set which then pushes you into 
+server privacy restrictions. **Note that when fetching invite links, requires login to join is now enabled by default for all new servers**
+
+**Set the Frostpaw header if you are a custom client**
+"#,
+        request_body: &models::Empty{},
+        response_body: &models::Server::default(),
+        auth_types: vec![]
+    });
+
+    docs += &doc(
+        models::Route {
+            title: "Random Server",
+            method: "GET",
+            path: "/random-server",
+            path_params: &models::Empty {},
+            query_params: &models::Empty {},
+            request_body: &models::Empty {},
+            response_body: &models::IndexBot::default(),
+description: r#"
+Fetches a random server on the list
+
+Example:
+```py
+import requests
+
+def random_server():
+    res = requests.get(api_url"/random-server")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+"#,
+            auth_types: vec![]
+    });
+
+    docs += &doc_category("Votes");
+
+   // - Create Bot Vote
+   docs += &doc(models::Route {
+        title: "Create Bot Vote",
+        method: "PATCH",
+        path: "/users/{user_id}/bots/{bot_id}/votes",
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::VoteBotQuery { test: true },
+        description: r#"
+This endpoint creates a vote for a bot which can only be done *once* every 8 hours.
+    "#,
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: false,
+            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
+            context: Some("Some context on the vote".to_string()),
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    // - Create Server Vote
+    docs += &doc(models::Route {
+        title: "Create Server Vote",
+        method: "PATCH",
+        path: "/users/{user_id}/servers/{server_id}/votes",
+        path_params: &models::GetUserServerPath {
+            user_id: 0,
+            server_id: 0,
+        },
+        query_params: &models::VoteBotQuery { test: true },
+        description: r#"
+    This endpoint creates a vote for a server which can only be done *once* every 8 hours
+    and is independent from a bot vote.
+    "#,
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: false,
+            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
+            context: Some("Some context on the vote".to_string()),
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    // - Get User Votes
+    docs += &doc( models::Route {
+        title: "Get Bot Votes",
+        method: "GET",
+        path: "/users/{user_id}/bots/{bot_id}/votes",
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the bot has.
+- voted | Whether or not the user has *ever* voted for a bot in the past 8 hours.
+- timestamps | A list of timestamps that the user has voted for the bot on that has been recorded.
+- expiry | The time when the user can next vote.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+
+Differences from API v2:
+
+- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
+- ``vts`` has been renamed to ``timestamps``
+
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::UserVoted {
+            votes: 10,
+            voted: true,
+            expiry: 101,
+            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+            vote_right_now: false,
+        },
+        auth_types: vec![]
+    });
+
+    // - Get User Votes
+    docs += &doc( models::Route {
+        title: "Get Server Votes",
+        method: "GET",
+        path: "/users/{user_id}/servers/{server_id}/votes",
+        path_params: &models::GetUserServerPath {
+            user_id: 0,
+            server_id: 0,
+        },
+        query_params: &models::Empty {},
+description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the server has.
+- voted | Whether or not the user has *ever* voted for a server in the past 8 hours.
+- timestamps | A list of timestamps that the user has voted for the server on that has been recorded.
+- expiry | The time when the user can next vote.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+
+Differences from API v2:
+
+- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
+- ``vts`` has been renamed to ``timestamps``
+
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::UserVoted {
+            votes: 10,
+            voted: true,
+            expiry: 101,
+            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+            vote_right_now: false,
+        },
+        auth_types: vec![]
     });
 
     docs += &doc_category("Appeal");

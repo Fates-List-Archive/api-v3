@@ -52,11 +52,7 @@ async fn add_command(
                 });
             }
         }
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully added commands to v3 :)".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     } else {
         error!("Command post auth error");
         models::CustomError::ForbiddenGeneric.error_response()
@@ -107,11 +103,7 @@ async fn delete_commands(
             }
         }
 
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully deleted commands from v3 :)".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     } else {
         error!("Command delete auth error");
         models::CustomError::ForbiddenGeneric.error_response()

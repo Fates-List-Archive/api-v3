@@ -32,7 +32,7 @@ async fn appeal_bot(
 
     if rl.is_some() && rl.unwrap() > 0 {
         return HttpResponse::BadRequest().json(models::APIResponse {
-            done: true,
+            done: false,
             reason: Some(format!("Please wait {} seconds before retrying this appeal!", rl.unwrap())),
             context: Some("Ratelimit".to_string()),
         })
@@ -147,11 +147,7 @@ async fn appeal_bot(
         });
     }
 
-    HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
-        done: true,
-        reason: Some("Successfully posted appeal request :)".to_string()),
-        context: None,
-    })
+    HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok())
 }
 
 #[post("/users/{user_id}/servers/{server_id}/appeal")]
@@ -286,9 +282,5 @@ async fn appeal_server(
         });
     }
 
-    HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
-        done: true,
-        reason: Some("Successfully posted appeal request :)".to_string()),
-        context: None,
-    })
+    HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok())
 }

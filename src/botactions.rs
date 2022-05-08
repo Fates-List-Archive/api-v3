@@ -1,13 +1,16 @@
+/// Handles bot actions (view, add, edit, delete, transfer)
+
 use crate::models;
 use crate::converters;
 use actix_web::http::header::HeaderValue;
-/// Handles bot adds
-use actix_web::{get, delete, patch, post, web, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{get, delete, patch, post, web, http, web::Json, HttpRequest, HttpResponse, ResponseError};
 use log::{error, debug};
 use serenity::model::prelude::*;
 use std::time::Duration;
 use std::collections::HashMap;
 use serde_json::json;
+use std::sync::Arc;
+use uuid::Uuid;
 
 /// Simple helper function to check a banner url
 pub async fn check_banner_img(
@@ -314,11 +317,7 @@ async fn add_bot(
     if data.database.authorize_user(id.id, auth).await {
         let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: Some("Check error".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err())); 
         }
         bot.owners.push(models::BotOwner {
             user: models::User {
@@ -333,11 +332,7 @@ async fn add_bot(
         });
         let res = data.database.add_bot(&bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: Some("Add bot error".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
         }
         let _ = data
             .config
@@ -365,11 +360,7 @@ async fn add_bot(
             })
             .await;
 
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Added bot successfully!".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Add bot auth error");
     models::CustomError::ForbiddenGeneric.error_response()
@@ -410,28 +401,16 @@ async fn edit_bot(
         }
 
         if !got_owner {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("You are not allowed to edit this bot!".to_string()),
-                context: None,
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&models::CheckBotError::Forbidden));
         }
 
         let res = check_bot(&data, models::BotActionMode::Edit, &mut bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: Some("Check error".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
         }
         let res = data.database.edit_bot(id.id, &bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: Some("Edit bot error".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
         }
         let result = data
             .config
@@ -466,11 +445,7 @@ async fn edit_bot(
             });
         }
 
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Edited bot successfully!".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Edit bot auth error");
     models::CustomError::ForbiddenGeneric.error_response()
@@ -587,11 +562,7 @@ async fn transfer_ownership(
             })
             .await;
 
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully transferred ownership".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Transfer bot auth error");
     models::CustomError::ForbiddenGeneric.error_response()
@@ -672,11 +643,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
             })
             .await;
 
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully transferred ownership".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Delete bot auth error");
     models::CustomError::ForbiddenGeneric.error_response()
@@ -1059,12 +1026,190 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
             })
             .await;
 
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Added bot successfully!".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Add bot auth error");
     models::CustomError::ForbiddenGeneric.error_response()
+}
+
+/// Post Stats
+#[post("/bots/{id}/stats")]
+async fn post_stats(
+    req: HttpRequest,
+    id: web::Path<models::FetchBotPath>,
+    stats: web::Json<models::BotStats>,
+) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let bot_id = id.id;
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
+    if data.database.authorize_bot(bot_id, auth).await {
+        let resp = data.database.post_stats(bot_id, stats.into_inner(), &data.config.secrets.japi_key).await;
+        match resp {
+            Ok(()) => HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok()),
+            Err(err) => {
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                    done: false,
+                    reason: Some(err.to_string()),
+                    context: None,
+                })
+            }
+        }
+    } else {
+        error!("Stat post auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
+}
+
+// Get Bot
+#[get("/bots/{id}")]
+async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    let id = id.into_inner();
+
+    if req.headers().contains_key("Frostpaw") {
+        let auth_default = &HeaderValue::from_str("").unwrap();
+        let auth = req.headers().get("Frostpaw-Auth").unwrap_or(auth_default);
+        let mut event_user: Option<String> = None;
+        if !auth.clone().is_empty() {
+            let auth_bytes = auth.to_str();
+            match auth_bytes {
+                Ok(auth_str) => {
+                    let auth_split = auth_str.split('|');
+                    let auth_vec = auth_split.collect::<Vec<&str>>();
+
+                    let user_id = auth_vec.get(0).unwrap_or(&"");
+                    let token = auth_vec.get(1).unwrap_or(&"");
+
+                    let user_id_str = user_id.to_string();
+
+                    let user_id_i64 = user_id_str.parse::<i64>().unwrap_or(0);
+
+                    if data
+                        .database
+                        .authorize_user(user_id_i64, token.as_ref())
+                        .await
+                    {
+                        event_user = Some(user_id_str);
+                    }
+                }
+                Err(err) => {
+                    error!("{}", err);
+                }
+            }
+        }
+
+        let event = models::Event {
+            m: models::EventMeta {
+                e: models::EventName::BotView,
+                eid: Uuid::new_v4().to_hyphenated().to_string(),
+            },
+            ctx: models::EventContext {
+                target: id.id.to_string(),
+                target_type: models::TargetType::Bot,
+                user: event_user,
+                ts: chrono::Utc::now().timestamp(),
+            },
+            props: models::BotViewProp {
+                vote_page: req.headers().contains_key("Frostpaw-Vote-Page"),
+                widget: false,
+                invite: req.headers().contains_key("Frostpaw-Invite"),
+            },
+        };
+        data.database.ws_event(event).await;
+    }
+
+    if req.headers().contains_key("Frostpaw-Invite") {
+        data.database.update_bot_invite_amount(id.id).await;
+    }
+
+    // Check bot cache
+    let cache = data.database.bot_cache.get(&id.id);
+    
+    match cache {
+        Some(bot) => {
+            debug!("Bot cache hit for {}", id.id);
+            HttpResponse::Ok().json(bot)
+        },
+        None => {
+            debug!("Bot cache miss for {}", id.id);
+            let bot = data.database.get_bot(id.id).await;
+            match bot {
+                Some(bot_data) => {
+                    let bot_data = Arc::new(bot_data);
+                    data.database.bot_cache.insert(id.id, bot_data.clone()).await;
+                    HttpResponse::Ok().json(bot_data)
+                },
+                _ => models::CustomError::NotFoundGeneric.error_response(),
+            }
+        }
+    }
+}
+
+// Get Random Bot
+#[get("/random-bot")]
+async fn random_bot(req: HttpRequest) -> Json<models::IndexBot> {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let bot = data.database.random_bot().await;
+    Json(bot)
+}
+
+/// Get Bot Settings
+#[get("/users/{user_id}/bots/{bot_id}/settings")]
+async fn get_bot_settings(
+    req: HttpRequest,
+    info: web::Path<models::GetUserBotPath>,
+) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    let user_id = info.user_id;
+
+    // Check auth
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
+    if data.database.authorize_user(user_id, auth).await {
+        let resp = data.database.get_bot_settings(info.bot_id).await;
+        match resp {
+            Ok(bot) => {
+                // Check if in owners before returning
+                for owner in &bot.owners {
+                    let id = owner.user.id.parse::<i64>().unwrap_or(0);
+                    if id == user_id {
+                        return HttpResponse::build(http::StatusCode::OK).json(
+                            models::BotSettings {
+                                bot,
+                                context: models::BotSettingsContext {
+                                    tags: data.database.bot_list_tags().await,
+                                    features: data.database.bot_features().await,
+                                },
+                            },
+                        );
+                    }
+                }
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&models::CheckBotError::Forbidden))
+            }
+            Err(err) => {
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
+                    done: false,
+                    reason: Some(err.to_string()),
+                    context: None,
+                })
+            }
+        }
+    } else {
+        error!("Bot Settings Auth error");
+        models::CustomError::ForbiddenGeneric.error_response()
+    }
 }

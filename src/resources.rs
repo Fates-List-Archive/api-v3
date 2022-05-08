@@ -59,11 +59,7 @@ async fn add_resource(
             .add_resource(id, target_type.target_type, res)
             .await;
         if res.is_ok() {
-            return HttpResponse::Ok().json(models::APIResponse {
-                done: true,
-                reason: Some("Successfully added resource to v3 :)".to_string()),
-                context: None,
-            });
+            return HttpResponse::Ok().json(models::APIResponse::ok());
         } else {
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,
@@ -71,10 +67,9 @@ async fn add_resource(
                 context: Some("Check error".to_string()),
             });
         }
-    } else {
-        error!("Resource post auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
     }
+    error!("Resource post auth error");
+    models::CustomError::ForbiddenGeneric.error_response()
 }
 
 #[delete("/resources/{id}")]
@@ -124,11 +119,7 @@ async fn delete_resource(
 
         let res = data.database.delete_resource(resource_id).await;
         if res.is_ok() {
-            return HttpResponse::Ok().json(models::APIResponse {
-                done: true,
-                reason: Some("Successfully added review to v3 :)".to_string()),
-                context: None,
-            });
+            return HttpResponse::Ok().json(models::APIResponse::ok());
         } else {
             return HttpResponse::BadRequest().json(models::APIResponse {
                 done: false,

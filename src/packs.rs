@@ -1,3 +1,4 @@
+
 // Endpoints to create, delete and edit packs
 use crate::models;
 use actix_web::http::header::HeaderValue;
@@ -90,11 +91,7 @@ async fn add_pack(
         });
     }
 
-    return HttpResponse::Ok().json(models::APIResponse {
-        done: true,
-        reason: Some("Added bot pack successfully!".to_string()),
-        context: None,
-    });
+    HttpResponse::Ok().json(models::APIResponse::ok())
 }
 
 #[patch("/users/{id}/packs")]
@@ -152,11 +149,7 @@ async fn edit_pack(
         });
     }
 
-    return HttpResponse::Ok().json(models::APIResponse {
-        done: true,
-        reason: Some("Edited bot pack successfully!".to_string()),
-        context: None,
-    });
+    HttpResponse::Ok().json(models::APIResponse::ok())
 }
 
 #[delete("/users/{user_id}/packs/{pack_id}")]
@@ -190,9 +183,5 @@ async fn delete_pack(req: HttpRequest, info: web::Path<models::GetUserPackPath>)
 
     data.database.delete_pack(info.pack_id.clone()).await;
 
-    return HttpResponse::Ok().json(models::APIResponse {
-        done: true,
-        reason: Some("Deleted bot pack successfully!".to_string()),
-        context: None,
-    });
+    HttpResponse::Ok().json(models::APIResponse::ok())
 }

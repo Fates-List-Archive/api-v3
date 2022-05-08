@@ -1,8 +1,6 @@
 #![feature(derive_default_enum)]
 #![warn(clippy::pedantic)]
 
-use env_logger;
-
 use actix_cors::Cors;
 use actix_web::dev::Service;
 use actix_web::http::uri::PathAndQuery;
@@ -19,6 +17,7 @@ use std::sync::Arc;
 
 mod appeal;
 mod botactions;
+mod serveractions;
 mod commands;
 mod converters;
 mod core;
@@ -33,6 +32,7 @@ mod security;
 mod stats;
 mod user;
 mod ws;
+mod votes;
 mod docser; // Used internally by docs.rs
 
 use crate::models::APIResponse;
@@ -167,19 +167,15 @@ async fn main() -> std::io::Result<()> {
             .service(core::enum_docs_tmpl)
             .service(core::experiments)
             .service(core::partners)
-            .service(core::get_bot)
-            .service(core::get_server)
             .service(core::search)
             .service(core::search_tags)
-            .service(core::random_bot)
-            .service(core::random_server)
-            .service(core::has_user_bot_voted)
-            .service(core::has_user_server_voted)
-            .service(core::vote_bot)
-            .service(core::vote_server)
-            .service(core::post_stats)
-            .service(core::get_bot_settings)
-            
+
+            // Votes
+            .service(votes::vote_bot)
+            .service(votes::vote_server)
+            .service(votes::has_user_bot_voted)
+            .service(votes::has_user_server_voted)
+
             // Login
             .service(login::get_oauth2)
             .service(login::del_oauth2)
@@ -199,6 +195,15 @@ async fn main() -> std::io::Result<()> {
             .service(botactions::delete_bot)
             .service(botactions::import_rdl)
             .service(botactions::import_sources)
+            .service(botactions::get_bot)
+            .service(botactions::random_bot)
+            .service(botactions::post_stats)            
+            .service(botactions::get_bot_settings)
+
+
+            // Server Actions
+            .service(serveractions::get_server)
+            .service(serveractions::random_server)
 
             // Appeal
             .service(appeal::appeal_bot)

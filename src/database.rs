@@ -94,7 +94,7 @@ impl Database {
     /// Get ratelimit
     pub async fn get_ratelimit(&self, identifier: models::Ratelimit, user_id: i64) -> Option<i64> {
         let mut conn = self.redis.get().await.unwrap();
-        let key = format!("rlratelimit:{}:{}", identifier.to_string(), user_id);
+        let key = format!("rlratelimit:{}:{}", identifier, user_id);
         let ratelimit: Option<i64> = conn.ttl(&key).await.unwrap_or_else(|_| None);
         ratelimit
     }
@@ -102,7 +102,7 @@ impl Database {
     /// Set ratelimit
     pub async fn set_ratelimit(&self, identifier: models::Ratelimit, user_id: i64) {
         let mut conn = self.redis.get().await.unwrap();
-        let key = format!("rlratelimit:{}:{}", identifier.to_string(), user_id);
+        let key = format!("rlratelimit:{}:{}", identifier, user_id);
         conn.set_ex(&key, 0, identifier as usize).await.unwrap_or_else(|_| 0);
     }
 
@@ -756,7 +756,7 @@ impl Database {
                     last_updated_at: data.last_updated_at,
                     description: data.description,
                     css,
-                    css_raw: css_raw,
+                    css_raw,
                     flags: data.flags,
                     banner_card: data.banner_card,
                     banner_page: data.banner_page,
@@ -889,7 +889,7 @@ impl Database {
                     invite_amount: row.invite_amount.unwrap_or_default(),
                     invite_link: None,
                     css,
-                    css_raw: css_raw, 
+                    css_raw, 
                     state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                     website: row.website,
                     total_votes: row.total_votes.unwrap_or_default(),
@@ -2747,9 +2747,11 @@ impl Database {
                 status: models::Status::Unknown,    
             };
 
-            if user.avatar.is_empty() {
-                user.avatar = "https://api.fateslist.xyz/static/botlisticon.webp".to_string();
-            }
+            user.avatar = if user.avatar.is_empty() {
+                "https://api.fateslist.xyz/static/botlisticon.webp".to_string()
+            } else {
+                user.avatar
+            };
 
             list.push(models::IndexBot {
                 user,
