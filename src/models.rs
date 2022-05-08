@@ -557,8 +557,8 @@ impl Default for AppConfig {
             secrets,
             partners,
             discord,
-            discord_http: serenity::http::Http::new_with_token(&token_main),
-            discord_http_server: serenity::http::Http::new_with_token(&token_squirrelflight),
+            discord_http: serenity::http::Http::new(&token_main),
+            discord_http_server: serenity::http::Http::new(&token_squirrelflight),
         }
     }
 }
