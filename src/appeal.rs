@@ -31,11 +31,7 @@ async fn appeal_bot(
     let rl = data.database.get_ratelimit(models::Ratelimit::Appeal, user_id).await;
 
     if rl.is_some() && rl.unwrap() > 0 {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(format!("Please wait {} seconds before retrying this appeal!", rl.unwrap())),
-            context: Some("Ratelimit".to_string()),
-        })
+        return HttpResponse::BadRequest().json(models::APIResponse::rl(rl.unwrap()));
     }
 
     let bot = data.database.get_bot(bot_id).await;

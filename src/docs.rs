@@ -1348,20 +1348,6 @@ Gives user roles on the Fates List support server
         auth_types: vec![models::RouteAuthType::User],
     });
 
-    docs += &doc(models::Route {
-        title: "Test Experiments",
-        method: "GET",
-        path: "/profiles/{id}/test-experiments",
-        description: r#"
-Internal route to showcase experiments
-"#,
-        path_params: &models::FetchBotPath { id: 0 },
-        query_params: &models::Empty {},
-        request_body: &models::Empty {},
-        response_body: &models::Empty {},
-        auth_types: vec![models::RouteAuthType::User],
-    });
-
     docs += &doc_category("Reviews");
 
     docs += &doc(models::Route {

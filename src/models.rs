@@ -54,6 +54,7 @@ impl UserExperiments {
 #[repr(i32)]
 pub enum Ratelimit {
     Appeal = 30,
+    RoleUpdate = 15,
 }
 
 impl fmt::Display for Ratelimit {
@@ -603,6 +604,14 @@ impl APIResponse {
             done: false,
             reason: Some("You have been banned from using this API endpoint".to_string()),
             context: Some(flag.to_string()),
+        }
+    }
+
+    pub fn rl(time: i64) -> Self {
+        APIResponse {
+            done: false,
+            reason: Some(format!("You have been rate limited for {} seconds", time)),
+            context: None,
         }
     }
 }
@@ -1165,7 +1174,6 @@ impl fmt::Display for ProfileCheckError {
 pub enum ProfileRolesUpdate {
     SQLError(sqlx::Error),
     MemberNotFound,
-    RateLimited(i32),
     DiscordError(serenity::Error),
 }
 
@@ -1175,7 +1183,6 @@ impl fmt::Display for ProfileRolesUpdate {
         &match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
             Self::MemberNotFound => "You are not on our support server!".to_string(),
-            Self::RateLimited(i) => format!("You have been rate limited for {} seconds", i),
             Self::DiscordError(e) => format!("Discord Error: {}", e),
         })
     }

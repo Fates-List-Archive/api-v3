@@ -84,46 +84,28 @@ async fn recieve_profile_roles(
         }
         let profile = profile.unwrap();
 
+        let rl = data.database.get_ratelimit(models::Ratelimit::RoleUpdate, info.id).await;
+
+        if rl.is_some() && rl.unwrap() > 0 {
+            return HttpResponse::BadRequest().json(models::APIResponse::rl(rl.unwrap()));
+        }    
+
         if profile.state == models::UserState::ProfileEditBan {
             return HttpResponse::BadRequest().json(models::APIResponse::banned("ProfileEditBan"));
         }
 
-        let res = data
+        data.database.set_ratelimit(models::Ratelimit::RoleUpdate, info.id).await;
+
+        let update = data
             .database
             .update_user_bot_roles(info.id, &data.config.discord)
             .await;
 
-        if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
-        }
-        return HttpResponse::Ok().json(res.unwrap());
-    }
-    error!("Update profile auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
-}
-
-#[get("/profiles/{id}/test-experiments")]
-async fn test_experiments(
-    req: HttpRequest,
-    info: web::Path<models::FetchBotPath>,
-) -> HttpResponse {
-    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-
-    let auth_default = &HeaderValue::from_str("").unwrap();
-    let auth = req
-        .headers()
-        .get("Authorization")
-        .unwrap_or(auth_default)
-        .to_str()
-        .unwrap();
-    if data.database.authorize_user(info.id, auth).await {
-        let user_experiments = data.database.get_user_experiments(info.id).await;
-
-        if !user_experiments.contains(&models::UserExperiments::GetRoleSelector) {
-            return models::UserExperiments::GetRoleSelector.not_enabled();
+        if update.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&update.unwrap_err()));
         }
 
-        return HttpResponse::Ok().json(models::Empty {});
+        return HttpResponse::Ok().json(update.unwrap());
     }
     error!("Update profile auth error");
     HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))

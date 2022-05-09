@@ -485,27 +485,25 @@ impl Database {
         // Frostpaw = access token, 15 minutes time only
         if token.starts_with("Frostpaw ") {
             debug!("Frostpaw token detected");
-            let data = self.client_data.get(&token.replace("Frostpaw ", ""));
-            if data.is_none() {
-                error!("Frostpaw token not found");
-                return false;
-            } 
-            let data = data.unwrap();
-            if data.user_id != user_id {
-                return false;
-            }
+            if let Some(data) = self.client_data.get(&token.replace("Frostpaw ", "")) {
+                if data.user_id != user_id {
+                    return false;
+                }
 
-            let row = sqlx::query!(
-                "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2",
-                user_id,
-                data.token,
-            )
-            .fetch_one(&self.pool)
-            .await;
-            return match row {
-                Ok(count) => count.count.unwrap_or(0) > 0,
-                Err(_) => false,
-            };
+                let row = sqlx::query!(
+                    "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2",
+                    user_id,
+                    data.token,
+                )
+                .fetch_one(&self.pool)
+                .await;
+                return match row {
+                    Ok(count) => count.count.unwrap_or(0) > 0,
+                    Err(_) => false,
+                };
+            }
+            error!("Frostpaw token not found");
+            return false;
         }
 
         let row = sqlx::query!(
@@ -2306,20 +2304,6 @@ impl Database {
 
     /// Updates user roles based on their bots
     pub async fn update_user_bot_roles(&self, user_id: i64, discord_data: &models::DiscordData) -> Result<models::RoleUpdate, models::ProfileRolesUpdate> {
-
-        // Check ratelimit
-        let mut conn = self.redis.get().await.unwrap();
-
-        let rl = conn.ttl("uur-".to_owned() + &user_id.to_string()).await.unwrap();
-
-        if rl < 0 {
-            conn.set_ex("uur-".to_owned() + &user_id.to_string(), "0".to_string(), 30)
-                .await
-                .unwrap_or_else(|_| "".to_string());
-        } else {
-            return Err(models::ProfileRolesUpdate::RateLimited(rl));
-        }
-
         let rows = sqlx::query!(
             "SELECT DISTINCT bots.bot_id, bots.state FROM bots
             INNER JOIN bot_owner ON bot_owner.bot_id = bots.bot_id
