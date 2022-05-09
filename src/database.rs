@@ -1745,6 +1745,24 @@ impl Database {
         .unwrap();
     }
 
+    pub async fn revoke_client(&self, user_id: i64, client_id: String) {
+        sqlx::query!(
+            "DELETE FROM user_connections WHERE user_id = $1 AND client_id = $2",
+            user_id,
+            client_id
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap();
+
+        // Invalidate all other tokens
+        for (key, value) in self.client_data.iter() {
+            if value.user_id == user_id && value.client_id == client_id {
+                self.client_data.invalidate(&key).await;
+            }
+        }
+    }
+
     pub async fn add_bot(&self, bot: &models::Bot) -> Result<(), sqlx::Error> {
         let id = bot.user.id.parse::<i64>().unwrap();
         let client_id = bot.client_id.parse::<i64>().unwrap_or(id);

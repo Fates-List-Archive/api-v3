@@ -651,6 +651,12 @@ pub struct FetchBotPath {
     pub id: i64,
 }
 
+#[derive(Deserialize, Serialize, Default, Clone)]
+pub struct UserClientAuth {
+    pub id: i64,
+    pub client_id: String,
+}
+
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct BotCommand {
     pub cmd_type: CommandType,

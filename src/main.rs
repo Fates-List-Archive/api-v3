@@ -181,6 +181,7 @@ async fn main() -> std::io::Result<()> {
             .service(security::new_bot_token)
             .service(security::new_user_token)
             .service(security::new_server_token)
+            .service(security::revoke_client)
             
             // Bot Actions
             .service(botactions::add_bot)

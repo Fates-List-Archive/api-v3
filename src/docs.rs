@@ -739,6 +739,26 @@ token ever gets leaked.
         auth_types: vec![models::RouteAuthType::User],
     });
 
+    // Revoke client auth
+    docs += &doc(models::Route {
+        title: "Revoke Frostpaw Client Auth",
+        method: "DELETE",
+        path: "/users/{id}/frostpaw/clients/{client_id}",
+        description: r#"
+'Deletes' a user token and reissues a new user token. Use this if your user
+token ever gets leaked.
+"#,
+        path_params: &models::UserClientAuth { id: 0, client_id: "client_id".to_string() },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
     // New Server Token
     docs += &doc(models::Route {
         title: "New Server Token",
