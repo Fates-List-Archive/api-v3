@@ -37,7 +37,7 @@ async fn get_oauth2(req: HttpRequest) -> HttpResponse {
 #[get("/frostpaw/clients/{client_id}")]
 async fn get_frostpaw_client(req: HttpRequest, client_id: web::Path<String>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let client = data.database.get_frostpaw_client(client_id.into_inner()).await;
+    let client = data.database.get_frostpaw_client(&client_id.into_inner()).await;
     if let Some(cli) = client {
         HttpResponse::Ok().json(cli)
     } else {
@@ -49,7 +49,7 @@ async fn get_frostpaw_client(req: HttpRequest, client_id: web::Path<String>) -> 
 #[post("/frostpaw/clients/{client_id}/refresh")]
 async fn refresh_access_token(req: HttpRequest, client_id: web::Path<String>, info: web::Json<models::FrostpawTokenReset>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let client = data.database.get_frostpaw_client(client_id.clone()).await;
+    let client = data.database.get_frostpaw_client(&client_id).await;
 
     if client.is_none() {        
         return HttpResponse::NotFound().json(models::APIResponse {
@@ -157,11 +157,11 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
                 let time_elapsed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() - claw_unseathe_time;
 
-                if time_elapsed > 75 || time_elapsed < 5 {
+                if !(5..=75).contains(&time_elapsed) {
                     return HttpResponse::BadRequest().json(models::APIResponse::err(&models::OauthError::NonceTooOld));
                 }
 
-                let client = data.database.get_frostpaw_client(blood.clone()).await;
+                let client = data.database.get_frostpaw_client(&blood).await;
                 if client.is_none() {
                     return HttpResponse::BadRequest().json(models::APIResponse {
                         done: false,

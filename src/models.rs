@@ -352,7 +352,8 @@ pub struct FrostpawUserConnection {
     pub client: FrostpawClient,
     #[serde(skip)]
     pub user_id: i64,
-    pub expires_on: chrono::DateTime<chrono::Utc>
+    pub expires_on: chrono::DateTime<chrono::Utc>,
+    pub repeats: i64,
 }
 
 

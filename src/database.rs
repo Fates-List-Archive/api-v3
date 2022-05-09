@@ -156,18 +156,20 @@ impl Database {
                 user_id: 0,
                 client: models::FrostpawClient::default(),
                 expires_on: chrono::Utc::now(),
+                repeats: 0,
             }
         }
         
         let result = result.unwrap();
 
-        let cli = self.get_frostpaw_client(result.client_id).await;
+        let cli = self.get_frostpaw_client(&result.client_id).await;
 
         if cli.is_none() {
             return models::FrostpawUserConnection {
                 user_id: 0,
                 client: models::FrostpawClient::default(),
                 expires_on: chrono::Utc::now(),
+                repeats: 0,
             }
         }
         
@@ -175,6 +177,7 @@ impl Database {
             user_id: result.user_id,
             client: cli.unwrap(),
             expires_on: result.expires_on,
+            repeats: 0,
         }
     }
 
@@ -2279,23 +2282,41 @@ impl Database {
         let mut connections = Vec::new();
 
         let connections_row = sqlx::query!(
-            "SELECT client_id, expires_on FROM user_connections WHERE user_id = $1",
+            "SELECT COUNT(client_id) AS count, client_id FROM user_connections WHERE user_id = $1 GROUP BY client_id",
             user_id
         )
         .fetch_all(&self.pool)
         .await;
 
+        let mut used_ids = Vec::new();
+
         if let Ok(conns) = connections_row {
             for conn in conns {
-                let cli = self.get_frostpaw_client(conn.client_id).await;
+                if used_ids.contains(&conn.client_id) {
+                    continue;
+                }
+                used_ids.push(conn.client_id.clone());
+
+                let cli = self.get_frostpaw_client(&conn.client_id).await;
 
                 if cli.is_none() {
                     continue;
                 }
+
+                let expires_on = sqlx::query!(
+                    "SELECT expires_on From user_connections WHERE user_id = $1 AND client_id = $2 ORDER BY expires_on DESC LIMIT 1",
+                    user_id,
+                    conn.client_id
+                )
+                .fetch_one(&self.pool)
+                .await
+                .unwrap();
+
                 connections.push(models::FrostpawUserConnection {
                     client: cli.unwrap(),
-                    expires_on: conn.expires_on,
-                    user_id: user_id
+                    expires_on: expires_on.expires_on,
+                    user_id,
+                    repeats: conn.count.unwrap(),
                 });
             }
         }
@@ -3543,7 +3564,7 @@ impl Database {
         Ok(())
     }
 
-    pub async fn get_frostpaw_client(&self, id: String) -> Option<models::FrostpawClient> {
+    pub async fn get_frostpaw_client(&self, id: &str) -> Option<models::FrostpawClient> {
         let row = sqlx::query!(
             "SELECT id, name, domain, privacy_policy, secret, owner_id FROM frostpaw_clients WHERE id = $1",
             id
