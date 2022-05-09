@@ -3,7 +3,7 @@ use actix_web::HttpResponse;
 use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use serde_repr::*;
+use serde_repr::{Serialize_repr, Deserialize_repr};
 use serenity::model::id::{ChannelId, RoleId, GuildId};
 use std::env;
 use std::fmt;
