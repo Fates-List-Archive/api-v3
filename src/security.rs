@@ -1,7 +1,8 @@
+/// Endpoints to manage security related features such as token regeneration
+
 use crate::models;
 use actix_web::http::header::HeaderValue;
-/// Endpoints to manage security related features such as token regeneration
-use actix_web::{delete, http, web, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{delete, http, web, HttpRequest, HttpResponse};
 use log::error;
 
 /// Issues (regenerates) a new bot token
@@ -25,7 +26,7 @@ async fn new_bot_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) ->
         })
     } else {
         error!("Token auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
+        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
     }
 }
 
@@ -50,7 +51,7 @@ async fn new_user_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -
         })
     } else {
         error!("Token auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
+        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
     }
 }
 
@@ -75,6 +76,6 @@ async fn new_server_token(req: HttpRequest, id: web::Path<models::FetchBotPath>)
         })
     } else {
         error!("Token auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
+        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
     }
 }

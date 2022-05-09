@@ -1,7 +1,7 @@
 // Add, remove and delete commands from bots
 use crate::models;
 use actix_web::http::header::HeaderValue;
-use actix_web::{delete, post, web, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{delete, post, http, web, HttpRequest, HttpResponse};
 use log::error;
 
 #[post("/bots/{id}/commands")]
@@ -53,10 +53,9 @@ async fn add_command(
             }
         }
         return HttpResponse::Ok().json(models::APIResponse::ok());
-    } else {
-        error!("Command post auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
     }
+    error!("Command post auth error");
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 #[delete("/bots/{id}/commands")]
@@ -104,8 +103,7 @@ async fn delete_commands(
         }
 
         return HttpResponse::Ok().json(models::APIResponse::ok());
-    } else {
-        error!("Command delete auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
     }
+    error!("Command delete auth error");
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }

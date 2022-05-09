@@ -1,7 +1,7 @@
 use crate::models;
 use crate::converters;
 use actix_web::http::header::HeaderValue;
-use actix_web::{get, patch, web, http, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{get, patch, web, http, HttpRequest, HttpResponse};
 use log::error;
 
 
@@ -27,28 +27,20 @@ async fn vote_bot(
     if data.database.authorize_user(user_id, auth).await {
         let bot = data.database.get_bot(bot_id).await;
         if bot.is_none() {
-            return models::CustomError::NotFoundGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
         }
         let bot = bot.unwrap();
         if converters::flags_check(&bot.flags, vec![models::Flags::System as i32]) {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You can't vote for system bots!".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&models::VoteBotError::System(models::TargetType::Bot)));
         }
-        let res = data.database.vote_bot(user_id, bot_id, vote.test).await;
-        if res.is_err() {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: None,
-            });
+        let vote = data.database.vote_bot(user_id, bot_id, vote.test).await;
+        if vote.is_err() {
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&vote.unwrap_err()));
         }
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Vote Bot Auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Create Server Vote
@@ -73,17 +65,13 @@ async fn vote_server(
     if data.database.authorize_user(user_id, auth).await {
         let server = data.database.get_server(server_id).await;
         if server.is_none() {
-            return models::CustomError::NotFoundGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
         }
         let server = server.unwrap();
         if converters::flags_check(&server.flags, vec![models::Flags::System as i32]) {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You can't vote for system servers!".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&models::VoteBotError::System(models::TargetType::Server)));
         }
-        let res = data
+        let vote = data
             .database
             .vote_server(
                 &data.config.discord_http_server,
@@ -92,17 +80,13 @@ async fn vote_server(
                 vote.test,
             )
             .await;
-        if res.is_err() {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: None,
-            });
+        if vote.is_err() {
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&vote.unwrap_err()));
         }
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Vote Server Auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Bot: Has User Voted?

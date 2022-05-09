@@ -3,7 +3,7 @@
 use crate::models;
 use crate::converters;
 use actix_web::http::header::HeaderValue;
-use actix_web::{get, delete, patch, post, web, http, web::Json, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{get, delete, patch, post, web, http, web::Json, HttpRequest, HttpResponse};
 use log::{error, debug};
 use serenity::model::prelude::*;
 use std::time::Duration;
@@ -363,7 +363,7 @@ async fn add_bot(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Add bot auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Edit bot
@@ -389,7 +389,7 @@ async fn edit_bot(
             .get_bot(bot.user.id.parse::<i64>().unwrap_or(0))
             .await;
         if bot_user.is_none() {
-            return models::CustomError::NotFoundGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
         }
 
         let mut got_owner = false;
@@ -448,7 +448,7 @@ async fn edit_bot(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Edit bot auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Transfer ownership
@@ -470,7 +470,7 @@ async fn transfer_ownership(
         // Before doing anything else, get the bot from db and check if user is owner
         let bot_user = data.database.get_bot(id.bot_id).await;
         if bot_user.is_none() {
-            return models::CustomError::NotFoundGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
         }
 
         let mut got_owner = false;
@@ -565,7 +565,7 @@ async fn transfer_ownership(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Transfer bot auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Delete bot
@@ -585,7 +585,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         // Before doing anything else, get the bot from db and check if user is owner
         let bot_user = data.database.get_bot(id.bot_id).await;
         if bot_user.is_none() {
-            return models::CustomError::NotFoundGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
         }
 
         let mut got_owner = false;
@@ -646,7 +646,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Delete bot auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 // Get Import Sources
@@ -1029,7 +1029,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Add bot auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Post Stats
@@ -1064,7 +1064,7 @@ async fn post_stats(
         }
     } else {
         error!("Stat post auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
+        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
     }
 }
 
@@ -1148,7 +1148,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
                     data.database.bot_cache.insert(id.id, bot_data.clone()).await;
                     HttpResponse::Ok().json(bot_data)
                 },
-                _ => models::CustomError::NotFoundGeneric.error_response(),
+                _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound)),
             }
         }
     }
@@ -1210,6 +1210,6 @@ async fn get_bot_settings(
         }
     } else {
         error!("Bot Settings Auth error");
-        models::CustomError::ForbiddenGeneric.error_response()
+        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
     }
 }

@@ -6,9 +6,7 @@ use actix_web::dev::Service;
 use actix_web::http::uri::PathAndQuery;
 use actix_web::http::Uri;
 use actix_web::middleware::Logger;
-use actix_web::{
-    error::ResponseError, http, middleware, web, App, HttpRequest, HttpResponse, HttpServer,
-};
+use actix_web::{http, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use bytes::Bytes;
 use futures::future::FutureExt;
 use inflector;
@@ -38,15 +36,11 @@ mod docser; // Used internally by docs.rs
 use crate::models::APIResponse;
 
 async fn not_found(_req: HttpRequest) -> HttpResponse {
-    models::CustomError::NotFoundGeneric.error_response()
+    return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
 }
 
 fn actix_handle_err<T: std::error::Error + 'static>(err: T) -> actix_web::error::Error {
-    let response = HttpResponse::BadRequest().json(APIResponse {
-        done: false,
-        reason: Some(err.to_string()),
-        context: None,
-    });
+    let response = HttpResponse::BadRequest().json(APIResponse::err(&err));
     actix_web::error::InternalError::from_response(err, response).into()
 }
 

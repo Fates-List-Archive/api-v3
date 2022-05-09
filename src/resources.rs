@@ -1,7 +1,7 @@
 // Add, remove and delete resources from bots/servers
 use crate::models;
 use actix_web::http::header::HeaderValue;
-use actix_web::{delete, post, web, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{delete, post, web, http, HttpRequest, HttpResponse};
 use log::error;
 
 #[post("/resources/{id}")]
@@ -69,7 +69,7 @@ async fn add_resource(
         }
     }
     error!("Resource post auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 #[delete("/resources/{id}")]
@@ -129,5 +129,5 @@ async fn delete_resource(
         }
     }
     error!("Resource post auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }

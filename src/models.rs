@@ -1,5 +1,5 @@
 use crate::database;
-use actix_web::{error::ResponseError, http, HttpResponse};
+use actix_web::HttpResponse;
 use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,6 @@ use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use thiserror::Error;
 use std::collections::HashMap;
 use strum_macros::EnumIter;
 
@@ -598,6 +597,14 @@ impl APIResponse {
             context: None,
         }
     }
+
+    pub fn banned(flag: &str) -> Self {
+        APIResponse {
+            done: false,
+            reason: Some("You have been banned from using this API endpoint".to_string()),
+            context: Some(flag.to_string()),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Default)]
@@ -1144,12 +1151,13 @@ pub enum ProfileCheckError {
     InvalidFlag(i32),
 }
 
-impl ProfileCheckError {
-    pub fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for ProfileCheckError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+        &match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
             Self::InvalidFlag(f) => format!("Illegal or otherwise non-edittable flag: {}", f),
-        }
+        })
     }
 }
 
@@ -1161,14 +1169,15 @@ pub enum ProfileRolesUpdate {
     DiscordError(serenity::Error),
 }
 
-impl ProfileRolesUpdate {
-    pub fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for ProfileRolesUpdate {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+        &match self {
             Self::SQLError(e) => format!("SQL Error: {}", e),
             Self::MemberNotFound => "You are not on our support server!".to_string(),
             Self::RateLimited(i) => format!("You have been rate limited for {} seconds", i),
             Self::DiscordError(e) => format!("Discord Error: {}", e),
-        }
+        })
     }
 }
 
@@ -1196,13 +1205,22 @@ impl fmt::Display for CommandAddError {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum CustomError {
-    #[error("Not Found")]
-    NotFoundGeneric,
-    #[error("Forbidden")]
-    ForbiddenGeneric
+#[derive(Debug)]
+pub enum GenericError {
+    Forbidden,
+    NotFound,
 }
+
+impl fmt::Display for GenericError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+        &match self {
+            Self::Forbidden => "Forbidden".to_string(),
+            Self::NotFound => "Not Found".to_string(),
+        })
+    }
+}
+
 
 #[derive(Debug)]
 pub enum GuildInviteError {
@@ -1410,22 +1428,26 @@ impl BannerCheckError {
 pub enum VoteBotError {
     Wait(String),
     UnknownError(String),
+    System(TargetType),
     SQLError(sqlx::Error),
     AutoroleError,
 }
 
-impl VoteBotError {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::Wait(s) => format!("You must wait {} before voting again", s),
-            Self::UnknownError(e) => {
-                "An unknown error occurred. Please ask on the Fates List support server: "
-                    .to_string()
-                    + e
+impl fmt::Display for VoteBotError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(
+            &match self {
+                Self::Wait(s) => format!("You must wait {} before voting again", s),
+                Self::UnknownError(e) => {
+                    "An unknown error occurred. Please ask on the Fates List support server: "
+                        .to_string()
+                        + e
+                }
+                Self::SQLError(e) => format!("SQL error: {}", e),
+                Self::System(e) => format!("You can't vote for system {}s!", format!("{:?}", e).to_lowercase()),
+                Self::AutoroleError => "Failed to find you on server for auto roles! This might be because this server does not have Squirrelflight with the 'Manage Roles' permission".to_string(),    
             }
-            Self::SQLError(e) => format!("SQL error: {}", e),
-            Self::AutoroleError => "Failed to find you on server for auto roles! This might be because this server does not have Squirrelflight with the 'Manage Roles' permission".to_string(),
-        }
+        )
     }
 }
 
@@ -1451,33 +1473,6 @@ impl StatsError {
     }
 }
 
-impl CustomError {
-    pub fn name(&self) -> String {
-        match self {
-            Self::NotFoundGeneric => "Not Found".to_string(),
-            Self::ForbiddenGeneric => "Forbidden".to_string(),
-        }
-    }
-}
-
-impl ResponseError for CustomError {
-    fn status_code(&self) -> http::StatusCode {
-        match *self {
-            Self::NotFoundGeneric => http::StatusCode::NOT_FOUND,
-            Self::ForbiddenGeneric => http::StatusCode::FORBIDDEN,
-        }
-    }
-
-    fn error_response(&self) -> HttpResponse {
-        let status_code = self.status_code();
-        let error_response = APIResponse {
-            reason: Some(self.to_string()),
-            context: Some(self.name()),
-            done: status_code.is_success(),
-        };
-        HttpResponse::build(status_code).json(error_response)
-    }
-}
 
 #[derive(Clone, PartialEq)]
 pub enum RouteAuthType {

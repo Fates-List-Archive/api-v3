@@ -4,7 +4,7 @@ use crate::models;
 use std::sync::Arc;
 use uuid::Uuid;
 use actix_web::http::header::HeaderValue;
-use actix_web::{get, web, http, web::Json, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{get, web, http, web::Json, HttpRequest, HttpResponse};
 use log::{error, debug};
 
 // Server route
@@ -112,7 +112,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
                     server_data.invite_link = invite_link;
                     HttpResponse::Ok().json(server_data)
                 },
-                _ => models::CustomError::NotFoundGeneric.error_response(),
+                _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound)),
             }
         }
     }

@@ -1,7 +1,7 @@
 // Endpoints to get and modify users
 use crate::models;
 use actix_web::http::header::HeaderValue;
-use actix_web::{get, put, patch, web, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{get, put, patch, web, http, HttpRequest, HttpResponse};
 use log::error;
 
 #[get("/profiles/{id}")]
@@ -37,16 +37,12 @@ async fn update_profile(
     if data.database.authorize_user(info.id, auth).await {
         let profile = data.database.get_profile(info.id).await;
         if profile.is_none() {
-            return models::CustomError::NotFoundGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
         }
         let profile = profile.unwrap();
 
         if profile.state == models::UserState::ProfileEditBan {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("You have been banned from using this API endpoint".to_string()),
-                context: Some("Profile edit ban".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::banned("ProfileEditBan"));
         }
 
         if body.flags.contains(&(models::UserFlags::VotesPrivate as i32)) && !profile.user_experiments.contains(&models::UserExperiments::UserVotePrivacy) {
@@ -59,20 +55,12 @@ async fn update_profile(
             .await;
 
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: Some("Profile update error".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
         }
-        return HttpResponse::Ok().json(models::APIResponse {
-            done: true,
-            reason: Some("Updated profile successfully!".to_string()),
-            context: None,
-        });
+        return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Update profile auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 #[put("/profiles/{id}/old-roles")]
@@ -92,16 +80,12 @@ async fn recieve_profile_roles(
     if data.database.authorize_user(info.id, auth).await {
         let profile = data.database.get_profile(info.id).await;
         if profile.is_none() {
-            return models::CustomError::NotFoundGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
         }
         let profile = profile.unwrap();
 
         if profile.state == models::UserState::ProfileEditBan {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("You have been banned from using this API endpoint".to_string()),
-                context: Some("Profile edit ban".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::banned("ProfileEditBan"));
         }
 
         let res = data
@@ -110,16 +94,12 @@ async fn recieve_profile_roles(
             .await;
 
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(res.unwrap_err().to_string()),
-                context: Some("Profile update error".to_string()),
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
         }
         return HttpResponse::Ok().json(res.unwrap());
     }
     error!("Update profile auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 #[get("/profiles/{id}/test-experiments")]
@@ -146,5 +126,5 @@ async fn test_experiments(
         return HttpResponse::Ok().json(models::Empty {});
     }
     error!("Update profile auth error");
-    models::CustomError::ForbiddenGeneric.error_response()
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }

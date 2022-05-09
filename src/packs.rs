@@ -2,7 +2,7 @@
 // Endpoints to create, delete and edit packs
 use crate::models;
 use actix_web::http::header::HeaderValue;
-use actix_web::{delete, patch, post, web, HttpRequest, HttpResponse, ResponseError};
+use actix_web::{delete, patch, post, web, http, HttpRequest, HttpResponse};
 use log::error;
 
 async fn pack_check(
@@ -64,7 +64,7 @@ async fn add_pack(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Pack Add Auth error");
-        return models::CustomError::ForbiddenGeneric.error_response();
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
     }
 
     pack.owner.id = user_id.to_string();
@@ -113,7 +113,7 @@ async fn edit_pack(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Pack Edit Auth error");
-        return models::CustomError::ForbiddenGeneric.error_response();
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
     }
 
     // Make sure we are the owner of this pack
@@ -121,10 +121,10 @@ async fn edit_pack(
 
     if let Some(owner) = pack_owners {
         if owner != user_id {
-            return models::CustomError::ForbiddenGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
         }
     } else {
-        return models::CustomError::NotFoundGeneric.error_response();
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
     }
 
     let mut pack = pack.into_inner();
@@ -167,7 +167,7 @@ async fn delete_pack(req: HttpRequest, info: web::Path<models::GetUserPackPath>)
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Pack Delete Auth error");
-        return models::CustomError::ForbiddenGeneric.error_response();
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
     }
 
     // Make sure we are the owner of this pack
@@ -175,10 +175,10 @@ async fn delete_pack(req: HttpRequest, info: web::Path<models::GetUserPackPath>)
 
     if let Some(owner) = pack_owners {
         if owner != user_id {
-            return models::CustomError::ForbiddenGeneric.error_response();
+            return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
         }
     } else {
-        return models::CustomError::NotFoundGeneric.error_response();
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
     }
 
     data.database.delete_pack(info.pack_id.clone()).await;
