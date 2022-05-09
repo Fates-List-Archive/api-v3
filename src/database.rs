@@ -264,7 +264,8 @@ impl Database {
     pub async fn index_bots(&self, state: models::State) -> Vec<models::IndexBot> {
         let mut bots: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
-            "SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = $1 ORDER BY votes DESC LIMIT 12",
+            "SELECT bot_id, created_at, flags, description, banner_card, state, votes, guild_count, nsfw 
+            FROM bots WHERE state = $1 ORDER BY votes DESC LIMIT 12",
             state as i32
         )
             .fetch_all(&self.pool)
@@ -282,6 +283,7 @@ impl Database {
                 votes: row.votes.unwrap_or(0),
                 flags: row.flags,
                 user: self.get_user(row.bot_id).await,
+                created_at: row.created_at,
             };
             bots.push(bot);
         }
@@ -309,7 +311,8 @@ impl Database {
     pub async fn index_new_bots(&self) -> Vec<models::IndexBot> {
         let mut bots: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
-            "SELECT bot_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM bots WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
+            "SELECT bot_id, flags, created_at, description, banner_card, state, votes, guild_count, nsfw 
+            FROM bots WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
             models::State::Approved as i32
         )
             .fetch_all(&self.pool)
@@ -327,6 +330,7 @@ impl Database {
                 votes: row.votes.unwrap_or(0),
                 flags: row.flags,
                 user: self.get_user(row.bot_id).await,
+                created_at: row.created_at,
             };
             bots.push(bot);
         }
@@ -351,7 +355,8 @@ impl Database {
     pub async fn index_servers(&self, state: models::State) -> Vec<models::IndexBot> {
         let mut servers: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
-            "SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = $1 ORDER BY votes DESC LIMIT 12",
+            "SELECT guild_id, flags, description, created_at, banner_card, state, votes, guild_count, nsfw 
+            FROM servers WHERE state = $1 ORDER BY votes DESC LIMIT 12",
             state as i32
         )
             .fetch_all(&self.pool)
@@ -364,11 +369,12 @@ impl Database {
                 banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
+                flags: row.flags,
                 state: models::State::try_from(row.state).unwrap_or(state),
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
-                flags: row.flags,
                 user: self.get_server_user(row.guild_id).await,
+                created_at: row.created_at,
             };
             servers.push(server);
         }
@@ -378,7 +384,8 @@ impl Database {
     pub async fn index_new_servers(&self) -> Vec<models::IndexBot> {
         let mut servers: Vec<models::IndexBot> = Vec::new();
         let rows = sqlx::query!(
-            "SELECT guild_id, flags, description, banner_card, state, votes, guild_count, nsfw FROM servers WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
+            "SELECT guild_id, flags, description, created_at, banner_card, state, votes, guild_count, nsfw 
+            FROM servers WHERE state = $1 ORDER BY created_at DESC LIMIT 12",
             models::State::Approved as i32
         )
             .fetch_all(&self.pool)
@@ -396,6 +403,7 @@ impl Database {
                 votes: row.votes.unwrap_or(0),
                 flags: row.flags,
                 user: self.get_server_user(row.guild_id).await,
+                created_at: row.created_at,
             };
             servers.push(server);
         }
@@ -476,7 +484,6 @@ impl Database {
     }
 
     // Auth functions
-
     pub async fn authorize_user(&self, user_id: i64, token: &str) -> bool {
         if token.is_empty() {
             return false;
@@ -928,7 +935,7 @@ impl Database {
     pub async fn search(&self, search: models::SearchQuery) -> models::Search {
         // Get bots row
         let bots_row = sqlx::query!(
-            "SELECT DISTINCT bots.bot_id,
+            "SELECT DISTINCT bots.bot_id, bots.created_at,
             bots.description, bots.banner_card AS banner, bots.state, 
             bots.votes, bots.flags, bots.guild_count, bots.nsfw FROM bots 
             INNER JOIN bot_owner ON bots.bot_id = bot_owner.bot_id 
@@ -959,13 +966,14 @@ impl Database {
                 votes: bot.votes.unwrap_or_default(),
                 state: models::State::try_from(bot.state).unwrap_or(models::State::Approved),
                 flags: bot.flags,
+                created_at: bot.created_at,
                 user: self.get_user(bot.bot_id).await,
             });
         }
 
         // Get servers row
         let servers_row = sqlx::query!(
-            "SELECT DISTINCT servers.guild_id,
+            "SELECT DISTINCT servers.guild_id, servers.created_at,
             servers.description, servers.banner_card, servers.state,
             servers.votes, servers.guild_count, servers.nsfw, servers.flags FROM servers
             WHERE (servers.description ilike $1
@@ -992,6 +1000,7 @@ impl Database {
                 nsfw: server.nsfw.unwrap_or(false),
                 votes: server.votes.unwrap_or(0),
                 flags: server.flags,
+                created_at: server.created_at,
                 user: self.get_server_user(server.guild_id).await,
             });
         }
@@ -1068,20 +1077,14 @@ impl Database {
             });
         }
 
-        models::Search {
-            bots,
-            servers,
-            tags,
-            profiles,
-            packs,
-        }
+        models::Search { bots, servers, profiles, packs, tags }
     }
 
     // Search bot/server tags
     pub async fn search_tags(&self, tag: &String) -> models::Search {
         let rows = sqlx::query!(
-            "SELECT DISTINCT bots.bot_id, bots.description, bots.state, bots.banner_card 
-            AS banner, bots.flags, bots.votes, bots.guild_count FROM bots INNER JOIN bot_tags 
+            "SELECT DISTINCT bots.bot_id, bots.description, bots.state, bots.created_at, 
+            bots.banner_card, bots.flags, bots.votes, bots.guild_count FROM bots INNER JOIN bot_tags 
             ON bot_tags.bot_id = bots.bot_id WHERE bot_tags.tag = $1 AND 
             (
                 bots.state = 0 
@@ -1099,7 +1102,8 @@ impl Database {
             bots.push(models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description,
-                banner: row.banner.clone().unwrap_or_else(|| {
+                created_at: row.created_at,
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
@@ -1111,8 +1115,9 @@ impl Database {
         }
 
         let server_rows = sqlx::query!(
-            "SELECT DISTINCT guild_id, flags, description, state, banner_card AS banner, 
-            votes, guild_count FROM servers WHERE state = 0 AND tags && $1",
+            "SELECT DISTINCT guild_id, flags, created_at, 
+            description, state, banner_card, votes, guild_count FROM servers 
+            WHERE state = 0 AND tags && $1",
             &vec![tag.clone()]
         )
         .fetch_all(&self.pool)
@@ -1125,7 +1130,8 @@ impl Database {
             servers.push(models::IndexBot {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description,
-                banner: row.banner.unwrap_or_else(|| {
+                created_at: row.created_at,
+                banner: row.banner_card.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
@@ -1151,7 +1157,8 @@ impl Database {
     #[async_recursion]
     pub async fn random_bot(&self) -> models::IndexBot {
         let random_row = sqlx::query!(
-            "SELECT description, banner_card, state, votes, guild_count, bot_id, flags FROM bots WHERE (state = 0 OR state = 6) AND nsfw = false ORDER BY RANDOM() LIMIT 1"
+            "SELECT description, banner_card, state, votes, created_at, guild_count, bot_id, flags 
+            FROM bots WHERE (state = 0 OR state = 6) AND nsfw = false ORDER BY RANDOM() LIMIT 1"
         )
         .fetch_one(&self.pool)
         .await
@@ -1167,6 +1174,7 @@ impl Database {
             guild_count: random_row.guild_count.unwrap_or(0),
             user: self.get_user(random_row.bot_id).await,
             flags: random_row.flags,
+            created_at: random_row.created_at,
         };
         if index_bot.user.username.starts_with("Deleted") {
             return self.random_bot().await;
@@ -1176,7 +1184,8 @@ impl Database {
 
     pub async fn random_server(&self) -> models::IndexBot {
         let random_row = sqlx::query!(
-            "SELECT description, banner_card, state, votes, guild_count, guild_id, flags FROM servers WHERE (state = 0 OR state = 6) AND nsfw = false ORDER BY RANDOM() LIMIT 1"
+            "SELECT description, banner_card, state, votes, guild_count, guild_id, flags, created_at FROM servers 
+            WHERE (state = 0 OR state = 6) AND nsfw = false ORDER BY RANDOM() LIMIT 1"
         )
         .fetch_one(&self.pool)
         .await
@@ -1192,6 +1201,7 @@ impl Database {
             guild_count: random_row.guild_count.unwrap_or(0),
             user: self.get_server_user(random_row.guild_id).await,
             flags: random_row.flags,
+            created_at: random_row.created_at,
         };
         index_bot
     }
@@ -2195,7 +2205,7 @@ impl Database {
 
         let bots_row = sqlx::query!(
             "SELECT DISTINCT bots.bot_id, bots.description, bots.prefix, 
-            bots.banner_card, bots.state, bots.votes, 
+            bots.banner_card, bots.state, bots.votes, bots.created_at,
             bots.guild_count, bots.nsfw, bots.flags FROM bots 
             INNER JOIN bot_owner ON bot_owner.bot_id = bots.bot_id 
             WHERE bot_owner.owner = $1",
@@ -2217,6 +2227,7 @@ impl Database {
                 nsfw: row.nsfw.unwrap_or(false),
                 votes: row.votes.unwrap_or(0),
                 flags: row.flags,
+                created_at: row.created_at,
                 user: self.get_user(row.bot_id).await,
             };
             bots.push(bot);
@@ -2706,7 +2717,7 @@ impl Database {
 
     pub async fn get_all_bots(&self) -> Vec<models::IndexBot> {
         let rows = sqlx::query!(
-            "SELECT bot_id, username_cached, avatar_cached, disc_cached,
+            "SELECT bot_id, username_cached, avatar_cached, disc_cached, created_at,
             guild_count, banner_card, description, votes, state, nsfw, flags 
             FROM bots ORDER BY votes DESC"
         )
@@ -2739,6 +2750,7 @@ impl Database {
 
             list.push(models::IndexBot {
                 user,
+                created_at: row.created_at,
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
@@ -2757,7 +2769,7 @@ impl Database {
     pub async fn get_all_servers(&self) -> Vec<models::IndexBot> {
         let rows = sqlx::query!(
             "SELECT guild_id, name_cached, guild_count, banner_card, 
-            description, votes, state, nsfw, flags FROM servers"
+            created_at, description, votes, state, nsfw, flags FROM servers"
         )
         .fetch_all(&self.pool)
         .await;
@@ -2780,6 +2792,7 @@ impl Database {
                     bot: true,
                     status: models::Status::Unknown,
                 },
+                created_at: row.created_at,
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {

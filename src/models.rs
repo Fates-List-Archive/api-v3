@@ -129,8 +129,8 @@ pub enum PageStyle {
     SingleScroll = 1,
 }
 
-/// IndexBot represents a bot/server on the index page
-#[derive(Deserialize, Serialize, Clone, Default)]
+/// `IndexBot` represents a bot/server on the index page
+#[derive(Deserialize, Serialize, Clone)]
 pub struct IndexBot {
     pub guild_count: i64,
     pub description: String,
@@ -140,6 +140,23 @@ pub struct IndexBot {
     pub state: State,
     pub user: User,
     pub flags: Vec<i32>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl Default for IndexBot {
+    fn default() -> Self {
+        IndexBot {
+            guild_count: 30,
+            description: "My description".to_string(),
+            banner: "My banner or default banner url".to_string(),
+            nsfw: false,
+            votes: 40,
+            state: State::Hidden,
+            user: User::default(),
+            flags: vec![],
+            created_at: chrono::Utc::now(),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
