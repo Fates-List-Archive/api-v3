@@ -38,16 +38,11 @@ async fn get_oauth2(req: HttpRequest) -> HttpResponse {
 async fn get_frostpaw_client(req: HttpRequest, client_id: web::Path<String>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let client = data.database.get_frostpaw_client(client_id.into_inner()).await;
-    if client.is_none() {
-        return HttpResponse::NotFound().json(models::APIResponse {
-            done: false,
-            reason: Some("Client not found".to_string()),
-            context: None,
-        });
+    if let Some(cli) = client {
+        HttpResponse::Ok().json(cli)
+    } else {
+        HttpResponse::NotFound().json(models::APIResponse::err(&models::GenericError::NotFound))
     }
-    let mut client = client.unwrap();
-    client.secret = None;
-    HttpResponse::Ok().json(client)
 }
 
 /// Regenerate access token from refresh token
@@ -66,7 +61,7 @@ async fn refresh_access_token(req: HttpRequest, client_id: web::Path<String>, in
 
     let client = client.unwrap();
     
-    if client.secret.unwrap() != info.secret {
+    if client.secret != info.secret {
         return HttpResponse::Unauthorized().json(models::APIResponse {
             done: false,
             reason: Some("Invalid client secret".to_string()),
@@ -76,7 +71,7 @@ async fn refresh_access_token(req: HttpRequest, client_id: web::Path<String>, in
 
     let refresh_data = data.database.get_frostpaw_refresh_token(info.refresh_token.clone()).await;
 
-    if refresh_data.client_id != client_id.into_inner() {
+    if refresh_data.client.id != client_id.into_inner() {
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
             reason: Some("Invalid client ID for this refresh token".to_string()),
@@ -86,7 +81,7 @@ async fn refresh_access_token(req: HttpRequest, client_id: web::Path<String>, in
 
     // Invalidate all other tokens
     for (key, value) in data.database.client_data.iter() {
-        if value.user_id == refresh_data.user_id && value.client_id == refresh_data.client_id {
+        if value.user_id == refresh_data.user_id && value.client_id == refresh_data.client.id {
             data.database.client_data.invalidate(&key).await;
         }
     }
@@ -152,17 +147,19 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 // If a frostpaw custom client login is used 
                 // Check claw with blood
                 if info.frostpaw_blood.is_none() || info.frostpaw_claw.is_none() || info.frostpaw_claw_unseathe_time.is_none() {
-                    return HttpResponse::BadRequest().json(models::APIResponse {
-                        done: false,
-                        reason: Some("Frostpaw login requires blood, claw, and claw unseathe time".to_string()),
-                        context: None,
-                    });
+                    return HttpResponse::BadRequest().json(models::APIResponse::err(&models::GenericError::InvalidFields));
                 }
 
                 // These clones arent easy to avoid
                 let blood = info.frostpaw_blood.clone().unwrap();
                 let claw = info.frostpaw_claw.clone().unwrap();
                 let claw_unseathe_time = info.frostpaw_claw_unseathe_time.unwrap();
+
+                let time_elapsed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() - claw_unseathe_time;
+
+                if time_elapsed > 75 || time_elapsed < 5 {
+                    return HttpResponse::BadRequest().json(models::APIResponse::err(&models::OauthError::NonceTooOld));
+                }
 
                 let client = data.database.get_frostpaw_client(blood.clone()).await;
                 if client.is_none() {
@@ -175,9 +172,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 let client = client.unwrap();
 
                 // Now check HMAC
-                let secret = client.secret.unwrap();
-
-                let mac = HmacSha512::new_from_slice(secret.as_bytes());
+                let mac = HmacSha512::new_from_slice(client.secret.as_bytes());
     
                 if mac.is_err() {
                     error!("Failed to create HMAC");

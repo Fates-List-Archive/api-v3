@@ -327,7 +327,7 @@ pub struct OauthDoQuery {
     pub frostpaw: bool, // Custom client or not
     pub frostpaw_blood: Option<String>, // Custom client ID
     pub frostpaw_claw: Option<String>, // Custom client hmac data
-    pub frostpaw_claw_unseathe_time: Option<i64>, // Custom client reported current time
+    pub frostpaw_claw_unseathe_time: Option<u64>, // Custom client reported current time
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -336,7 +336,8 @@ pub struct FrostpawClient {
     pub name: String,
     pub domain: String,
     pub privacy_policy: String,
-    pub secret: Option<String>,
+    #[serde(skip)]
+    pub secret: String,
     pub owner: User,
 }
 
@@ -347,8 +348,9 @@ pub struct FrostpawTokenReset {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
-pub struct FrostpawRefreshTokenData {
-    pub client_id: String,
+pub struct FrostpawUserConnection {
+    pub client: FrostpawClient,
+    #[serde(skip)]
     pub user_id: i64,
     pub expires_on: chrono::DateTime<chrono::Utc>
 }
@@ -1103,6 +1105,7 @@ pub struct JAPIApplication {
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Profile {
     pub user: User,
+    pub connections: Vec<FrostpawUserConnection>,
     pub bots: Vec<IndexBot>,
     pub description_raw: String,
     pub description: String,
@@ -1233,6 +1236,7 @@ impl fmt::Display for CommandAddError {
 pub enum GenericError {
     Forbidden,
     NotFound,
+    InvalidFields,
 }
 
 impl fmt::Display for GenericError {
@@ -1241,6 +1245,7 @@ impl fmt::Display for GenericError {
         &match self {
             Self::Forbidden => "Forbidden".to_string(),
             Self::NotFound => "Not Found".to_string(),
+            Self::InvalidFields => "Invalid fields present".to_string(),
         })
     }
 }
@@ -1279,6 +1284,7 @@ impl fmt::Display for GuildInviteError {
 pub enum OauthError {
     BadExchange(reqwest::Error),
     BadExchangeJson(String),
+    NonceTooOld,
     NoUser(reqwest::Error),
     SQLError(sqlx::Error),
 }
@@ -1288,6 +1294,7 @@ impl fmt::Display for OauthError {
         fmt.write_str(&match self {
             Self::BadExchange(e) => format!("Bad Exchange: {}", e),
             Self::BadExchangeJson(e) => format!("Bad Exchange JSON: {}", e),
+            Self::NonceTooOld => "Nonce too old. Please try logging in again!".to_string(),
             Self::NoUser(e) => format!("No User: {}", e),
             Self::SQLError(e) => format!("SQL Error: {}", e),
         })

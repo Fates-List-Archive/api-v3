@@ -135,7 +135,7 @@ impl Database {
         row.unwrap().api_token
     }
 
-    pub async fn get_frostpaw_refresh_token(&self, refresh_token: String) -> models::FrostpawRefreshTokenData {
+    pub async fn get_frostpaw_refresh_token(&self, refresh_token: String) -> models::FrostpawUserConnection {
         sqlx::query!(
             "delete from user_connections where expires_on < NOW()"
         )
@@ -152,18 +152,28 @@ impl Database {
 
         if result.is_err() {
             error!("Could not get refresh token: {}", result.unwrap_err());
-            return models::FrostpawRefreshTokenData {
+            return models::FrostpawUserConnection {
                 user_id: 0,
-                client_id: "".to_string(),
+                client: models::FrostpawClient::default(),
                 expires_on: chrono::Utc::now(),
             }
         }
         
         let result = result.unwrap();
 
-        models::FrostpawRefreshTokenData {
+        let cli = self.get_frostpaw_client(result.client_id).await;
+
+        if cli.is_none() {
+            return models::FrostpawUserConnection {
+                user_id: 0,
+                client: models::FrostpawClient::default(),
+                expires_on: chrono::Utc::now(),
+            }
+        }
+        
+        models::FrostpawUserConnection {
             user_id: result.user_id,
-            client_id: result.client_id,
+            client: cli.unwrap(),
             expires_on: result.expires_on,
         }
     }
@@ -1706,6 +1716,18 @@ impl Database {
         .execute(&self.pool)
         .await
         .unwrap();
+
+        // Also invalidate all possible clients
+        let regen = sqlx::query!(
+            "DELETE FROM user_connections WHERE user_id = $1",
+            user_id
+        )
+        .execute(&self.pool)
+        .await;
+
+        if regen.is_err() {
+            error!("Failed to invalidate user connections: {}", regen.unwrap_err());
+        }
     }
 
     pub async fn new_server_token(&self, server_id: i64) {
@@ -2253,6 +2275,31 @@ impl Database {
             });
         }
 
+        // Get user connections
+        let mut connections = Vec::new();
+
+        let connections_row = sqlx::query!(
+            "SELECT client_id, expires_on FROM user_connections WHERE user_id = $1",
+            user_id
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if let Ok(conns) = connections_row {
+            for conn in conns {
+                let cli = self.get_frostpaw_client(conn.client_id).await;
+
+                if cli.is_none() {
+                    continue;
+                }
+                connections.push(models::FrostpawUserConnection {
+                    client: cli.unwrap(),
+                    expires_on: conn.expires_on,
+                    user_id: user_id
+                });
+            }
+        }
+
         let description = row.description.unwrap_or_else(|| "This user prefers to be an enigma".to_string());
 
         let description_parsed = converters::sanitize_description(
@@ -2265,6 +2312,7 @@ impl Database {
             packs,
             action_logs,
             user_experiments,
+            connections,
             flags: row.flags,
             description_raw: description,
             description: description_parsed, 
@@ -3513,7 +3561,7 @@ impl Database {
             name: row.name,
             domain: row.domain,
             privacy_policy: row.privacy_policy,
-            secret: Some(row.secret),
+            secret: row.secret,
             owner: self.get_user(row.owner_id).await
         })
     }
