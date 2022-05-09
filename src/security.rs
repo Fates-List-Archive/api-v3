@@ -19,15 +19,10 @@ async fn new_bot_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) ->
         .unwrap();
     if data.database.authorize_bot(bot_id, auth).await {
         data.database.new_bot_token(bot_id).await;
-        HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully regenerated bot token".to_string()),
-            context: None,
-        })
-    } else {
-        error!("Token auth error");
-        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
+    error!("Token auth error");
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Issues (regenerates) a new user token
@@ -44,15 +39,10 @@ async fn new_user_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -
         .unwrap();
     if data.database.authorize_user(user_id, auth).await {
         data.database.new_user_token(user_id).await;
-        HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully regenerated user token".to_string()),
-            context: None,
-        })
-    } else {
-        error!("Token auth error");
-        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
+    error!("Token auth error");
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 /// Revokes a clients auth
@@ -70,15 +60,10 @@ async fn revoke_client(req: HttpRequest, id: web::Path<models::UserClientAuth>) 
         .unwrap();
     if data.database.authorize_user(user_id, auth).await {
         data.database.revoke_client(user_id, client_id).await;
-        HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully regenerated user token".to_string()),
-            context: None,
-        })
-    } else {
-        error!("Token auth error");
-        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
+    error!("Token auth error");
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
 
 
@@ -96,13 +81,8 @@ async fn new_server_token(req: HttpRequest, id: web::Path<models::FetchBotPath>)
         .unwrap();
     if data.database.authorize_server(server_id, auth).await {
         data.database.new_server_token(server_id).await;
-        HttpResponse::build(http::StatusCode::OK).json(models::APIResponse {
-            done: true,
-            reason: Some("Successfully regenerated server token".to_string()),
-            context: None,
-        })
-    } else {
-        error!("Token auth error");
-        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
+    error!("Token auth error");
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
 }
