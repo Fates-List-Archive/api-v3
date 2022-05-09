@@ -511,9 +511,10 @@ impl Database {
                 }
 
                 let row = sqlx::query!(
-                    "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2",
+                    "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2 AND state != $3",
                     user_id,
                     data.token,
+                    models::UserState::GlobalBan as i32
                 )
                 .fetch_one(&self.pool)
                 .await;
@@ -527,9 +528,10 @@ impl Database {
         }
 
         let row = sqlx::query!(
-            "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2",
+            "SELECT COUNT(*) FROM users WHERE user_id = $1 AND api_token = $2 AND state != $3",
             user_id,
             token.replace("User ", ""),
+            models::UserState::GlobalBan as i32
         )
         .fetch_one(&self.pool)
         .await;
