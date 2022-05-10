@@ -335,6 +335,37 @@ async fn add_bot(
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
         }
+
+        // Metro Code
+        let metro = data.database.requests.post("https://metrobots.xyz/bots?list_id=5800d395-beb3-4d79-90b9-93e1ca674b40")
+        .header("Authorization", &data.config.secrets.metro_key)
+        .json(&json!(
+            {
+                "bot_id": bot.user.id,
+                "username": &bot.user.username,
+                "banner": &bot.banner_card,
+                "owner": id.id,
+                "extra_owners": bot.owners.clone().into_iter().map(|x| x.user.id).collect::<Vec<String>>(),
+                "description": &bot.description,
+                "long_description": &bot.long_description,
+                "tags": &bot.tags,
+                "website": &bot.website,
+                "donate": &bot.donate,
+                "github": &bot.github,
+                "library": &bot.library,
+                "nsfw": bot.nsfw,
+                "prefix": &bot.prefix,
+            }
+        ))
+        .send()
+        .await;    
+
+        if let Ok(m) = metro {
+            debug!("Metro code: {}", m.text().await.unwrap());
+        } else {
+            error!("Metro code: error {}", metro.unwrap_err());
+        }
+
         let _ = data
             .config
             .discord

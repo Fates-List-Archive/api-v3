@@ -12,7 +12,7 @@ async fn add_resource(
     res: web::Json<models::Resource>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let id = id.id.clone();
+    let id = id.id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();

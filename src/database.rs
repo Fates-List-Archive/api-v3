@@ -25,9 +25,10 @@ use moka::future::Cache;
 pub struct Database {
     pool: PgPool,
     redis: deadpool_redis::Pool,
-    requests: reqwest::Client,
     discord_main: Arc<serenity::http::client::Http>,
     discord_server: Arc<serenity::http::client::Http>,
+    // Requests
+    pub requests: reqwest::Client,
     // Our moka caches
     pub bot_cache: Cache<i64, Arc<models::Bot>>,
     pub server_cache: Cache<i64, Arc<models::Server>>,
