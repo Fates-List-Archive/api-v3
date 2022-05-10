@@ -206,23 +206,17 @@ pub async fn bot_ws(
                             description: Some("Authentication failed!".to_string())
                         });
                         break;
-                    }
-
-                    if text == "CHECKAUTH" {
+                    } else if text == "CHECKAUTH" {
                         if session.text(auth.to_string()).await.is_err() {
                             break;
                         }
-                    }
-
-                    if text == "PING"
+                    } else if text == "PING"
                         && session
                             .text(Instant::now().duration_since(hb).as_micros().to_string())
                             .await
                             .is_err() {
                         break;
-                    }
-
-                    if text == "SUB" {
+                    } else if text == "SUB" {
                         if gw_task.is_some() {
                             // Error out, you can only have one gateway task per session
                             close_reason = Some(actix_ws::CloseReason {

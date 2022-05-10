@@ -7,6 +7,7 @@ use chrono::TimeZone;
 use chrono::Utc;
 use deadpool_redis::redis::AsyncCommands;
 use deadpool_redis::{Config, Runtime};
+use indexmap::IndexMap;
 use indexmap::indexmap;
 use log::{debug, error};
 use serde::Serialize;
@@ -27,6 +28,7 @@ pub struct Database {
     redis: deadpool_redis::Pool,
     discord_main: Arc<serenity::http::client::Http>,
     discord_server: Arc<serenity::http::client::Http>,
+    default_map: serde_json::Map<String, serde_json::Value>,
     // Requests
     pub requests: reqwest::Client,
     // Our moka caches
@@ -47,6 +49,7 @@ impl Database {
                 .await
                 .expect("Could not initialize connection"),
             redis: cfg.create_pool(Some(Runtime::Tokio1)).unwrap(),
+            default_map: serde_json::Map::new(),
             requests: reqwest::Client::builder()
                 .user_agent("Lightleap/0.1.0")
                 .build()
@@ -584,7 +587,7 @@ impl Database {
             user_count, votes, total_votes, donate, privacy_policy,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
             page_style, keep_banner_decor, long_description_type, last_updated_at,
-            long_description, webhook_type FROM bots WHERE bot_id = $1 OR 
+            long_description, webhook_type, extra_links FROM bots WHERE bot_id = $1 OR 
             client_id = $1",
             bot_id
         )
@@ -769,8 +772,17 @@ impl Database {
                     Some(data.invite)
                 };
 
+                let extra_links_map = data.extra_links.as_object().unwrap_or(&self.default_map);
+
+                let mut extra_links = IndexMap::new();
+
+                for (key, value) in extra_links_map {
+                    extra_links.insert(key.clone(), value.as_str().unwrap_or_default().to_string());
+                }
+
                 // Make the struct
                 let bot = models::Bot {
+                    extra_links,
                     created_at: data.created_at,
                     vpm: Some(vpm),
                     last_stats_post: data.last_stats_post,
@@ -845,7 +857,7 @@ impl Database {
             "SELECT description, long_description, long_description_type,
             flags, keep_banner_decor, banner_card, banner_page, guild_count, 
             invite_amount, css, state, website, total_votes, votes, nsfw, 
-            tags, created_at FROM servers WHERE guild_id = $1",
+            tags, created_at, extra_links FROM servers WHERE guild_id = $1",
             server_id
         )
         .fetch_one(&self.pool)
@@ -897,8 +909,17 @@ impl Database {
                     }
                 }
 
+                let extra_links_map = row.extra_links.as_object().unwrap_or(&self.default_map);
+
+                let mut extra_links = IndexMap::new();
+
+                for (key, value) in extra_links_map {
+                    extra_links.insert(key.clone(), value.as_str().unwrap_or_default().to_string());
+                }
+
                 Some(models::Server {
                     flags: row.flags,
+                    extra_links,
                     description: row.description,
                     long_description: long_description_parsed,
                     long_description_raw: row.long_description,
@@ -1795,16 +1816,14 @@ impl Database {
         sqlx::query!(
             "INSERT INTO bots (
             bot_id, prefix, bot_library,
-            invite, website, banner_card, banner_page,
-            discord, long_description, description,
+            invite, banner_card, banner_page,
+            long_description, description,
             api_token, features, long_description_type, 
-            css, donate, github,
-            webhook, webhook_type, webhook_secret, webhook_hmac_only,
-            privacy_policy, nsfw, keep_banner_decor, 
+            css, webhook, webhook_type, webhook_secret, webhook_hmac_only,
+            nsfw, keep_banner_decor, extra_links,
             client_id, guild_count, flags, page_style, id) VALUES(
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 
-            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, 
-            $24, $25, $26, $27, $1)",
+            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $1)",
             id,
             bot.prefix,
             bot.library,
@@ -1813,25 +1832,21 @@ impl Database {
             } else {
                 bot.invite.as_ref().unwrap()
             },
-            bot.website,
             bot.banner_card,
             bot.banner_page,
-            bot.support,
             bot.long_description,
             bot.description,
             converters::create_token(132),
             &features,
             bot.long_description_type as i32,
             bot.css,
-            bot.donate,
-            bot.github,
             bot.webhook,
             bot.webhook_type.unwrap_or(models::WebhookType::Vote) as i32,
             bot.webhook_secret,
             bot.webhook_hmac_only.unwrap_or(false),
-            bot.privacy_policy,
             bot.nsfw,
             bot.keep_banner_decor,
+            json!(bot.extra_links),
             client_id,
             bot.guild_count,
             &Vec::new(),
@@ -1892,13 +1907,11 @@ impl Database {
 
         sqlx::query!(
             "UPDATE bots SET bot_library=$2, webhook=$3, description=$4, 
-            long_description=$5, prefix=$6, website=$7, discord=$8, 
-            banner_card=$9, invite=$10, github = $11, features = $12, 
-            long_description_type = $13, webhook_type = $14, css = $15, 
-            donate = $16, privacy_policy = $17, nsfw = $18, 
-            webhook_secret = $19, webhook_hmac_only = $20,
-            banner_page = $21, keep_banner_decor = $22, 
-            client_id = $23, page_style = $24,
+            long_description=$5, prefix=$6, banner_card=$7, invite = $8, 
+            features = $9, long_description_type = $10, webhook_type = $11, css = $12, 
+            nsfw = $13, webhook_secret = $14, webhook_hmac_only = $15,
+            banner_page = $16, keep_banner_decor = $17, extra_links=$18,
+            client_id = $19, page_style = $20,
             last_updated_at = NOW() WHERE bot_id = $1",
             id,
             bot.library,
@@ -1906,26 +1919,22 @@ impl Database {
             bot.description,
             bot.long_description,
             bot.prefix,
-            bot.website,
-            bot.support,
             bot.banner_card,
             if bot.invite.is_none() {
                 "P:0"
             } else {
                 bot.invite.as_ref().unwrap()
             },
-            bot.github,
             &features,
             bot.long_description_type as i32,
             bot.webhook_type.unwrap_or(models::WebhookType::Vote) as i32,
             bot.css,
-            bot.donate,
-            bot.privacy_policy,
             bot.nsfw,
             bot.webhook_secret,
             bot.webhook_hmac_only.unwrap_or(false),
             bot.banner_page,
             bot.keep_banner_decor,
+            json!(bot.extra_links),
             client_id,
             bot.page_style as i32
         )

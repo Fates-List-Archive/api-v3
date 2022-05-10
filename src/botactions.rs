@@ -171,30 +171,15 @@ async fn check_bot(
 
     bot.long_description = bot.long_description.replace("\\n", "\n").replace("\\r", "");
 
-    if let Some(ref github) = bot.github {
-        if !github.replace('"', "").starts_with("https://www.github.com/")
-            && !github.replace('"', "").starts_with("https://github.com")
-            && !github.is_empty()
-        {
-            return Err(models::CheckBotError::InvalidGithub);
+    for (key, value) in bot.extra_links.iter() {
+        if key.len() > 20 {
+            return Err(models::CheckBotError::ExtraLinkKeyTooLong);
         }
-    }
-
-    if let Some(ref privacy_policy) = bot.privacy_policy {
-        if !privacy_policy.replace('"', "").starts_with("https://") && !privacy_policy.is_empty(){
-            return Err(models::CheckBotError::InvalidPrivacyPolicy);
+        if value.len() > 200 {
+            return Err(models::CheckBotError::ExtraLinkValueTooLong);
         }
-    }
-
-    if let Some(ref donate) = bot.donate {
-        if !donate.replace('"', "").starts_with("https://") && !donate.is_empty() {
-            return Err(models::CheckBotError::InvalidDonate);
-        }
-    }
-
-    if let Some(ref website) = bot.website {
-        if !website.replace('"', "").starts_with("https://") && !website.is_empty() {
-            return Err(models::CheckBotError::InvalidWebsite);
+        if !value.starts_with("https://") {
+            return Err(models::CheckBotError::ExtraLinkValueNotHTTPS);
         }
     }
 

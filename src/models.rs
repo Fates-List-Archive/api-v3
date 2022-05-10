@@ -3,6 +3,7 @@ use actix_web::HttpResponse;
 use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
+use indexmap::{map::IndexMap};
 use serde_repr::{Serialize_repr, Deserialize_repr};
 use serenity::model::id::{ChannelId, RoleId, GuildId};
 use std::env;
@@ -753,6 +754,7 @@ pub struct Server {
     pub css: String,
     pub css_raw: String,
     pub website: Option<String>,
+    pub extra_links: IndexMap<String, String>,
     pub banner_card: Option<String>,
     pub banner_page: Option<String>,
     pub keep_banner_decor: bool,
@@ -765,6 +767,7 @@ impl Default for Server {
     fn default() -> Self {
         Server {
             user: User::default(),
+            extra_links: IndexMap::new(),
             description: "".to_string(),
             tags: vec![],
             long_description_type: LongDescriptionType::default(),
@@ -830,16 +833,17 @@ pub struct Bot {
     pub features: Vec<Feature>,
     pub state: State,
     pub page_style: PageStyle,
-    pub website: Option<String>,
-    pub support: Option<String>,
-    pub github: Option<String>,
+    pub extra_links: IndexMap<String, String>,
+    pub website: Option<String>, // Deprecated
+    pub support: Option<String>, // Deprecated
+    pub github: Option<String>, // Deprecated
     pub css: String,
     pub css_raw: String,
     pub votes: i64,
     pub total_votes: i64,
     pub vanity: String,
-    pub donate: Option<String>,
-    pub privacy_policy: Option<String>,
+    pub donate: Option<String>, // Deprecated
+    pub privacy_policy: Option<String>, // Deprecated
     pub nsfw: bool,
     pub banner_card: Option<String>,
     pub banner_page: Option<String>,
@@ -868,6 +872,7 @@ impl Default for Bot {
         let action_logs = vec![ActionLog::default()];
 
         Bot {
+            extra_links: IndexMap::new(),
             user: User::default(),
             description: "".to_string(),
             tags: Vec::new(),
@@ -1356,10 +1361,6 @@ pub enum CheckBotError {
     NoTags,
     TooManyTags,
     TooManyFeatures,
-    InvalidGithub,
-    InvalidPrivacyPolicy,
-    InvalidDonate,
-    InvalidWebsite,
     BannerCardError(BannerCheckError),
     BannerPageError(BannerCheckError),
     JAPIError(reqwest::Error),
@@ -1373,11 +1374,17 @@ pub enum CheckBotError {
     OwnerNotFound,
     MainOwnerAddAttempt,
     Forbidden,
+    ExtraLinkKeyTooLong,
+    ExtraLinkValueTooLong,
+    ExtraLinkValueNotHTTPS,
 }
 
 impl fmt::Display for CheckBotError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str(&match self {
+            Self::ExtraLinkKeyTooLong => "One of your extra link keys is too long".to_string(),
+            Self::ExtraLinkValueTooLong => "One of your extra link values is too long".to_string(),
+            Self::ExtraLinkValueNotHTTPS => "One of your extra link values is not a valid URL".to_string(),
             Self::AlreadyExists => "This bot already exists on Fates List".to_string(),
             Self::JAPIError(e) => format!("JAPI Error: {}", e),
             Self::JAPIDeserError(e) => format!("JAPI Deserialize Error: {}", e),
@@ -1391,7 +1398,6 @@ impl fmt::Display for CheckBotError {
             Self::VanityTaken => "This vanity has already been taken. Please contact Fates List staff if you wish to report this!".to_string(),
             Self::InvalidInvitePermNum => "This invite is invalid!".to_string(),
             Self::InvalidInvite => "Your invite link must start with https://".to_string(),
-            Self::InvalidWebsite => "Your website must start with https://".to_string(),
             Self::ShortDescLengthErr => "Your description must be at least 10 characters long and must be a maximum of 200 characters".to_string(),
             Self::LongDescLengthErr => "Your long description must be at least 200 characters long".to_string(),
             Self::BotNotFound => "According to Discord's API and our cache, your bot does not exist. Please try again after 2 hours.".to_string(),
@@ -1400,9 +1406,6 @@ impl fmt::Display for CheckBotError {
             Self::TooManyFeatures => "You can only select up to 5 features for your bot".to_string(),
             Self::BannerCardError(e) => format!("{}. Hint: check your banner card", e.to_string()),
             Self::BannerPageError(e) => format!("{}. Hint: check your banner page", e.to_string()),
-            Self::InvalidGithub => "Your github must be a valid github link starting with https://www.github.com or https://github.com".to_string(),
-            Self::InvalidPrivacyPolicy => "Your privacy policy must be a valid link starting with https:// (note the s), not http://".to_string(),
-            Self::InvalidDonate => "Your donate must be a valid link starting with https:// (note the s), not http://".to_string(),
             Self::EditLocked => "This bot has either been locked by staff or has been edit locked by the main owner of the bot".to_string(),
             Self::OwnerListTooLong => "The owner list is too long. You may only have a maximum of 5 extra owners".to_string(),
             Self::OwnerIDParseError => "An owner ID in your owner list is invalid".to_string(),
