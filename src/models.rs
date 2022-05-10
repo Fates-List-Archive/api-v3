@@ -1365,6 +1365,8 @@ pub enum CheckBotError {
     ExtraLinkKeyTooLong,
     ExtraLinkValueTooLong,
     ExtraLinkValueNotHTTPS,
+    ExtraLinksTooManyRendered,
+    ExtraLinksTooMany,
 }
 
 impl fmt::Display for CheckBotError {
@@ -1373,6 +1375,8 @@ impl fmt::Display for CheckBotError {
             Self::ExtraLinkKeyTooLong => "One of your extra link keys is too long".to_string(),
             Self::ExtraLinkValueTooLong => "One of your extra link values is too long".to_string(),
             Self::ExtraLinkValueNotHTTPS => "One of your extra link values is not a valid URL".to_string(),
+            Self::ExtraLinksTooManyRendered => "You have too many renderable extra links (extra links that do not start with an underscore)".to_string(),
+            Self::ExtraLinksTooMany => "You have too many extra links".to_string(),
             Self::AlreadyExists => "This bot already exists on Fates List".to_string(),
             Self::JAPIError(e) => format!("JAPI Error: {}", e),
             Self::JAPIDeserError(e) => format!("JAPI Deserialize Error: {}", e),

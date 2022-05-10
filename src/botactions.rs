@@ -171,6 +171,9 @@ async fn check_bot(
 
     bot.long_description = bot.long_description.replace("\\n", "\n").replace("\\r", "");
 
+    let mut total_links = 0;
+    let mut links_rendered = 0;
+
     for (key, value) in bot.extra_links.iter() {
         if key.len() > 20 {
             return Err(models::CheckBotError::ExtraLinkKeyTooLong);
@@ -178,9 +181,24 @@ async fn check_bot(
         if value.len() > 200 {
             return Err(models::CheckBotError::ExtraLinkValueTooLong);
         }
+
+        total_links += 1;
+
+        if key.starts_with("_") {
+            continue;
+        }
+
+        links_rendered += 1;
+
         if !value.starts_with("https://") {
             return Err(models::CheckBotError::ExtraLinkValueNotHTTPS);
         }
+    }
+
+    if links_rendered > 10 {
+        return Err(models::CheckBotError::ExtraLinksTooManyRendered);
+    } else if total_links > 20 {
+        return Err(models::CheckBotError::ExtraLinksTooMany);
     }
 
     let bot_user = data.database.get_user(bot_id).await;
