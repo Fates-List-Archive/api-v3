@@ -583,8 +583,7 @@ impl Database {
             "SELECT bot_id, created_at, last_stats_post, description, 
             css, flags, banner_card, banner_page, guild_count, shard_count, 
             shards, prefix, invite, invite_amount, features, bot_library 
-            AS library, state, website, discord AS support, github, 
-            user_count, votes, total_votes, donate, privacy_policy,
+            AS library, state, user_count, votes, total_votes,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
             page_style, keep_banner_decor, long_description_type, last_updated_at,
             long_description, webhook_type, extra_links FROM bots WHERE bot_id = $1 OR 
@@ -803,14 +802,9 @@ impl Database {
                     features: Vec::new(), // TODO
                     library: data.library.unwrap_or_else(|| "".to_string()),
                     state: models::State::try_from(data.state).unwrap_or(models::State::Approved),
-                    website: data.website,
-                    support: data.support,
-                    github: data.github,
                     user_count: data.user_count.unwrap_or(0),
                     votes: data.votes.unwrap_or(0),
                     total_votes: data.total_votes.unwrap_or(0),
-                    donate: data.donate,
-                    privacy_policy: data.privacy_policy,
                     nsfw: data.nsfw.unwrap_or(false),
                     keep_banner_decor: data.keep_banner_decor.unwrap_or(false),
                     client_id,
@@ -856,8 +850,8 @@ impl Database {
         let data = sqlx::query!(
             "SELECT description, long_description, long_description_type,
             flags, keep_banner_decor, banner_card, banner_page, guild_count, 
-            invite_amount, css, state, website, total_votes, votes, nsfw, 
-            tags, created_at, extra_links FROM servers WHERE guild_id = $1",
+            invite_amount, css, state, total_votes, votes, nsfw, tags, created_at, 
+            extra_links FROM servers WHERE guild_id = $1",
             server_id
         )
         .fetch_one(&self.pool)
@@ -933,7 +927,6 @@ impl Database {
                     css,
                     css_raw, 
                     state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
-                    website: row.website,
                     total_votes: row.total_votes.unwrap_or_default(),
                     votes: row.votes.unwrap_or_default(),
                     nsfw: row.nsfw.unwrap_or(false),

@@ -322,9 +322,7 @@ async fn add_bot(
         }
 
         // Metro Code
-        let metro = data.database.requests.post("https://metrobots.xyz/bots?list_id=5800d395-beb3-4d79-90b9-93e1ca674b40")
-        .header("Authorization", &data.config.secrets.metro_key)
-        .json(&json!(
+        let mut map = json!(
             {
                 "bot_id": bot.user.id,
                 "username": &bot.user.username,
@@ -334,14 +332,35 @@ async fn add_bot(
                 "description": &bot.description,
                 "long_description": &bot.long_description,
                 "tags": &bot.tags.clone().into_iter().map(|x| x.id).collect::<Vec<String>>(),
-                "website": &bot.website,
-                "donate": &bot.donate,
-                "github": &bot.github,
                 "library": &bot.library,
                 "nsfw": bot.nsfw,
                 "prefix": &bot.prefix,
             }
-        ))
+        );
+
+        let obj: &mut serde_json::Map<std::string::String, serde_json::Value> = map.as_object_mut().unwrap();
+
+        if bot.extra_links.contains_key("Website") {
+            obj.insert("website".to_string(), json!(bot.extra_links["Website"]));
+        } else if bot.extra_links.contains_key("website") {
+            obj.insert("website".to_string(), json!(bot.extra_links["website"]));
+        }
+
+        if bot.extra_links.contains_key("Donate") {
+            obj.insert("donate".to_string(), json!(bot.extra_links["Donate"]));
+        } else if bot.extra_links.contains_key("donate") {
+            obj.insert("donate".to_string(), json!(bot.extra_links["donate"]));
+        }
+
+        if bot.extra_links.contains_key("Github") {
+            obj.insert("github".to_string(), json!(bot.extra_links["Github"]));
+        } else if bot.extra_links.contains_key("github") {
+            obj.insert("github".to_string(), json!(bot.extra_links["github"]));
+        }
+
+        let metro = data.database.requests.post("https://metrobots.xyz/bots?list_id=5800d395-beb3-4d79-90b9-93e1ca674b40")
+        .header("Authorization", &data.config.secrets.metro_key)
+        .json(&map)
         .send()
         .await;    
 
@@ -350,6 +369,7 @@ async fn add_bot(
         } else {
             error!("Metro code: error {}", metro.unwrap_err());
         }
+        // End of metro code
 
         let _ = data
             .config
@@ -758,12 +778,17 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     });
                 }
 
+                let mut extra_links = indexmap::IndexMap::new();
+
                 let website = bot_data.remove("website").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
-                let website = if website == *"null" || website.is_empty() {
-                    None
-                } else {
-                    Some(website)
+                if website != *"null" && !website.is_empty() {
+                    extra_links.insert("Website".to_string(), website);
                 };
+
+                let github = bot_data.remove("github").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
+                if github != *"null" && !github.is_empty() {
+                    extra_links.insert("Github".to_string(), github);
+                };    
 
                 models::Bot {
                     user: models::User {
@@ -774,7 +799,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     long_description: bot_data.remove("desc").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                     prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
                     library: bot_data.remove("lib").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
-                    website,
+                    extra_links,
                     invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
                     vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
                     shard_count: 0,
@@ -829,12 +854,18 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                         });
                     }    
 
+
+                    let mut extra_links = indexmap::IndexMap::new();
+
                     let website = bot_data.remove("website").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
-                    let website = if website == *"null" || website.is_empty() {
-                        None
-                    } else {
-                        Some(website)
-                    };   
+                    if website != *"null" && !website.is_empty() {
+                        extra_links.insert("Website".to_string(), website);
+                    };
+    
+                    let github = bot_data.remove("github").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
+                    if github != *"null" && !github.is_empty() {
+                        extra_links.insert("Github".to_string(), github);
+                    };    
                     
                     models::Bot {
                         user: models::User {
@@ -848,7 +879,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                         invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()), 
                         shard_count: 0,
                         owners: extra_owners,    
-                        website,
+                        extra_links,
                         tags: vec![
                             models::Tag {
                                 id: "utility".to_string(),
@@ -933,19 +964,16 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     });
                 }
 
+                let mut extra_links = indexmap::IndexMap::new();
+
                 let website = bot_data.remove("website").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
-                let website = if website == *"null" || website.is_empty() {
-                    None
-                } else {
-                    Some(website)
+                if website != *"null" && !website.is_empty() {
+                    extra_links.insert("Website".to_string(), website);
                 };
 
                 let github = bot_data.remove("github").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
-                let github = github.replace('"', "").replacen("None", "", 1);
-                let github = if github == *"null" || github.is_empty() {
-                    None
-                } else {
-                    Some(github)
+                if github != *"null" && !github.is_empty() {
+                    extra_links.insert("Github".to_string(), github);
                 };
 
                 let nsfw = bot_data.remove("nsfw").unwrap_or_else(|| json!(false)).as_bool().unwrap_or(false);
@@ -959,8 +987,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     long_description: bot_data.remove("long").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                     prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
                     library: bot_data.remove("library").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
-                    website,
-                    github,
+                    extra_links,
                     invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
                     vanity: "_".to_string() + &bot_data.remove("name").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
                     shard_count: 0,
