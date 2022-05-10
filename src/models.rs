@@ -688,14 +688,6 @@ pub struct CommandDeleteQuery {
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
-pub struct Resource {
-    pub id: Option<String>,
-    pub resource_title: String,
-    pub resource_link: String,
-    pub resource_description: String,
-}
-
-#[derive(Deserialize, Serialize, Clone, Default)]
 pub struct ResourceDeleteQuery {
     pub id: String,
     pub target_type: TargetType,
@@ -848,7 +840,6 @@ pub struct Bot {
     pub uptime_checks_total: Option<i32>,
     pub uptime_checks_failed: Option<i32>,
     pub commands: Vec<BotCommand>,
-    pub resources: Vec<Resource>,
     pub webhook: Option<String>,
     pub webhook_secret: Option<String>,
     pub webhook_type: Option<WebhookType>,
@@ -914,7 +905,6 @@ impl Default for Bot {
             uptime_checks_total: Some(30),
             uptime_checks_failed: Some(19),
             commands: vec![BotCommand::default()],
-            resources: vec![Resource::default()],
             webhook: Some("This will be redacted for Get Bot endpoint".to_string()),
             webhook_type: None,
             webhook_hmac_only: None,
@@ -1206,18 +1196,6 @@ impl fmt::Display for ProfileRolesUpdate {
             Self::MemberNotFound => "You are not on our support server!".to_string(),
             Self::DiscordError(e) => format!("Discord Error: {}", e),
         })
-    }
-}
-
-pub enum ResourceAddError {
-    SQLError(sqlx::Error),
-}
-
-impl ResourceAddError {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-        }
     }
 }
 

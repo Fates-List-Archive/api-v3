@@ -716,25 +716,6 @@ impl Database {
                     });
                 }
 
-                // Resources
-                let mut resources = Vec::new();
-                let resources_row = sqlx::query!(
-                    "SELECT id, resource_title, resource_link, resource_description FROM resources WHERE target_id = $1",
-                    bot_id
-                )
-                .fetch_all(&self.pool)
-                .await
-                .unwrap();
-
-                for resource in resources_row {
-                    resources.push(models::Resource {
-                        id: Some(resource.id.to_string()),
-                        resource_title: resource.resource_title,
-                        resource_link: resource.resource_link,
-                        resource_description: resource.resource_description,
-                    });
-                }
-
                 // VPM
                 let mut vpm = Vec::new();
                 let vpm_row = sqlx::query!(
@@ -809,7 +790,6 @@ impl Database {
                     keep_banner_decor: data.keep_banner_decor.unwrap_or(false),
                     client_id,
                     tags,
-                    resources,
                     commands,
                     long_description_type,
                     long_description: long_description_parsed,
@@ -2898,67 +2878,6 @@ impl Database {
         }
 
         list
-    }
-
-    // Resources
-    pub async fn add_resource(
-        &self,
-        target_id: i64,
-        target_type: models::TargetType,
-        resource: models::Resource,
-    ) -> Result<(), models::ResourceAddError> {
-        sqlx::query!(
-            "INSERT INTO resources (target_id, target_type, 
-            resource_title, resource_link, resource_description) 
-            VALUES ($1, $2, $3, $4, $5)",
-            target_id,
-            target_type as i32,
-            resource.resource_title,
-            resource.resource_link,
-            resource.resource_description,
-        )
-        .execute(&self.pool)
-        .await
-        .map_err(models::ResourceAddError::SQLError)?;
-
-        Ok(())
-    }
-
-    pub async fn delete_resource(
-        &self,
-        resource_id: uuid::Uuid,
-    ) -> Result<(), models::ResourceAddError> {
-        sqlx::query!("DELETE FROM resources WHERE id = $1", resource_id,)
-            .execute(&self.pool)
-            .await
-            .map_err(models::ResourceAddError::SQLError)?;
-
-        Ok(())
-    }
-
-    pub async fn resource_exists(
-        &self,
-        resource_id: uuid::Uuid,
-        target_id: i64,
-        target_type: models::TargetType,
-    ) -> bool {
-        let row = sqlx::query!(
-            "SELECT COUNT(*) FROM resources WHERE
-            id = $1 AND target_id = $2 AND target_type = $3",
-            resource_id,
-            target_id,
-            target_type as i32,
-        )
-        .fetch_one(&self.pool)
-        .await;
-
-        if row.is_err() {
-            return false;
-        }
-
-        let row = row.unwrap();
-
-        return row.count.unwrap_or_default() >= 1;
     }
 
     // Commands

@@ -24,7 +24,6 @@ mod docs;
 mod login;
 mod models;
 mod packs;
-mod resources;
 mod reviews;
 mod security;
 mod stats;
@@ -223,10 +222,6 @@ async fn main() -> std::io::Result<()> {
 
             // Stats
             .service(stats::get_botlist_stats)
-
-            // Resources
-            .service(resources::add_resource)
-            .service(resources::delete_resource)
 
             // Commands
             .service(commands::add_command)

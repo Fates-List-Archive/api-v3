@@ -1595,59 +1595,6 @@ if the list grows and then requires it.
         auth_types: vec![],
     });
 
-    docs += &doc_category("Resources");
-
-    docs += &doc(models::Route {
-        title: "Create Resource",
-        method: "POST",
-        path: "/resources/{id}",
-        description: r#"
-Creates a resource. Both bots and servers support these however only bots 
-support the frontend resource creator in Bot Settings as of right now.
-
-The ``id`` here must be the resource id
-
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
-"#,
-        path_params: &models::FetchBotPath { id: 0 },
-        query_params: &models::TargetQuery {
-            target_type: models::TargetType::Bot,
-        },
-        request_body: &models::Resource::default(),
-        response_body: &models::APIResponse {
-            done: true,
-            reason: None,
-            context: None,
-        },
-        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server],
-    });
-
-    docs += &doc(models::Route {
-        title: "Delete Resource",
-        method: "DELETE",
-        path: "/resources/{id}",
-        description: r#"
-Deletes a resource. Both bots and servers support these however only bots 
-support the frontend resource creator in Bot Settings as of right now.
-
-The ``id`` here must be the resource id
-
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
-"#,
-        path_params: &models::FetchBotPath { id: 0 },
-        query_params: &models::ResourceDeleteQuery {
-            id: uuid::Uuid::new_v4().to_hyphenated().to_string(),
-            target_type: models::TargetType::Bot,
-        },
-        request_body: &models::Empty {},
-        response_body: &models::APIResponse {
-            done: true,
-            reason: None,
-            context: None,
-        },
-        auth_types: vec![models::RouteAuthType::Bot, models::RouteAuthType::Server],
-    });
-
     docs += &doc_category("Commands");
 
     docs += &doc(models::Route {
