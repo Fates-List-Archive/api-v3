@@ -504,9 +504,9 @@ impl Database {
         }
 
         // Frostpaw = access token, 15 minutes time only
-        if token.starts_with("Frostpaw ") {
+        if token.starts_with("Frostpaw.") {
             debug!("Frostpaw token detected");
-            if let Some(data) = self.client_data.get(&token.replace("Frostpaw ", "")) {
+            if let Some(data) = self.client_data.get(&token.to_string()) {
                 if data.user_id != user_id {
                     return false;
                 }

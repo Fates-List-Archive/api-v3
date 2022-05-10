@@ -86,7 +86,7 @@ async fn refresh_access_token(req: HttpRequest, client_id: web::Path<String>, in
         }
     }
 
-    let access_token = converters::create_token(64);
+    let access_token = "Frostpaw.".to_string() + &converters::create_token(64);
 
     data.database.client_data.insert(access_token.clone(), Arc::new(models::FrostpawLogin {
         client_id: client.id,
@@ -198,7 +198,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 }
 
                 // OK, now that we are reasonably confident about client, we can create the frostpaw login
-                let access_token = converters::create_token(64);
+                let access_token = "Frostpaw.".to_string() + &converters::create_token(64);
                 
                 data.database.client_data.insert(access_token.clone(), Arc::new(models::FrostpawLogin {
                     client_id: client.id,
