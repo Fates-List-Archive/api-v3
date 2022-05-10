@@ -348,7 +348,7 @@ async fn add_bot(
                 "extra_owners": bot.owners.clone().into_iter().map(|x| x.user.id).collect::<Vec<String>>(),
                 "description": &bot.description,
                 "long_description": &bot.long_description,
-                "tags": &bot.tags,
+                "tags": &bot.tags.clone().into_iter().map(|x| x.id).collect::<Vec<String>>(),
                 "website": &bot.website,
                 "donate": &bot.donate,
                 "github": &bot.github,
