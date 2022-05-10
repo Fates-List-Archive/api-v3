@@ -307,6 +307,7 @@ async fn add_bot(
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let auth_default = &HeaderValue::from_str("").unwrap();
+    
     let auth = req
         .headers()
         .get("Authorization")

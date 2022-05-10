@@ -434,6 +434,7 @@ pub struct Secrets {
     pub token_squirrelflight: String,
     pub japi_key: String,
     pub ibl_fates_key: String,
+    pub metro_key: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
