@@ -2407,6 +2407,17 @@ impl Database {
         .await
         .map_err(models::ProfileCheckError::SQLError)?;
 
+        if profile.extra_links.len() > 0 && profile.extra_links.len() <= 50 {
+            sqlx::query!(
+                "UPDATE users SET extra_links = $1 WHERE user_id = $2",
+                json!(profile.extra_links),
+                user_id
+            )
+            .execute(&self.pool)
+            .await
+            .map_err(models::ProfileCheckError::SQLError)?;
+        }
+
         Ok(())
     }
 
