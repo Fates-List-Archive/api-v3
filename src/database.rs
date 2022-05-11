@@ -1783,6 +1783,16 @@ impl Database {
             features.push(feature.id.clone());
         }
 
+        let mut flags = Vec::new();
+
+        let editable_flags = vec![models::Flags::KeepBannerDecor as i32];
+
+        for flag in bot.flags.clone() {
+            if editable_flags.contains(&flag) {
+                flags.push(flag);
+            }
+        }
+
         // Step 2: Insert new data
         sqlx::query!(
             "INSERT INTO bots (
@@ -1791,10 +1801,9 @@ impl Database {
             long_description, description,
             api_token, features, long_description_type, 
             css, webhook, webhook_type, webhook_secret, webhook_hmac_only,
-            nsfw, keep_banner_decor, extra_links,
-            client_id, guild_count, flags, page_style, id) VALUES(
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 
-            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $1)",
+            nsfw, extra_links, client_id, guild_count, flags, page_style, 
+            id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 
+            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $1)",
             id,
             bot.prefix,
             bot.library,
@@ -1816,11 +1825,10 @@ impl Database {
             bot.webhook_secret,
             bot.webhook_hmac_only.unwrap_or(false),
             bot.nsfw,
-            bot.keep_banner_decor,
             json!(bot.extra_links),
             client_id,
             bot.guild_count,
-            &Vec::new(),
+            &flags,
             bot.page_style as i32
         )
         .execute(&mut tx)
@@ -1876,12 +1884,36 @@ impl Database {
             features.push(feature.id.clone());
         }
 
+        let old_bot = sqlx::query!(
+            "SELECT flags FROM bots WHERE bot_id = $1",
+            id
+        )
+        .fetch_one(&mut tx)
+        .await?;
+
+        let editable_flags = vec![models::Flags::KeepBannerDecor as i32];
+
+        let mut old_bot_flags = old_bot.flags;
+
+        for flag in bot.flags.clone() {
+            if editable_flags.contains(&flag) {
+                let contains = old_bot_flags.contains(&flag);
+
+                // If the flag is already in the bot, remove it from the bot
+                old_bot_flags.retain(|&x| x != flag);
+                if contains {
+                    // Add back the flag if user requested for it
+                    old_bot_flags.push(flag);
+                }
+            }
+        }
+
         sqlx::query!(
             "UPDATE bots SET bot_library=$2, webhook=$3, description=$4, 
             long_description=$5, prefix=$6, banner_card=$7, invite = $8, 
             features = $9, long_description_type = $10, webhook_type = $11, css = $12, 
             nsfw = $13, webhook_secret = $14, webhook_hmac_only = $15,
-            banner_page = $16, keep_banner_decor = $17, extra_links=$18,
+            banner_page = $16, flags = $17, extra_links=$18,
             client_id = $19, page_style = $20,
             last_updated_at = NOW() WHERE bot_id = $1",
             id,
@@ -1904,7 +1936,7 @@ impl Database {
             bot.webhook_secret,
             bot.webhook_hmac_only.unwrap_or(false),
             bot.banner_page,
-            bot.keep_banner_decor,
+            &old_bot_flags,
             json!(bot.extra_links),
             client_id,
             bot.page_style as i32
