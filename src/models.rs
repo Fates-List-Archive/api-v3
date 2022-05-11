@@ -3,7 +3,7 @@ use actix_web::HttpResponse;
 use log::{debug, error};
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
-use indexmap::{map::IndexMap};
+use indexmap::{map::IndexMap, indexmap};
 use serde_repr::{Serialize_repr, Deserialize_repr};
 use serenity::model::id::{ChannelId, RoleId, GuildId};
 use std::env;
@@ -758,7 +758,9 @@ impl Default for Server {
     fn default() -> Self {
         Server {
             user: User::default(),
-            extra_links: IndexMap::new(),
+            extra_links: indexmap!(
+                "key".to_string() => "value".to_string()
+            ),
             description: "".to_string(),
             tags: vec![],
             long_description_type: LongDescriptionType::default(),
@@ -856,7 +858,9 @@ impl Default for Bot {
         let action_logs = vec![ActionLog::default()];
 
         Bot {
-            extra_links: IndexMap::new(),
+            extra_links: indexmap!(
+                "key".to_string() => "value".to_string()
+            ),
             user: User::default(),
             description: "".to_string(),
             tags: Vec::new(),
