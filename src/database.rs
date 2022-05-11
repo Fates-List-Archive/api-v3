@@ -828,7 +828,7 @@ impl Database {
     // Get Server
     pub async fn get_server(&self, server_id: i64) -> Option<models::Server> {
         let data = sqlx::query!(
-            "SELECT description, long_description, long_description_type,
+            "SELECT description, long_description, long_description_type, owner_id,
             flags, keep_banner_decor, banner_card, banner_page, guild_count, 
             invite_amount, css, state, total_votes, votes, nsfw, tags, created_at, 
             extra_links FROM servers WHERE guild_id = $1",
@@ -894,6 +894,7 @@ impl Database {
                 Some(models::Server {
                     flags: row.flags,
                     extra_links,
+                    owner: self.get_user(row.owner_id).await,
                     description: row.description,
                     long_description: long_description_parsed,
                     long_description_raw: row.long_description,

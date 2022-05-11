@@ -731,6 +731,7 @@ impl Default for ActionLog {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Server {
     pub user: User,
+    pub owner: User,
     pub description: String,
     pub tags: Vec<Tag>,
     pub long_description_type: LongDescriptionType,
@@ -758,6 +759,7 @@ impl Default for Server {
     fn default() -> Self {
         Server {
             user: User::default(),
+            owner: User::default(),
             extra_links: indexmap!(
                 "key".to_string() => "value".to_string()
             ),
