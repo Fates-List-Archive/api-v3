@@ -1102,7 +1102,8 @@ pub struct Profile {
     pub site_lang: String,
     pub action_logs: Vec<ActionLog>,
     pub user_experiments: Vec<UserExperiments>,
-    pub flags: Vec<i32>
+    pub flags: Vec<i32>,
+    pub extra_links: IndexMap<String, String>
     // TODO: Ack data
 }
 

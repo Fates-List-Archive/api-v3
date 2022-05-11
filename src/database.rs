@@ -2203,7 +2203,7 @@ impl Database {
 
     pub async fn get_profile(&self, user_id: i64) -> Option<models::Profile> {
         let row = sqlx::query!(
-            "SELECT flags, description, site_lang, state, user_css, profile_css, 
+            "SELECT flags, description, site_lang, state, user_css, profile_css, extra_links,
             vote_reminder_channel::text, experiments FROM users WHERE user_id = $1",
             user_id
         )
@@ -2347,9 +2347,18 @@ impl Database {
             &description
         );
 
+        let extra_links_map = row.extra_links.as_object().unwrap_or(&self.default_map);
+
+        let mut extra_links = IndexMap::new();
+
+        for (key, value) in extra_links_map {
+            extra_links.insert(key.clone(), value.as_str().unwrap_or_default().to_string());
+        }
+
         Some(models::Profile {
             bots,
             packs,
+            extra_links,
             action_logs,
             user_experiments,
             connections,
