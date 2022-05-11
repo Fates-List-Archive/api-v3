@@ -1893,16 +1893,14 @@ impl Database {
 
         let mut old_bot_flags = old_bot.flags;
 
-        for flag in bot.flags.clone() {
-            if editable_flags.contains(&flag) {
-                let contains = old_bot_flags.contains(&flag);
+        for flag in editable_flags {
+            let contains = bot.flags.contains(&flag);
 
-                // If the flag is already in the bot, remove it from the bot
-                old_bot_flags.retain(|&x| x != flag);
-                if contains {
-                    // Add back the flag if user requested for it
-                    old_bot_flags.push(flag);
-                }
+            // No matter what, remove it from the bot
+            old_bot_flags.retain(|&x| x != flag);
+            if contains {
+                // Add back the flag if user requested for it
+                old_bot_flags.push(flag);
             }
         }
 
