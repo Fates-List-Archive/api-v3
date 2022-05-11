@@ -351,7 +351,7 @@ async fn add_bot(
                 "long_description": &bot.long_description,
                 "tags": &bot.tags.clone().into_iter().map(|x| x.id).collect::<Vec<String>>(),
                 "library": &bot.library,
-                "nsfw": bot.nsfw,
+                "nsfw": bot.flags.contains(&(models::Flags::NSFW as i32)),
                 "prefix": &bot.prefix,
             }
         );
@@ -996,6 +996,12 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
 
                 let nsfw = bot_data.remove("nsfw").unwrap_or_else(|| json!(false)).as_bool().unwrap_or(false);
 
+                let mut flags = Vec::new();
+
+                if nsfw {
+                    flags.push(models::Flags::NSFW as i32);
+                }
+
                 models::Bot {
                     user: models::User {
                         id: bot_id.to_string(),
@@ -1010,6 +1016,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     vanity: "_".to_string() + &bot_data.remove("name").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
                     shard_count: 0,
                     owners: extra_owners,
+                    flags,
                     tags: vec![
                         // Rovel does not provide us with tags, assert utility
                         models::Tag {
@@ -1017,7 +1024,6 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                             ..models::Tag::default()
                         }
                     ],
-                    nsfw,
                     ..models::Bot::default()
                 }
             },
