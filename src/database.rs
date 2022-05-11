@@ -585,7 +585,7 @@ impl Database {
             shards, prefix, invite, invite_amount, features, bot_library 
             AS library, state, user_count, votes, total_votes,
             nsfw, client_id, uptime_checks_total, uptime_checks_failed, 
-            page_style, keep_banner_decor, long_description_type, last_updated_at,
+            page_style, long_description_type, last_updated_at,
             long_description, webhook_type, extra_links FROM bots WHERE bot_id = $1 OR 
             client_id = $1",
             bot_id
@@ -785,7 +785,6 @@ impl Database {
                     votes: data.votes.unwrap_or(0),
                     total_votes: data.total_votes.unwrap_or(0),
                     nsfw: data.nsfw.unwrap_or(false),
-                    keep_banner_decor: data.keep_banner_decor.unwrap_or(false),
                     client_id,
                     tags,
                     commands,
@@ -826,7 +825,7 @@ impl Database {
     pub async fn get_server(&self, server_id: i64) -> Option<models::Server> {
         let data = sqlx::query!(
             "SELECT description, long_description, long_description_type, owner_id,
-            flags, keep_banner_decor, banner_card, banner_page, guild_count, 
+            flags, banner_card, banner_page, guild_count, 
             invite_amount, css, state, total_votes, votes, nsfw, tags, created_at, 
             extra_links FROM servers WHERE guild_id = $1",
             server_id
@@ -898,7 +897,6 @@ impl Database {
                     long_description_type,
                     banner_card: row.banner_card,
                     banner_page: row.banner_page,
-                    keep_banner_decor: row.keep_banner_decor.unwrap_or_default(),
                     guild_count: row.guild_count.unwrap_or_default(),
                     invite_amount: row.invite_amount.unwrap_or_default(),
                     invite_link: None,
