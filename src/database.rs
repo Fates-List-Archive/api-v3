@@ -653,10 +653,8 @@ impl Database {
                 .await
                 .unwrap();
                 let mut owners = Vec::new();
-                let mut owners_html = "".to_string();
                 for row in owner_rows {
                     let user = self.get_user(row.owner).await;
-                    owners_html += &converters::owner_html(&user.id, &user.username);
                     owners.push(models::BotOwner {
                         user,
                         main: row.main.unwrap_or(false),
@@ -812,7 +810,6 @@ impl Database {
                         models::WebhookType::try_from(data.webhook_type.unwrap_or_default())
                             .unwrap_or(models::WebhookType::Vote),
                     ),
-                    owners_html,
                     action_logs,
                 };
 

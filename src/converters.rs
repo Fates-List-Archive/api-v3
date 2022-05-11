@@ -32,14 +32,6 @@ pub fn invite_link(client_id: &str, invite: &str) -> String {
     invite.to_string()
 }
 
-pub fn owner_html(id: &str, username: &str) -> String {
-    return format!(
-        "<a class='long-desc-link' href='/profile/{id}'>{username}</a><br/>",
-        id = id,
-        username = username,
-    );
-}
-
 pub fn sanitize_description(
     long_desc_type: models::LongDescriptionType,
     description: &str,
