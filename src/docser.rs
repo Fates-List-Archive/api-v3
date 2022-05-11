@@ -306,13 +306,15 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     // Maps are represented in JSON as `{ K: V, K: V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        self.in_struct += 1;
+        self.output += &("Map (key/value) ".to_string() + " \n");
         Ok(self)
     }
 
     fn serialize_struct(
         self,
         name: &'static str,
-        len: usize,
+        _len: usize,
     ) -> Result<Self::SerializeStruct> {
         if self.root_ser {
             self.in_struct += 1;
@@ -320,7 +322,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         } else {
             self.root_ser = true;
         }
-        self.serialize_map(Some(len))
+        Ok(self)
     }
 
     // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }`.
@@ -425,6 +427,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         self.is_key = true;
         self.output += &("\t".repeat(self.in_struct) + "- ");
         key.serialize(&mut **self)?;
+        self.output += "\n";
         self.is_key = false;
         Ok(())
     }

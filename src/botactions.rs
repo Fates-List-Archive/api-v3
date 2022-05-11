@@ -376,7 +376,7 @@ async fn add_bot(
             obj.insert("github".to_string(), json!(bot.extra_links["github"]));
         }
 
-        let metro = data.database.requests.post("https://metrobots.xyz/bots?list_id=5800d395-beb3-4d79-90b9-93e1ca674b40")
+        let metro = data.database.requests.post("https://catnip.metrobots.xyz/bots?list_id=5800d395-beb3-4d79-90b9-93e1ca674b40")
         .header("Authorization", &data.config.secrets.metro_key)
         .json(&map)
         .send()

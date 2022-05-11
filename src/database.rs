@@ -1556,11 +1556,11 @@ impl Database {
         guild_id: i64,
         user_id: i64,
     ) -> Result<String, models::GuildInviteError> {
-        // Get state, invite_channel, user_whitelist, user_blacklist, login_required, whitelist_only
+        // Get state, invite_channel, user_whitelist, user_blacklist, login_required
         // login_required
         let row = sqlx::query!(
             "SELECT state, invite_channel, user_whitelist, user_blacklist, 
-            login_required, whitelist_only, whitelist_form, invite_url
+            login_required, flags, whitelist_form, invite_url
             FROM servers WHERE guild_id = $1",
             guild_id
         )
@@ -1574,11 +1574,11 @@ impl Database {
         let user_blacklist = row.user_blacklist;
         let invite_url = row.invite_url.unwrap_or_else(|| "".to_string());
         let mut login_required = row.login_required.unwrap_or_default();
-        let whitelist_only = row.whitelist_only.unwrap_or_default();
+        let whitelist_only = row.flags.contains(&(models::Flags::WhitelistOnly as i32));
 
         // Whitelist only implies login_required
         if whitelist_only {
-            login_required = true
+            login_required = true;
         }
 
         if login_required && user_id == 0 {
