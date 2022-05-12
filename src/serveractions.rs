@@ -82,11 +82,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
             .await;
 
         if invite_link_result.is_err() {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some(invite_link_result.unwrap_err().to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&invite_link_result.unwrap_err()));
         }
         invite_link = Some(invite_link_result.unwrap());
         data.database.update_server_invite_amount(id.id).await;
