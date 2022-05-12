@@ -1549,7 +1549,7 @@ impl Database {
         // login_required
         let row = sqlx::query!(
             "SELECT state, invite_channel, user_whitelist, user_blacklist, 
-            login_required, flags, whitelist_form, invite_url
+            flags, whitelist_form, invite_url
             FROM servers WHERE guild_id = $1",
             guild_id
         )
@@ -1562,7 +1562,7 @@ impl Database {
         let user_whitelist = row.user_whitelist;
         let user_blacklist = row.user_blacklist;
         let invite_url = row.invite_url.unwrap_or_else(|| "".to_string());
-        let mut login_required = row.login_required.unwrap_or_default();
+        let mut login_required = row.flags.contains(&(models::Flags::LoginRequired as i32));
         let whitelist_only = row.flags.contains(&(models::Flags::WhitelistOnly as i32));
 
         // Whitelist only implies login_required
@@ -1588,7 +1588,6 @@ impl Database {
                 .invite_resolver(guild_id, user_id, invite_channel, invite_url)
                 .await;
         }
-
         if state == models::State::PrivateViewable {
             return Err(models::GuildInviteError::NotAcceptingInvites);
         } else if whitelist_only {
