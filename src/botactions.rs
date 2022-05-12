@@ -336,7 +336,7 @@ async fn add_bot(
         });
         let res = data.database.add_bot(&bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err())); 
         }
 
         // Metro Code
@@ -1053,7 +1053,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
         });
         let res = data.database.add_bot(&bot).await;
         if res.is_err() {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err())); 
         }
         let _ = data
             .config
