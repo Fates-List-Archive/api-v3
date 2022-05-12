@@ -1312,6 +1312,24 @@ but must exist in the object
     docs += &doc_category("Users");
 
     docs += &doc(models::Route {
+        title: "Get User From ID",
+        method: "GET",
+        path: "/blazefire/{id}",
+        description: r#"
+Gets a User object given a ID. 
+
+Internally will be used by client for extra owner rendering etc.
+
+May be used by our partners to get user information.
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::User::default(),
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
         title: "Get Profile",
         method: "GET",
         path: "/profiles/{id}",

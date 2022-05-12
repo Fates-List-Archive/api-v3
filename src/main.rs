@@ -209,6 +209,7 @@ async fn main() -> std::io::Result<()> {
             .service(packs::delete_pack)
 
             // User
+            .service(user::get_user_from_id)
             .service(user::get_profile)
             .service(user::update_profile)
             .service(user::recieve_profile_roles)

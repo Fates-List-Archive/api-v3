@@ -4,6 +4,13 @@ use actix_web::http::header::HeaderValue;
 use actix_web::{get, put, patch, web, http, HttpRequest, HttpResponse};
 use log::error;
 
+/// Gets a user given a id
+#[get("/blazefire/{id}")]
+pub async fn get_user_from_id(req: HttpRequest, info: web::Path<models::FetchBotPath>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+    HttpResponse::Ok().json(data.database.get_user(info.id).await)
+}
+
 #[get("/profiles/{id}")]
 async fn get_profile(req: HttpRequest, info: web::Path<models::FetchBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
