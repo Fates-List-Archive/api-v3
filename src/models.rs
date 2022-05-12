@@ -19,7 +19,7 @@ pub use bristlefrost::models::{User, Status, State, UserFlags, Flags, UserState,
 
 // Create trait for Errors
 
-trait APIError {
+pub trait APIError {
     fn name(&self) -> String;
     fn context(&self) -> Option<String>;
 }
@@ -622,12 +622,14 @@ impl APIResponse {
     pub fn err_small(reason: &dyn APIError) -> Self {
         APIResponse {
             done: false,
-            reason: Some(reason.name()),
+            reason: Some(reason.name().replace("\"", "")),
             context: reason.context(),
         }
     }
 
-    // Deprecated
+    /// Returns a failure API response (but for enums that don't implement APIError)
+    /// # Arguments
+    /// * `reason` - The reason for the failure
     pub fn err(reason: &dyn ToString) -> Self {
         APIResponse {
             done: false,
