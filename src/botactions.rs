@@ -321,7 +321,7 @@ async fn add_bot(
     if data.database.authorize_user(id.id, auth).await {
         let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err())); 
+            return HttpResponse::BadRequest().json(models::APIResponse::err_simple(&res.unwrap_err())); 
         }
         bot.owners.push(models::BotOwner {
             user: models::User {
@@ -336,7 +336,7 @@ async fn add_bot(
         });
         let res = data.database.add_bot(&bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_simple(&res.unwrap_err()));
         }
 
         // Metro Code
@@ -456,16 +456,16 @@ async fn edit_bot(
         }
 
         if !got_owner {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&models::CheckBotError::Forbidden));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_simple(&models::CheckBotError::Forbidden));
         }
 
         let res = check_bot(&data, models::BotActionMode::Edit, &mut bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_simple(&res.unwrap_err()));
         }
         let res = data.database.edit_bot(id.id, &bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_simple(&res.unwrap_err()));
         }
         let result = data
             .config
@@ -1266,7 +1266,7 @@ async fn get_bot_settings(
                         );
                     }
                 }
-                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&models::CheckBotError::Forbidden))
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_simple(&models::CheckBotError::Forbidden))
             }
             Err(err) => {
                 HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {

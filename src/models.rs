@@ -17,6 +17,14 @@ use strum_macros::EnumIter;
 // Re-export common models
 pub use bristlefrost::models::{User, Status, State, UserFlags, Flags, UserState, LongDescriptionType, WebhookType, TargetType};
 
+// Create trait for Errors
+
+trait APIError {
+    fn name(&self) -> String;
+    fn context(&self) -> Option<String>;
+}
+
+
 #[derive(
     Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Debug, Default, EnumIter
 )]
@@ -611,6 +619,15 @@ impl APIResponse {
     /// Returns a failure API response
     /// # Arguments
     /// * `reason` - The reason for the failure
+    pub fn err_small(reason: &dyn APIError) -> Self {
+        APIResponse {
+            done: false,
+            reason: Some(reason.name()),
+            context: reason.context(),
+        }
+    }
+
+    // Deprecated
     pub fn err(reason: &dyn ToString) -> Self {
         APIResponse {
             done: false,
@@ -1179,7 +1196,7 @@ impl fmt::Display for ProfileCheckError {
 #[derive(Debug)]
 pub enum ProfileRolesUpdate {
     SQLError(sqlx::Error),
-    MemberNotFound,
+    MemberNotFound, // Added
     DiscordError(serenity::Error),
 }
 
@@ -1208,9 +1225,9 @@ impl fmt::Display for CommandAddError {
 
 #[derive(Debug)]
 pub enum GenericError {
-    Forbidden,
-    NotFound,
-    InvalidFields,
+    Forbidden, // Added
+    NotFound, // Added
+    InvalidFields, // Added
 }
 
 impl fmt::Display for GenericError {
@@ -1228,13 +1245,13 @@ impl fmt::Display for GenericError {
 #[derive(Debug)]
 pub enum GuildInviteError {
     SQLError(sqlx::Error),
-    LoginRequired,
-    NotAcceptingInvites,
+    LoginRequired, // Added
+    NotAcceptingInvites, // Added
     WhitelistRequired(String),
-    Blacklisted,
-    StaffReview,
-    ServerBanned,
-    NoChannelFound,
+    Blacklisted, // Added
+    StaffReview, // Added
+    ServerBanned, // Added
+    NoChannelFound, // Added
     RequestError(reqwest::Error),
 }
 
@@ -1258,7 +1275,7 @@ impl fmt::Display for GuildInviteError {
 pub enum OauthError {
     BadExchange(reqwest::Error),
     BadExchangeJson(String),
-    NonceTooOld,
+    NonceTooOld, // Added
     NoUser(reqwest::Error),
     SQLError(sqlx::Error),
 }
@@ -1307,77 +1324,54 @@ impl fmt::Display for ReviewAddError {
     }
 }
 
+#[derive(Serialize)]
 pub enum CheckBotError {
-    AlreadyExists,
-    BotBannedOrDenied(State),
-    ClientIDImmutable,
-    PrefixTooLong,
-    NoVanity,
-    VanityTaken,
-    InvalidInvitePermNum,
-    InvalidInvite,
-    ShortDescLengthErr,
-    LongDescLengthErr,
-    BotNotFound,
-    NoTags,
-    TooManyTags,
-    TooManyFeatures,
-    BannerCardError(BannerCheckError),
-    BannerPageError(BannerCheckError),
+    AlreadyExists, // Added
+    BotBannedOrDenied(State), // Handled
+    ClientIDImmutable, // Added
+    PrefixTooLong, // Added
+    NoVanity, // Added
+    VanityTaken, // Added
+    InvalidInvitePermNum, // Added
+    InvalidInvite, // Added
+    ShortDescLengthErr, // Added
+    LongDescLengthErr, // Added
+    BotNotFound, // Added
+    NoTags, // Added
+    TooManyTags, // Added
+    TooManyFeatures, // Added
+    BannerCardError(BannerCheckError), // Handled
+    BannerPageError(BannerCheckError), // Handled
     JAPIError(reqwest::Error),
     JAPIDeserError(reqwest::Error),
-    ClientIDNeeded,
-    InvalidClientID,
-    PrivateBot,
-    EditLocked,
-    OwnerListTooLong,
-    OwnerIDParseError,
-    OwnerNotFound,
-    MainOwnerAddAttempt,
-    Forbidden,
-    ExtraLinkKeyTooLong,
-    ExtraLinkValueTooLong,
-    ExtraLinkValueNotHTTPS,
-    ExtraLinksTooManyRendered,
+    ClientIDNeeded, // Added
+    InvalidClientID, // Added
+    PrivateBot, // Added
+    EditLocked, // Added
+    OwnerListTooLong, // Added
+    OwnerIDParseError, // Added
+    OwnerNotFound, // Added
+    MainOwnerAddAttempt, // Added
+    Forbidden, // Added
+    ExtraLinkKeyTooLong, // Added
+    ExtraLinkValueTooLong, // Added
+    ExtraLinkValueNotHTTPS, // Added
+    ExtraLinksTooManyRendered, // Added
     ExtraLinksTooMany,
 }
 
-impl fmt::Display for CheckBotError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&match self {
-            Self::ExtraLinkKeyTooLong => "One of your extra link keys is too long".to_string(),
-            Self::ExtraLinkValueTooLong => "One of your extra link values is too long".to_string(),
-            Self::ExtraLinkValueNotHTTPS => "One of your extra link values is not a valid URL".to_string(),
-            Self::ExtraLinksTooManyRendered => "You have too many renderable extra links (extra links that do not start with an underscore)".to_string(),
-            Self::ExtraLinksTooMany => "You have too many extra links".to_string(),
-            Self::AlreadyExists => "This bot already exists on Fates List".to_string(),
-            Self::JAPIError(e) => format!("JAPI Error: {}", e),
-            Self::JAPIDeserError(e) => format!("JAPI Deserialize Error: {}", e),
-            Self::PrivateBot => "This bot is private and cannot be added".to_string(),
-            Self::ClientIDNeeded => "Client ID is required for this bot or is incorrect".to_string(),
-            Self::InvalidClientID => "Client ID inputted is invalid for this bot".to_string(),
-            Self::BotBannedOrDenied(state) => format!("This bot is banned or denied: {:?}", state),
-            Self::PrefixTooLong => "Prefix must be shorter than 9 characters".to_string(),
-            Self::ClientIDImmutable => "Client ID cannot be changed once set".to_string(),
-            Self::NoVanity => "You must have a vanity for your bot. This can be your username. You can prefix it with _ (underscore) if you don't want the extra growth from it. For example _mewbot would disable the mewbot vanity".to_string(),
-            Self::VanityTaken => "This vanity has already been taken. Please contact Fates List staff if you wish to report this!".to_string(),
-            Self::InvalidInvitePermNum => "This invite is invalid!".to_string(),
-            Self::InvalidInvite => "Your invite link must start with https://".to_string(),
-            Self::ShortDescLengthErr => "Your description must be at least 10 characters long and must be a maximum of 200 characters".to_string(),
-            Self::LongDescLengthErr => "Your long description must be at least 200 characters long".to_string(),
-            Self::BotNotFound => "According to Discord's API and our cache, your bot does not exist. Please try again after 2 hours.".to_string(),
-            Self::NoTags => "You must select tags for your bot".to_string(),
-            Self::TooManyTags => "You can only select up to 10 tags for your bot".to_string(),
-            Self::TooManyFeatures => "You can only select up to 5 features for your bot".to_string(),
-            Self::BannerCardError(e) => format!("{}. Hint: check your banner card", e.to_string()),
-            Self::BannerPageError(e) => format!("{}. Hint: check your banner page", e.to_string()),
-            Self::EditLocked => "This bot has either been locked by staff or has been edit locked by the main owner of the bot".to_string(),
-            Self::OwnerListTooLong => "The owner list is too long. You may only have a maximum of 5 extra owners".to_string(),
-            Self::OwnerIDParseError => "An owner ID in your owner list is invalid".to_string(),
-            Self::OwnerNotFound => "An owner ID in your owner list does not exist".to_string(),
-            Self::MainOwnerAddAttempt => "You cannot add a main owner as an extra owner".to_string(),
-            Self::Forbidden => "You are not allowed to edit this bot!".to_string(),
-        })
+impl APIError for CheckBotError {
+    fn name(&self) -> String {
+        "CheckBotError.".to_string()+&serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::BotBannedOrDenied(s) => Some(serde_json::to_string(s).unwrap_or_default()),
+            Self::BannerCardError(s) => Some(s.to_string()),
+            Self::BannerPageError(s) => Some(s.to_string()),
+            _ => None
+        }
     }
 }
 
@@ -1413,6 +1407,7 @@ impl PackCheckError {
     }
 }
 
+// Ignore serialize
 pub enum BannerCheckError {
     BadURL(reqwest::Error),
     StatusError(String),
