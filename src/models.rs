@@ -1327,7 +1327,7 @@ impl fmt::Display for ReviewAddError {
 #[derive(Serialize)]
 pub enum CheckBotError {
     AlreadyExists, // Added
-    BotBannedOrDenied(State), // Handled
+    BotBannedOrDenied(#[serde(skip)] State), // Handled
     ClientIDImmutable, // Added
     PrefixTooLong, // Added
     NoVanity, // Added
@@ -1340,10 +1340,10 @@ pub enum CheckBotError {
     NoTags, // Added
     TooManyTags, // Added
     TooManyFeatures, // Added
-    BannerCardError(BannerCheckError), // Handled
-    BannerPageError(BannerCheckError), // Handled
-    JAPIError(reqwest::Error),
-    JAPIDeserError(reqwest::Error),
+    BannerCardError(#[serde(skip)] BannerCheckError), // Handled
+    BannerPageError(#[serde(skip)] BannerCheckError), // Handled
+    JAPIError(#[serde(skip)] reqwest::Error),
+    JAPIDeserError(#[serde(skip)] reqwest::Error),
     ClientIDNeeded, // Added
     InvalidClientID, // Added
     PrivateBot, // Added
