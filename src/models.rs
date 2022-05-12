@@ -1244,9 +1244,9 @@ impl fmt::Display for GenericError {
 }
 
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub enum GuildInviteError {
-    SQLError(sqlx::Error),
+    SQLError(#[serde(skip)] sqlx::Error), // Added
     LoginRequired, // Added
     NotAcceptingInvites, // Added
     WhitelistRequired(String),
@@ -1254,23 +1254,20 @@ pub enum GuildInviteError {
     StaffReview, // Added
     ServerBanned, // Added
     NoChannelFound, // Added
-    RequestError(reqwest::Error),
+    RequestError(#[serde(skip)] reqwest::Error),
 }
 
-impl fmt::Display for GuildInviteError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-        &match self {
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-            Self::LoginRequired => "You must login in order to join this server!".to_string(),
-            Self::StaffReview => "This server is currently under review by Fates List Staff and not accepting invites at this time!".to_string(),
-            Self::NotAcceptingInvites => "This server is private and not accepting invites at this time!".to_string(),
-            Self::ServerBanned => "This server has been banned (or denied due to requiring small changes) from Fates List. If you are a staff member of this server, contact Fates List Support for more information.".to_string(),
-            Self::WhitelistRequired(s) => format!("You need to be whitelisted to join this server!<br/>{}", s),
-            Self::Blacklisted => "You have been blacklisted from joining this server!".to_string(),
-            Self::NoChannelFound => "Could not find channel to invite you to... Please ask the owner of this server to set an invite or set the invite channel for this server".to_string(),
-            Self::RequestError(e) => format!("Error occurred when fetching guild invite from baypaw {}", e),
-        })
+impl APIError for GuildInviteError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::SQLError(s) => Some(s.to_string()),
+            Self::WhitelistRequired(s) => Some(s.to_string()),
+            _ => None
+        }
     }
 }
 
