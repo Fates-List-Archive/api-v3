@@ -1598,7 +1598,7 @@ impl Database {
                 form_html = "There is no form to get access to this server!".to_string()
             } else {
                 form_html = format!(
-                    "<a href='{}'>You can get acces to this server here</a>",
+                    "<a href='{}'>You can get access to this server here</a>",
                     form.unwrap()
                 );
             }

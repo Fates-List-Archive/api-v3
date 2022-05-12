@@ -1249,7 +1249,7 @@ pub enum GuildInviteError {
     SQLError(#[serde(skip)] sqlx::Error), // Added
     LoginRequired, // Added
     NotAcceptingInvites, // Added
-    WhitelistRequired(String),
+    WhitelistRequired(#[serde(skip)] String), // Added
     Blacklisted, // Added
     StaffReview, // Added
     ServerBanned, // Added
