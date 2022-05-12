@@ -1372,6 +1372,8 @@ impl APIError for CheckBotError {
             Self::BotBannedOrDenied(s) => Some(serde_json::to_string(s).unwrap_or_default()),
             Self::BannerCardError(s) => Some(s.to_string()),
             Self::BannerPageError(s) => Some(s.to_string()),
+            Self::JAPIError(e) => Some(e.to_string()),
+            Self::JAPIDeserError(e) => Some(e.to_string()),
             _ => None
         }
     }
