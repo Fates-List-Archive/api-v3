@@ -465,7 +465,7 @@ async fn edit_bot(
         }
         let res = data.database.edit_bot(id.id, &bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
         }
         let result = data
             .config
