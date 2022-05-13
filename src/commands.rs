@@ -45,11 +45,7 @@ async fn add_command(
             }
             let ret = data.database.add_command(id, command).await;
             if ret.is_err() {
-                return HttpResponse::BadRequest().json(models::APIResponse {
-                    done: false,
-                    reason: Some(ret.unwrap_err().to_string()),
-                    context: None,
-                });
+                return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(ret.unwrap_err()))); 
             }
         }
         return HttpResponse::Ok().json(models::APIResponse::ok());

@@ -2920,7 +2920,7 @@ impl Database {
         &self,
         bot_id: i64,
         command: &models::BotCommand,
-    ) -> Result<(), models::CommandAddError> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "INSERT INTO bot_commands (bot_id, cmd_type, name, 
             description, args, examples, premium_only, notes, doc_link,
@@ -2946,8 +2946,7 @@ impl Database {
             command.nsfw,
         )
         .execute(&self.pool)
-        .await
-        .map_err(models::CommandAddError::SQLError)?;
+        .await?;
 
         Ok(())
     }

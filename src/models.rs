@@ -1224,18 +1224,6 @@ impl APIError for ProfileRolesUpdate {
     }
 }
 
-pub enum CommandAddError {
-    SQLError(sqlx::Error),
-}
-
-impl fmt::Display for CommandAddError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&match self {
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-        })
-    }
-}
-
 #[derive(Serialize, Debug)]
 pub enum GenericError {
     Forbidden, // Added
