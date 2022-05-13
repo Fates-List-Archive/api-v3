@@ -11,7 +11,7 @@ async fn add_command(
     res: web::Json<models::BotCommandVec>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let id = id.id.clone();
+    let id = id.id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
@@ -24,28 +24,14 @@ async fn add_command(
     if data.database.authorize_bot(id, auth).await {
         for command in &res.commands {
             if command.name.is_empty() {
-                return HttpResponse::BadRequest().json(models::APIResponse {
-                    done: false,
-                    reason: Some(
-                        "Command name must be at least 1 character long: ".to_string()
-                            + &command.name,
-                    ),
-                    context: None,
-                });
+                return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::CommandError::CommandLengthError(command.name.clone()))); 
             }
             if command.description.is_empty() {
-                return HttpResponse::BadRequest().json(models::APIResponse {
-                    done: false,
-                    reason: Some(
-                        "Command name must be at least 1 character long: ".to_string()
-                            + &command.name,
-                    ),
-                    context: None,
-                });
+                return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::CommandError::CommandLengthError(command.name.clone()))); 
             }
-            let ret = data.database.add_command(id, command).await;
-            if ret.is_err() {
-                return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(ret.unwrap_err()))); 
+            let command_ret = data.database.add_command(id, command).await;
+            if command_ret.is_err() {
+                return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(command_ret.unwrap_err()))); 
             }
         }
         return HttpResponse::Ok().json(models::APIResponse::ok());

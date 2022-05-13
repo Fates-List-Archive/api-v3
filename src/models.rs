@@ -1318,6 +1318,24 @@ pub enum BotActionMode {
     Edit,
 }
 
+#[derive(Serialize)]
+pub enum CommandError {
+    CommandLengthError(#[serde(skip)] String),
+}
+
+impl APIError for CommandError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    // We have no special context really
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::CommandLengthError(s) => Some(s.to_string()) 
+        }
+    }
+}
+
 pub enum ReviewAddError {
     SQLError(sqlx::Error),
 }
