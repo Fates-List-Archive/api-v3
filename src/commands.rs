@@ -55,7 +55,7 @@ async fn add_command(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Command post auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 #[delete("/bots/{id}/commands")]
@@ -105,5 +105,5 @@ async fn delete_commands(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Command delete auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }

@@ -44,7 +44,7 @@ async fn update_profile(
     if data.database.authorize_user(info.id, auth).await {
         let profile = data.database.get_profile(info.id).await;
         if profile.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
         let profile = profile.unwrap();
 
@@ -62,12 +62,12 @@ async fn update_profile(
             .await;
 
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err()));
         }
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Update profile auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 #[put("/profiles/{id}/old-roles")]
@@ -87,7 +87,7 @@ async fn recieve_profile_roles(
     if data.database.authorize_user(info.id, auth).await {
         let profile = data.database.get_profile(info.id).await;
         if profile.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
         let profile = profile.unwrap();
 
@@ -109,11 +109,11 @@ async fn recieve_profile_roles(
             .await;
 
         if update.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&update.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&update.unwrap_err()));
         }
 
         return HttpResponse::Ok().json(update.unwrap());
     }
     error!("Update profile auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }

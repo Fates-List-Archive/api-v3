@@ -27,20 +27,20 @@ async fn vote_bot(
     if data.database.authorize_user(user_id, auth).await {
         let bot = data.database.get_bot(bot_id).await;
         if bot.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
         let bot = bot.unwrap();
         if converters::flags_check(&bot.flags, vec![models::Flags::System as i32]) {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&models::VoteBotError::System(models::TargetType::Bot)));
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::VoteBotError::System));
         }
         let vote = data.database.vote_bot(user_id, bot_id, vote.test).await;
         if vote.is_err() {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&vote.unwrap_err()));
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&vote.unwrap_err()));
         }
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Vote Bot Auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Create Server Vote
@@ -65,11 +65,11 @@ async fn vote_server(
     if data.database.authorize_user(user_id, auth).await {
         let server = data.database.get_server(server_id).await;
         if server.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
         let server = server.unwrap();
         if converters::flags_check(&server.flags, vec![models::Flags::System as i32]) {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&models::VoteBotError::System(models::TargetType::Server)));
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::VoteBotError::System));
         }
         let vote = data
             .database
@@ -81,12 +81,12 @@ async fn vote_server(
             )
             .await;
         if vote.is_err() {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err(&vote.unwrap_err()));
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&vote.unwrap_err()));
         }
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Vote Server Auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Bot: Has User Voted?

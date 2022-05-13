@@ -22,7 +22,7 @@ async fn new_bot_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) ->
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Token auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Issues (regenerates) a new user token
@@ -42,7 +42,7 @@ async fn new_user_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Token auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Revokes a clients auth
@@ -63,7 +63,7 @@ async fn revoke_client(req: HttpRequest, id: web::Path<models::UserClientAuth>) 
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Token auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 
@@ -84,5 +84,5 @@ async fn new_server_token(req: HttpRequest, id: web::Path<models::FetchBotPath>)
         return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     error!("Token auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }

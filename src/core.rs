@@ -39,13 +39,13 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> HttpRe
 #[get("/code/{vanity}")]
 async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
     if code.starts_with('_') {
-        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let resolved_vanity = data.database.resolve_vanity(&code.into_inner()).await;
     match resolved_vanity {
         Some(data) => HttpResponse::build(http::StatusCode::OK).json(data),
-        _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound)),
+        _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound)),
     }
 }
 

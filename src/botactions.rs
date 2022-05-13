@@ -336,7 +336,7 @@ async fn add_bot(
         });
         let res = data.database.add_bot(&bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err())); 
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
         }
 
         // Metro Code
@@ -418,7 +418,7 @@ async fn add_bot(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Add bot auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Edit bot
@@ -444,7 +444,7 @@ async fn edit_bot(
             .get_bot(bot.user.id.parse::<i64>().unwrap_or(0))
             .await;
         if bot_user.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
 
         let mut got_owner = false;
@@ -465,7 +465,7 @@ async fn edit_bot(
         }
         let res = data.database.edit_bot(id.id, &bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err()));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
         }
         let result = data
             .config
@@ -503,7 +503,7 @@ async fn edit_bot(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Edit bot auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Transfer ownership
@@ -525,7 +525,7 @@ async fn transfer_ownership(
         // Before doing anything else, get the bot from db and check if user is owner
         let bot_user = data.database.get_bot(id.bot_id).await;
         if bot_user.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
 
         let mut got_owner = false;
@@ -620,7 +620,7 @@ async fn transfer_ownership(
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Transfer bot auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Delete bot
@@ -640,7 +640,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         // Before doing anything else, get the bot from db and check if user is owner
         let bot_user = data.database.get_bot(id.bot_id).await;
         if bot_user.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
 
         let mut got_owner = false;
@@ -701,7 +701,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Delete bot auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 // Get Import Sources
@@ -1053,7 +1053,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
         });
         let res = data.database.add_bot(&bot).await;
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err(&res.unwrap_err())); 
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
         }
         let _ = data
             .config
@@ -1089,7 +1089,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
     error!("Add bot auth error");
-    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+    HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
 /// Post Stats
@@ -1124,7 +1124,7 @@ async fn post_stats(
         }
     } else {
         error!("Stat post auth error");
-        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
     }
 }
 
@@ -1208,7 +1208,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
                     data.database.bot_cache.insert(id.id, bot_data.clone()).await;
                     HttpResponse::Ok().json(bot_data)
                 },
-                _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound)),
+                _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound)),
             }
         }
     }
@@ -1270,6 +1270,6 @@ async fn get_bot_settings(
         }
     } else {
         error!("Bot Settings Auth error");
-        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden))
+        HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
     }
 }

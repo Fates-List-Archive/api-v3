@@ -35,7 +35,7 @@ mod docser; // Used internally by docs.rs
 use crate::models::APIResponse;
 
 async fn not_found(_req: HttpRequest) -> HttpResponse {
-    return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+    return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
 }
 
 fn actix_handle_err<T: std::error::Error + 'static>(err: T) -> actix_web::error::Error {

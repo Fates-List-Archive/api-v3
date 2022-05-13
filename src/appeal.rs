@@ -25,7 +25,7 @@ async fn appeal_bot(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Appeal Auth error");
-        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let rl = data.database.get_ratelimit(models::Ratelimit::Appeal, user_id).await;
@@ -37,7 +37,7 @@ async fn appeal_bot(
     let bot = data.database.get_bot(bot_id).await;
 
     if bot.is_none() {
-        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
 
     let bot = bot.unwrap();
@@ -166,13 +166,13 @@ async fn appeal_server(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Appeal Auth error");
-        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let server = data.database.get_server(server_id).await;
 
     if server.is_none() {
-        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound));
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
 
     let server = server.unwrap();

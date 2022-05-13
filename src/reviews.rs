@@ -94,7 +94,7 @@ async fn add_review(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Add Auth error");
-        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     if review.parent_id.is_none() {
@@ -224,7 +224,7 @@ async fn edit_review(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Add Auth error");
-        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     if review.star_rating < bigdecimal::BigDecimal::from_i64(0).unwrap()
@@ -322,7 +322,7 @@ async fn delete_review(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Add Auth error");
-        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let review_id = uuid::Uuid::parse_str(&info.rid);
@@ -401,7 +401,7 @@ async fn vote_review(
         .unwrap();
     if !data.database.authorize_user(user_id, auth).await {
         error!("Review Vote Auth error");
-        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err(&models::GenericError::Forbidden));
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let review_id = uuid::Uuid::parse_str(&info.rid);

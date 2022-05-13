@@ -1,5 +1,6 @@
 // Endpoints to handle login/logout
 use crate::models;
+use crate::models::APIError;
 use crate::converters;
 use actix_web::cookie::time::Duration as CookieDuration;
 use actix_web::cookie::{Cookie, SameSite};
@@ -41,7 +42,7 @@ async fn get_frostpaw_client(req: HttpRequest, client_id: web::Path<String>) -> 
     if let Some(cli) = client {
         HttpResponse::Ok().json(cli)
     } else {
-        HttpResponse::NotFound().json(models::APIResponse::err(&models::GenericError::NotFound))
+        HttpResponse::NotFound().json(models::APIResponse::err_small(&models::GenericError::NotFound))
     }
 }
 
@@ -134,12 +135,8 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
     match login {
         Err(err) => {
-            error!("{:?}", err.to_string());
-            HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(err.to_string()),
-                context: None,
-            })
+            error!("{:?}", err.error());
+            HttpResponse::BadRequest().json(models::APIResponse::err_small(&err))
         }
         Ok(mut user) => {
             // Check for a frostpaw login
@@ -147,7 +144,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 // If a frostpaw custom client login is used 
                 // Check claw with blood
                 if info.frostpaw_blood.is_none() || info.frostpaw_claw.is_none() || info.frostpaw_claw_unseathe_time.is_none() {
-                    return HttpResponse::BadRequest().json(models::APIResponse::err(&models::GenericError::InvalidFields));
+                    return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::InvalidFields));
                 }
 
                 // These clones arent easy to avoid
@@ -158,7 +155,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 let time_elapsed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() - claw_unseathe_time;
 
                 if !(5..=75).contains(&time_elapsed) {
-                    return HttpResponse::BadRequest().json(models::APIResponse::err(&models::OauthError::NonceTooOld));
+                    return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::OauthError::NonceTooOld));
                 }
 
                 let client = data.database.get_frostpaw_client(&blood).await;

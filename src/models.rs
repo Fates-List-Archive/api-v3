@@ -22,6 +22,10 @@ pub use bristlefrost::models::{User, Status, State, UserFlags, Flags, UserState,
 pub trait APIError {
     fn name(&self) -> String;
     fn context(&self) -> Option<String>;
+
+    fn error(&self) -> String {
+        self.name() + ": " + &self.context().unwrap_or_default()
+    }
 }
 
 
@@ -1180,36 +1184,43 @@ pub struct ReviewQuery {
 }
 
 // Error Handling
+#[derive(Serialize)]
 pub enum ProfileCheckError {
-    SQLError(sqlx::Error),
-    InvalidFlag(i32),
+    SQLError(#[serde(skip)] sqlx::Error), // Added
+    InvalidFlag(#[serde(skip)] i32),
 }
 
-impl fmt::Display for ProfileCheckError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-        &match self {
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-            Self::InvalidFlag(f) => format!("Illegal or otherwise non-edittable flag: {}", f),
-        })
+impl APIError for ProfileCheckError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::SQLError(s) => Some(s.to_string()),
+            Self::InvalidFlag(f) => Some(f.to_string()),
+        }
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub enum ProfileRolesUpdate {
-    SQLError(sqlx::Error),
+    SQLError(#[serde(skip)] sqlx::Error),
     MemberNotFound, // Added
-    DiscordError(serenity::Error),
+    DiscordError(#[serde(skip)] serenity::Error),
 }
 
-impl fmt::Display for ProfileRolesUpdate {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-        &match self {
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-            Self::MemberNotFound => "You are not on our support server!".to_string(),
-            Self::DiscordError(e) => format!("Discord Error: {}", e),
-        })
+impl APIError for ProfileRolesUpdate {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::SQLError(s) => Some(s.to_string()),
+            Self::DiscordError(f) => Some(f.to_string()),
+            _ => None,
+        }
     }
 }
 
@@ -1225,21 +1236,24 @@ impl fmt::Display for CommandAddError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub enum GenericError {
     Forbidden, // Added
     NotFound, // Added
     InvalidFields, // Added
+    SQLError(#[serde(skip)] sqlx::Error),
 }
 
-impl fmt::Display for GenericError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-        &match self {
-            Self::Forbidden => "Forbidden".to_string(),
-            Self::NotFound => "Not Found".to_string(),
-            Self::InvalidFields => "Invalid fields present".to_string(),
-        })
+impl APIError for GenericError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::SQLError(s) => Some(s.to_string()),
+            _ => None
+        }
     }
 }
 
@@ -1271,23 +1285,28 @@ impl APIError for GuildInviteError {
     }
 }
 
+#[derive(Serialize)]
 pub enum OauthError {
-    BadExchange(reqwest::Error),
-    BadExchangeJson(String),
+    BadExchange(#[serde(skip)] reqwest::Error), // Added
+    BadExchangeJson(#[serde(skip)] String), // Added
     NonceTooOld, // Added
-    NoUser(reqwest::Error),
-    SQLError(sqlx::Error),
+    NoUser(#[serde(skip)]reqwest::Error), // Added
+    SQLError(#[serde(skip)] sqlx::Error), // Added
 }
 
-impl fmt::Display for OauthError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&match self {
-            Self::BadExchange(e) => format!("Bad Exchange: {}", e),
-            Self::BadExchangeJson(e) => format!("Bad Exchange JSON: {}", e),
-            Self::NonceTooOld => "Nonce too old. Please try logging in again!".to_string(),
-            Self::NoUser(e) => format!("No User: {}", e),
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-        })
+impl APIError for OauthError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::SQLError(s) => Some(s.to_string()),
+            Self::NoUser(s) => Some(s.to_string()),
+            Self::BadExchange(s) => Some(s.to_string()),
+            Self::BadExchangeJson(s) => Some(s.to_string()),
+            _ => None
+        }
     }
 }
 
@@ -1428,29 +1447,30 @@ impl BannerCheckError {
     }
 }
 
+#[derive(Serialize)]
 pub enum VoteBotError {
-    Wait(String),
-    UnknownError(String),
-    System(TargetType),
-    SQLError(sqlx::Error),
-    AutoroleError,
+    Wait(#[serde(skip)] String), // Added
+    UnknownError(#[serde(skip)] String), // Added
+    SQLError(#[serde(skip)] sqlx::Error), // Handled
+    AutoroleError, // Added
+    System, // Added
 }
 
-impl fmt::Display for VoteBotError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(
-            &match self {
-                Self::Wait(s) => format!("You must wait {} before voting again", s),
-                Self::UnknownError(e) => {
-                    "An unknown error occurred. Please ask on the Fates List support server: "
-                        .to_string()
-                        + e
-                }
-                Self::SQLError(e) => format!("SQL error: {}", e),
-                Self::System(e) => format!("You can't vote for system {}s!", format!("{:?}", e).to_lowercase()),
-                Self::AutoroleError => "Failed to find you on server for auto roles! This might be because this server does not have Squirrelflight with the 'Manage Roles' permission".to_string(),    
-            }
-        )
+impl APIError for VoteBotError {
+    fn name(&self) -> String {
+        match self {
+            Self::SQLError(_) => "SQLError".to_string(),
+            _ => "VoteBotError.".to_string() + &serde_json::to_string(self).unwrap_or_default()
+        }
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::SQLError(s) => Some(s.to_string()),
+            Self::UnknownError(s) => Some(s.to_string()),
+            Self::Wait(s) => Some(format!("Please wait {}!", s)),
+            _ => None,
+        }
     }
 }
 

@@ -108,7 +108,7 @@ async fn get_server(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> Ht
                     server_data.invite_link = invite_link;
                     HttpResponse::Ok().json(server_data)
                 },
-                _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err(&models::GenericError::NotFound)),
+                _ => HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound)),
             }
         }
     }
