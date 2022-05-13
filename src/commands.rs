@@ -30,7 +30,7 @@ async fn add_command(
                         "Command name must be at least 1 character long: ".to_string()
                             + &command.name,
                     ),
-                    context: Some("Check error".to_string()),
+                    context: None,
                 });
             }
             if command.description.is_empty() {
@@ -40,7 +40,7 @@ async fn add_command(
                         "Command name must be at least 1 character long: ".to_string()
                             + &command.name,
                     ),
-                    context: Some("Check error".to_string()),
+                    context: None,
                 });
             }
             let ret = data.database.add_command(id, command).await;
@@ -48,7 +48,7 @@ async fn add_command(
                 return HttpResponse::BadRequest().json(models::APIResponse {
                     done: false,
                     reason: Some(ret.unwrap_err().to_string()),
-                    context: Some("Check error".to_string()),
+                    context: None,
                 });
             }
         }

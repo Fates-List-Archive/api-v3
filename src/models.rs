@@ -55,7 +55,7 @@ impl UserExperiments {
         error!("Experiment {:?} not enabled", self);
         return HttpResponse::UnavailableForLegalReasons().json(APIResponse {
             done: false,
-            reason: Some("Experiment not enabled".to_string()),
+            reason: Some("ExpNotEnabled".to_string()),
             context: Some(format!("{:?}", self)),
         });
     }
