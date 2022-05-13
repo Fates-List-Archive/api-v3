@@ -2,7 +2,7 @@
 use crate::models;
 use actix_web::http::header::HeaderValue;
 use actix_web::{delete, post, http, web, HttpRequest, HttpResponse};
-use log::error;
+use log::{error, debug};
 
 #[post("/bots/{id}/commands")]
 async fn add_command(
@@ -23,6 +23,7 @@ async fn add_command(
         .unwrap();
     if data.database.authorize_bot(id, auth).await {
         for command in &res.commands {
+            debug!("Adding command: {}", command.name);
             if command.name.is_empty() {
                 return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::CommandError::CommandLengthError(command.name.clone()))); 
             }

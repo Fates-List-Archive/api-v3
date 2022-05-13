@@ -2915,38 +2915,74 @@ impl Database {
 
     // Commands
 
-    /// This takes a &models::BotCommand as we do not need ownership
+    /// This takes a &``models::BotCommand`` as we do not need ownership
     pub async fn add_command(
         &self,
         bot_id: i64,
         command: &models::BotCommand,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "INSERT INTO bot_commands (bot_id, cmd_type, name, 
-            description, args, examples, premium_only, notes, doc_link,
-            groups, vote_locked, nsfw) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            ON CONFLICT (name) DO UPDATE SET cmd_type = 
-            excluded.cmd_type, description = excluded.description,
-            args = excluded.args, examples = excluded.examples,
-            premium_only = excluded.premium_only, notes = excluded.notes,
-            doc_link = excluded.doc_link, groups = excluded.groups,
-            vote_locked = excluded.vote_locked, nsfw = excluded.nsfw",
+        let existing = sqlx::query!(
+            "SELECT bot_id FROM bot_commands WHERE bot_id = $1 AND cmd_type = $2 AND name = $3",
             bot_id,
             command.cmd_type as i32,
-            command.name,
-            command.description,
-            &command.args,
-            &command.examples,
-            command.premium_only,
-            &command.notes,
-            command.doc_link,
-            &command.groups,
-            command.vote_locked,
-            command.nsfw,
+            command.name
         )
-        .execute(&self.pool)
-        .await?;
+        .fetch_one(&self.pool)
+        .await;
+
+        match existing {
+            Ok(_) => {
+                sqlx::query!(
+                    "UPDATE bot_commands SET description = $1, args = $2, examples = $3, 
+                    premium_only = $4, notes = $5, doc_link = $6, groups = $7, 
+                    vote_locked = $8, nsfw = $9 WHERE bot_id = $10 AND 
+                    cmd_type = $11 AND name = $12",
+                    command.description,
+                    &command.args,
+                    &command.examples,
+                    command.premium_only,
+                    &command.notes,
+                    command.doc_link,
+                    &command.groups,
+                    command.vote_locked,
+                    command.nsfw,
+                    bot_id,
+                    command.cmd_type as i32,
+                    command.name,
+                )
+                .execute(&self.pool)
+                .await?;
+            },
+            Err(e) => {
+                match e {
+                    sqlx::Error::RowNotFound => {
+                        sqlx::query!(
+                            "INSERT INTO bot_commands (bot_id, cmd_type, name, 
+                            description, args, examples, premium_only, notes, doc_link,
+                            groups, vote_locked, nsfw) 
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+                            bot_id,
+                            command.cmd_type as i32,
+                            command.name,
+                            command.description,
+                            &command.args,
+                            &command.examples,
+                            command.premium_only,
+                            &command.notes,
+                            command.doc_link,
+                            &command.groups,
+                            command.vote_locked,
+                            command.nsfw,
+                        ) 
+                        .execute(&self.pool)
+                        .await?;
+                    },
+                    _ => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
 
         Ok(())
     }
