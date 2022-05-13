@@ -1336,15 +1336,25 @@ impl APIError for CommandError {
     }
 }
 
+#[derive(Serialize, Debug)]
 pub enum ReviewAddError {
-    SQLError(sqlx::Error),
+    StarRatingOutOfRange, // Added
+    ReviewTextError,
+    ParentReviewInvalid,
+    ReviewAlreadyExists,
+    ReviewAlreadyVoted(#[serde(skip)] String),
 }
 
-impl fmt::Display for ReviewAddError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&match self {
-            Self::SQLError(e) => format!("SQL Error: {}", e),
-        })
+impl APIError for ReviewAddError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            Self::ReviewAlreadyVoted(button) => Some(format!("Click the {button} button to {button} it.", button = button)),
+            _ => None
+        }
     }
 }
 

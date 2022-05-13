@@ -23,11 +23,7 @@ async fn get_reviews(
     }
 
     if page < 1 {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Page must be greater than 0".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
 
     let per_page = 9;
@@ -75,11 +71,7 @@ async fn add_review(
     let user_id = query.user_id;
 
     if user_id.is_none() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("User ID must be an i64".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let user_id = user_id.unwrap();
@@ -104,14 +96,7 @@ async fn add_review(
             .await;
 
         if existing.is_some() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(
-                    "You have already made a review for this bot. Please edit that instead"
-                        .to_string(),
-                ),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::ReviewAddError::ReviewAlreadyExists));
         }
     } else {
         // Validate parent_id
@@ -120,58 +105,32 @@ async fn add_review(
             .get_single_review(review.parent_id.unwrap())
             .await;
         if parent_review.is_none() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("Parent review does not exist".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::ReviewAddError::ParentReviewInvalid));
         }
     }
 
     if review.star_rating < bigdecimal::BigDecimal::from_i64(0).unwrap()
         || review.star_rating > bigdecimal::BigDecimal::from_i64(10).unwrap()
     {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Star rating must be in range 1 to 10".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::ReviewAddError::StarRatingOutOfRange));
     }
 
     if review.review_text.len() > 20000 || review.review_text.len() < 10 {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Review text must be between 10 and 20000 characters".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::ReviewAddError::ReviewTextError));
     }
 
     if query.target_type == models::TargetType::Bot {
         let bot = data.database.get_bot(info.id).await;
 
         if bot.is_none() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("Bot does not exist".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
-    } else if query.target_type == models::TargetType::Server {
+    } else {
         let server = data.database.get_server(info.id).await;
 
         if server.is_none() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("Server does not exist".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
-    } else {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Target type must be either 'bot' or 'server'".to_string()),
-            context: None,
-        });
     }
 
     let res = data
@@ -180,13 +139,7 @@ async fn add_review(
         .await;
 
     if res.is_err() {
-        let err = res.err().unwrap().to_string();
-        error!("Error adding review: {:?}", err);
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(err),
-            context: None,
-        });
+        return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
     }
 
     HttpResponse::Ok().json(models::APIResponse::ok())
@@ -205,11 +158,7 @@ async fn edit_review(
     let user_id = query.user_id;
 
     if user_id.is_none() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("User ID must be an i64".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let user_id = user_id.unwrap();
@@ -230,28 +179,18 @@ async fn edit_review(
     if review.star_rating < bigdecimal::BigDecimal::from_i64(0).unwrap()
         || review.star_rating > bigdecimal::BigDecimal::from_i64(10).unwrap()
     {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Star rating must be in range 1 to 10".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::ReviewAddError::StarRatingOutOfRange));
     }
 
     if review.review_text.len() > 20000 || review.review_text.len() < 10 {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Review text must be between 10 and 20000 characters".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::ReviewAddError::ReviewTextError));
+
     }
 
     // Check review id
     if review.id.is_none() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Review ID must be an i64".to_string()),
-            context: None,
-        });
+        // Well, if theres no review ID, then theres no review to edit so just 404
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
 
     let review_id = review.id.unwrap();
@@ -260,33 +199,19 @@ async fn edit_review(
     let review_orig = data.database.get_single_review(review_id).await;
 
     if review_orig.is_none() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Review does not exist".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
 
     let review_orig = review_orig.unwrap();
 
     if review_orig.user.id != user_id.to_string() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("You do not own this review".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let res = data.database.edit_review(review.into_inner()).await;
 
     if res.is_err() {
-        let err = res.err().unwrap().to_string();
-        error!("Error adding review: {:?}", err);
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(err),
-            context: None,
-        });
+        return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
     }
 
     HttpResponse::Ok().json(models::APIResponse::ok())
@@ -303,11 +228,7 @@ async fn delete_review(
     let user_id = query.user_id;
 
     if user_id.is_none() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("User ID must be an i64".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let user_id = user_id.unwrap();
@@ -327,11 +248,8 @@ async fn delete_review(
 
     let review_id = uuid::Uuid::parse_str(&info.rid);
     if review_id.is_err() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Review ID must be a valid UUID".to_string()),
-            context: None,
-        });
+        // Well, if theres no review ID, then theres no review to edit so just 404
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
     let review_id = review_id.unwrap();
 
@@ -339,33 +257,20 @@ async fn delete_review(
     let review_orig = data.database.get_single_review(review_id).await;
 
     if review_orig.is_none() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Review does not exist".to_string()),
-            context: None,
-        });
+        // Well, if theres no review ID, then theres no review to edit so just 404
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
 
     let review_orig = review_orig.unwrap();
 
     if review_orig.user.id != user_id.to_string() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("You do not own this review".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let res = data.database.delete_review(review_id).await;
 
     if res.is_err() {
-        let err = res.err().unwrap().to_string();
-        error!("Error deleting review: {:?}", err);
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(err),
-            context: None,
-        });
+        return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
     }
 
     HttpResponse::Ok().json(models::APIResponse::ok())
@@ -382,11 +287,7 @@ async fn vote_review(
     let user_id = vote.user_id.parse::<i64>();
 
     if user_id.is_err() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("User ID must be an i64".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden));
     }
 
     let user_id = user_id.unwrap();
@@ -406,12 +307,10 @@ async fn vote_review(
 
     let review_id = uuid::Uuid::parse_str(&info.rid);
     if review_id.is_err() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Review ID must be a valid UUID".to_string()),
-            context: None,
-        });
+        // Well, if theres no review ID, then theres no review to edit so just 404
+        return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
+
     let review_id = review_id.unwrap();
 
     let upvote = vote.upvote;
@@ -421,14 +320,8 @@ async fn vote_review(
     if (upvote && res.upvotes.contains(&vote.user_id))
         || (!upvote && res.downvotes.contains(&vote.user_id))
     {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(format!(
-                "You have already voted on this review. Click the {button} to {button} it.",
-                button = if upvote { "upvote" } else { "downvote" }
-            )),
-            context: None,
-        });
+        let button = (if upvote { "upvote" } else { "downvote" }).to_string();
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::ReviewAddError::ReviewAlreadyVoted(button)));
     }
 
     let res = data
@@ -436,13 +329,7 @@ async fn vote_review(
         .add_review_vote(review_id, user_id, upvote)
         .await;
     if res.is_err() {
-        let err = res.err().unwrap().to_string();
-        error!("Error adding review vote: {:?}", err);
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(err),
-            context: None,
-        });
+        return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
     }
 
     HttpResponse::Ok().json(models::APIResponse::ok())

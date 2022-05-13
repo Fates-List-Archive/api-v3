@@ -2644,7 +2644,7 @@ impl Database {
         user_id: i64,
         target_id: i64,
         target_type: models::TargetType,
-    ) -> Result<(), models::ReviewAddError> {
+    ) -> Result<(), sqlx::Error> {
         let review_id = uuid::Uuid::new_v4();
 
         let review_type = match target_type {
@@ -2666,13 +2666,12 @@ impl Database {
             review.flagged
         )
         .execute(&self.pool)
-        .await
-        .map_err(models::ReviewAddError::SQLError)?;
+        .await?;
 
         Ok(())
     }
 
-    pub async fn edit_review(&self, review: models::Review) -> Result<(), models::ReviewAddError> {
+    pub async fn edit_review(&self, review: models::Review) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE reviews SET star_rating = $1, review_text = $2 WHERE id = $3",
             review.star_rating,
@@ -2680,8 +2679,7 @@ impl Database {
             review.id,
         )
         .execute(&self.pool)
-        .await
-        .map_err(models::ReviewAddError::SQLError)?;
+        .await?;
 
         Ok(())
     }
@@ -2750,11 +2748,10 @@ impl Database {
         });
     }
 
-    pub async fn delete_review(&self, review_id: uuid::Uuid) -> Result<(), models::ReviewAddError> {
+    pub async fn delete_review(&self, review_id: uuid::Uuid) -> Result<(), sqlx::Error> {
         sqlx::query!("DELETE FROM reviews WHERE id = $1", review_id)
             .execute(&self.pool)
-            .await
-            .map_err(models::ReviewAddError::SQLError)?;
+            .await?;
 
         Ok(())
     }
@@ -2764,7 +2761,7 @@ impl Database {
         review_id: uuid::Uuid,
         user_id: i64,
         upvote: bool,
-    ) -> Result<(), models::ReviewAddError> {
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "INSERT INTO review_votes (user_id, upvote, id) 
             VALUES ($1, $2, $3) ON CONFLICT (user_id, id) 
@@ -2775,8 +2772,7 @@ impl Database {
             review_id
         )
         .execute(&self.pool)
-        .await
-        .map_err(models::ReviewAddError::SQLError)?;
+        .await?;
         Ok(())
     }
 

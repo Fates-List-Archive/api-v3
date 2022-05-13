@@ -48,7 +48,7 @@ async fn delete_commands(
     query: web::Query<models::CommandDeleteQuery>,
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    let id = id.id.clone();
+    let id = id.id;
 
     // Check auth
     let auth_default = &HeaderValue::from_str("").unwrap();
@@ -60,7 +60,7 @@ async fn delete_commands(
         .unwrap();
     if data.database.authorize_bot(id, auth).await {
         // If nuke, delete all commands
-        if query.nuke.unwrap_or(false) == true {
+        if query.nuke.unwrap_or(false) {
             data.database.delete_all_commands(id).await;
         }
 
