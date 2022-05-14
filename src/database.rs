@@ -1420,25 +1420,20 @@ impl Database {
         }
     }
 
+    /// Posts bot stats
     pub async fn post_stats(
         &self,
         bot_id: i64,
+        client_id: i64,
         stats: models::BotStats,
         japi_key: &str,
     ) -> Result<(), models::StatsError> {
-        // Firstly make sure user does not have the StatsLocked flag
-        let bot = self.get_bot(bot_id).await.unwrap();
-
-        if converters::flags_check(&bot.flags, vec![models::Flags::StatsLocked as i32]) {
-            return Err(models::StatsError::Locked);
-        }
-
         // Next check server count
         let resp = self
             .requests
             .get(format!(
                 "https://japi.rest/discord/v1/application/{bot_id}",
-                bot_id = bot.client_id
+                bot_id = client_id
             ))
             .timeout(Duration::from_secs(10))
             .header("Authorization", japi_key)

@@ -417,7 +417,6 @@ async fn add_bot(
 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
-    error!("Add bot auth error");
     HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
@@ -497,7 +496,6 @@ async fn edit_bot(
 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
-    error!("Edit bot auth error");
     HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
@@ -587,7 +585,6 @@ async fn transfer_ownership(
 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
-    error!("Transfer bot auth error");
     HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
@@ -655,7 +652,6 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
-    error!("Delete bot auth error");
     HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
@@ -713,11 +709,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 .unwrap();
 
                 if bot_data.get("err").is_some() {
-                    return HttpResponse::BadRequest().json(models::APIResponse {
-                        done: false,
-                        reason: Some("Bot not found on RDL".to_string()),
-                        context: None,
-                    });
+                    return HttpResponse::NotFound().json(models::APIResponse::err_small(&models::GenericError::NotFound));
                 }
 
                 debug!("{:?}", bot_data);
@@ -890,11 +882,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 let ibl_msg = bot_data.get("message");
 
                 if ibl_msg.is_some() {
-                    return HttpResponse::BadRequest().json(models::APIResponse {
-                        done: false,
-                        reason: Some(format!("Bot not found on IBL: {}", ibl_msg.unwrap())),
-                        context: None,
-                    });
+                    return HttpResponse::NotFound().json(models::APIResponse::err_small(&models::GenericError::NotFound));
                 }
 
                 debug!("{:?}", bot_data);
@@ -983,11 +971,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 }
             },
             _ => {
-                return HttpResponse::BadRequest().json(models::APIResponse {
-                    done: false,
-                    reason: Some("Invalid source".to_string()),
-                    context: None,
-                });
+                return HttpResponse::NotFound().json(models::APIResponse::err_small(&models::GenericError::NotFound));
             }
         };
 
@@ -1043,7 +1027,6 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
-    error!("Add bot auth error");
     HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
 
@@ -1066,19 +1049,21 @@ async fn post_stats(
         .to_str()
         .unwrap();
     if data.database.authorize_bot(bot_id, auth).await {
-        let resp = data.database.post_stats(bot_id, stats.into_inner(), &data.config.secrets.japi_key).await;
+        // Firstly make sure user does not have the StatsLocked flag
+        let bot = data.database.get_bot(bot_id).await.unwrap();
+
+        if converters::flags_check(&bot.flags, vec![models::Flags::StatsLocked as i32]) {
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::APIBan("StatsLocked".to_string())));
+        }
+
+        let resp = data.database.post_stats(bot_id, bot.client_id.parse().unwrap_or(0), stats.into_inner(), &data.config.secrets.japi_key).await;
         match resp {
             Ok(()) => HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok()),
             Err(err) => {
-                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                    done: false,
-                    reason: Some(err.to_string()),
-                    context: None,
-                })
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&err))
             }
         }
     } else {
-        error!("Stat post auth error");
         HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
     }
 }
@@ -1104,7 +1089,7 @@ async fn get_bot(req: HttpRequest, id: web::Path<models::FetchBotPath>) -> HttpR
                     let user_id = auth_vec.get(0).unwrap_or(&"");
                     let token = auth_vec.get(1).unwrap_or(&"");
 
-                    let user_id_str = user_id.to_string();
+                    let user_id_str = (*user_id).to_string();
 
                     let user_id_i64 = user_id_str.parse::<i64>().unwrap_or(0);
 

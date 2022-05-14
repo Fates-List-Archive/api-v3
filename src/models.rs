@@ -642,14 +642,6 @@ impl APIResponse {
         }
     }
 
-    pub fn banned(flag: &str) -> Self {
-        APIResponse {
-            done: false,
-            reason: Some("You have been banned from using this API endpoint".to_string()),
-            context: Some(flag.to_string()),
-        }
-    }
-
     pub fn rl(time: i64) -> Self {
         APIResponse {
             done: false,
@@ -1230,6 +1222,7 @@ pub enum GenericError {
     NotFound, // Added
     InvalidFields, // Added
     SQLError(#[serde(skip)] sqlx::Error),
+    APIBan(#[serde(skip)] String), // Added
 }
 
 impl APIError for GenericError {
@@ -1240,6 +1233,7 @@ impl APIError for GenericError {
     fn context(&self) -> Option<String> {
         match self {
             Self::SQLError(s) => Some(s.to_string()),
+            Self::APIBan(s) => Some("The flag corresponding to your ban is: ".to_string() + s),
             _ => None
         }
     }
@@ -1512,24 +1506,27 @@ impl APIError for VoteBotError {
     }
 }
 
+#[derive(Serialize, Debug)]
 pub enum StatsError {
-    BadStats(String), // TODO
-    JAPIError(reqwest::Error),
-    JAPIDeserError(reqwest::Error),
-    Locked,
-    SQLError(sqlx::Error),
+    BadStats(#[serde(skip)] String), // TODO
+    JAPIError(#[serde(skip)] reqwest::Error),
+    JAPIDeserError(#[serde(skip)] reqwest::Error),
+    SQLError(#[serde(skip)] sqlx::Error), // Added
     ClientIDNeeded,
 }
 
-impl StatsError {
-    pub fn to_string(&self) -> String {
+impl APIError for StatsError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
         match self {
-            Self::BadStats(e) => format!("Bad stats caught and flagged: {}", e),
-            Self::JAPIError(e) => format!("Our anti-abuse provider is currently down right now: {}!", e),
-            Self::JAPIDeserError(e) => format!("JAPI Deserialize Error: {}", e),
-            Self::Locked => "You have been banned from using this API endpoint!".to_string(),
-            Self::ClientIDNeeded => "Client ID is required for this bot or is incorrect".to_string(),
-            Self::SQLError(e) => format!("SQL error: {}", e),
+            Self::SQLError(s) => Some(s.to_string()),
+            Self::BadStats(s) => Some(s.to_string()),
+            Self::JAPIError(e) => Some(e.to_string()),
+            Self::JAPIDeserError(e) => Some(e.to_string()),
+            _ => None,
         }
     }
 }

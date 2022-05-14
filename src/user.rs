@@ -49,7 +49,7 @@ async fn update_profile(
         let profile = profile.unwrap();
 
         if profile.state == models::UserState::ProfileEditBan {
-            return HttpResponse::BadRequest().json(models::APIResponse::banned("ProfileEditBan"));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::APIBan("ProfileEditBan".to_string())));
         }
 
         if body.flags.contains(&(models::UserFlags::VotesPrivate as i32)) && !profile.user_experiments.contains(&models::UserExperiments::UserVotePrivacy) {
@@ -98,7 +98,7 @@ async fn recieve_profile_roles(
         }    
 
         if profile.state == models::UserState::ProfileEditBan {
-            return HttpResponse::BadRequest().json(models::APIResponse::banned("ProfileEditBan"));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::APIBan("ProfileEditBan".to_string())));
         }
 
         data.database.set_ratelimit(models::Ratelimit::RoleUpdate, info.id).await;
