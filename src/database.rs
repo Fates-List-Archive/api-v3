@@ -2126,7 +2126,7 @@ impl Database {
             if parsed_id.is_err() {
                 return Err(models::PackCheckError::InvalidBotId);
             }
-            bots.push(parsed_id.unwrap())
+            bots.push(parsed_id.unwrap());
         }
 
         let pack_id_uuid = uuid::Uuid::parse_str(&pack.id);

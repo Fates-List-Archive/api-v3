@@ -184,7 +184,7 @@ async fn check_bot(
 
         total_links += 1;
 
-        if key.starts_with("_") {
+        if key.starts_with('_') {
             continue;
         }
 
@@ -243,7 +243,7 @@ async fn check_bot(
 
         for feature in bot.features.clone() {
             if full_features.contains(&feature) {
-                feature_list.push(feature)
+                feature_list.push(feature);
             }
         }
 
@@ -532,41 +532,22 @@ async fn transfer_ownership(
         }
 
         if !got_owner {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(
-                    "You are not allowed to transfer ownership of bots you are not main owner of!"
-                        .to_string(),
-                ),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::CheckBotError::NotMainOwner));
         }
 
         // Owner validation
         let owner_copy = owner.clone();
 
         if !owner_copy.main {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("The main key must be set to 'true'!".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::GenericError::InvalidFields));
         }
 
         if owner_copy.user.id == id.user_id.to_string() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("You can't transfer ownership to yourself!".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::GenericError::InvalidFields));
         }
 
         if owner_copy.user.id.parse::<i64>().is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some("The user id must be a number fitting in a u64!".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::GenericError::InvalidFields));
         }
 
         // Does the user actually even exist?
@@ -575,14 +556,7 @@ async fn transfer_ownership(
             .get_user(owner_copy.user.id.parse::<i64>().unwrap())
             .await;
         if owner_user.id.is_empty() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(
-                    "The user you wish to transfer ownership to apparently does not exist!"
-                        .to_string(),
-                ),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
         }
 
         data.database
@@ -646,27 +620,14 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
         }
 
         if !got_owner {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(
-                    "You are not allowed to delete bots you are not main owner of!".to_string(),
-                ),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::CheckBotError::NotMainOwner));
         }
 
         // Delete the bot
         let res = data.database.delete_bot(id.user_id, id.bot_id).await;
 
         if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(
-                    "Something went wrong while deleting the bot!".to_string()
-                        + &res.unwrap_err().to_string(),
-                ),
-                context: None,
-            });
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
         }
 
         let _ = data
@@ -701,7 +662,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
 // Get Import Sources
 #[get("/import-sources")]
 async fn import_sources(_req: HttpRequest) -> HttpResponse {
-    return HttpResponse::Ok().json(models::ImportSourceList {
+    HttpResponse::Ok().json(models::ImportSourceList {
         sources: vec![
             models::ImportSourceListItem {
                 id: models::ImportSource::Rdl,
@@ -716,7 +677,7 @@ async fn import_sources(_req: HttpRequest) -> HttpResponse {
                 name: "Custom Source (top.gg etc.)".to_string()
             },
         ]
-    });
+    })
 }
 
 // Import bots

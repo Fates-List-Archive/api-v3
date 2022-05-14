@@ -1412,7 +1412,8 @@ pub enum CheckBotError {
     ExtraLinkValueTooLong, // Added
     ExtraLinkValueNotHTTPS, // Added
     ExtraLinksTooManyRendered, // Added
-    ExtraLinksTooMany,
+    ExtraLinksTooMany, // Added
+    NotMainOwner,
 }
 
 impl APIError for CheckBotError {
