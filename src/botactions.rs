@@ -439,16 +439,13 @@ async fn edit_bot(
     let mut bot = bot.into_inner();
     if data.database.authorize_user(id.id, auth).await {
         // Before doing anything else, get the bot from db and check if user is owner
-        let bot_user = data
+        let owners = data
             .database
-            .get_bot(bot.user.id.parse::<i64>().unwrap_or(0))
+            .get_bot_owners(bot.user.id.parse::<i64>().unwrap_or(0))
             .await;
-        if bot_user.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
-        }
 
         let mut got_owner = false;
-        for owner in bot_user.unwrap().owners {
+        for owner in owners {
             if owner.user.id == id.id.to_string() {
                 got_owner = true;
                 break;
@@ -456,7 +453,7 @@ async fn edit_bot(
         }
 
         if !got_owner {
-            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::CheckBotError::Forbidden));
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::Forbidden));
         }
 
         let res = check_bot(&data, models::BotActionMode::Edit, &mut bot).await;
@@ -491,14 +488,12 @@ async fn edit_bot(
             .await;
 
         if result.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse {
-                done: false,
-                reason: Some(
-                    result.unwrap_err().to_string() + " but the bot was edited successfully!",
-                ),
-                context: Some("Edit bot error".to_string()),
-            });
+            error!("Error sending message: {}", result.unwrap_err());
+            return HttpResponse::Ok().json(models::APIResponse::ok());
         }
+
+        // Invalidate the cache
+        data.database.bot_cache.invalidate(&id.id).await;
 
         return HttpResponse::Ok().json(models::APIResponse::ok());
     }
@@ -523,14 +518,14 @@ async fn transfer_ownership(
         .unwrap();
     if data.database.authorize_user(id.user_id, auth).await {
         // Before doing anything else, get the bot from db and check if user is owner
-        let bot_user = data.database.get_bot(id.bot_id).await;
-        if bot_user.is_none() {
-            return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
-        }
+        let owners = data
+            .database
+            .get_bot_owners(id.bot_id)
+            .await;
 
         let mut got_owner = false;
-        for owner in bot_user.clone().unwrap().owners {
-            if owner.main && owner.user.id == id.user_id.to_string() {
+        for bot_owner in owners {
+            if bot_owner.main && bot_owner.user.id == id.user_id.to_string() {
                 got_owner = true;
                 break;
             }
@@ -604,9 +599,8 @@ async fn transfer_ownership(
                     e.title("Bot Ownership Transfer!");
                     e.color(0x00ff00 as u64);
                     e.description(format!(
-                        "{user} has transferred ownership of {bot} ({bot_name}) to {new_owner}!",
+                        "{user} has transferred ownership of {bot} to {new_owner}!",
                         user = UserId(id.user_id as u64).mention(),
-                        bot_name = bot_user.unwrap().user.username,
                         bot = UserId(id.bot_id as u64).mention(),
                         new_owner = UserId(owner.user.id.parse::<u64>().unwrap_or(0)).mention()
                     ));
@@ -1258,7 +1252,7 @@ async fn get_bot_settings(
                         );
                     }
                 }
-                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::CheckBotError::Forbidden))
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
             }
             Err(err) => {
                 HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {

@@ -15,7 +15,7 @@ async fn get_reviews(
 ) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
-    let mut page = 1;
+    let mut page: i64 = 1;
     let page_opt = query.page;
 
     if page_opt.is_some() {

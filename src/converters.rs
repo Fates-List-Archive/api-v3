@@ -147,11 +147,10 @@ pub async fn send_vote_webhook(
 ) {
     let mut tries = 0;
     while tries < 5 {
-        debug!("Webhook token is {}", webhook_token);
         let mut req = requests.post(webhook.as_str());
 
         if !webhook_hmac_only {
-            req = req.header("Authorization", webhook_token.clone())
+            req = req.header("Authorization", &webhook_token);
         }
 
         let hmac_data = serde_json::to_string(&vote_event);

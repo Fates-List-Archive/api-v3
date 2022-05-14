@@ -1179,7 +1179,7 @@ pub struct ParsedReview {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ReviewQuery {
     pub target_type: TargetType,
-    pub page: Option<i32>,
+    pub page: Option<i64>,
     pub user_id: Option<i64>,
 }
 
@@ -1337,6 +1337,28 @@ impl APIError for CommandError {
 }
 
 #[derive(Serialize, Debug)]
+pub enum AppealError {
+    TextError, // Added
+    BotNotApproved, // Added
+    NoBannerCard, // Added 
+    NoBannerPage, // Added
+    TooFewGuilds, // Added
+    TooFewMembers, // Added
+}
+
+impl APIError for AppealError {
+    fn name(&self) -> String {
+        "Appeal".to_string()+&serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        match self {
+            _ => None
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
 pub enum ReviewAddError {
     StarRatingOutOfRange, // Added
     ReviewTextError,
@@ -1386,7 +1408,6 @@ pub enum CheckBotError {
     OwnerIDParseError, // Added
     OwnerNotFound, // Added
     MainOwnerAddAttempt, // Added
-    Forbidden, // Added
     ExtraLinkKeyTooLong, // Added
     ExtraLinkValueTooLong, // Added
     ExtraLinkValueNotHTTPS, // Added

@@ -53,11 +53,7 @@ async fn appeal_bot(
     }
 
     if req_data.appeal.len() < 7 || req_data.appeal.len() > 4000 {
-        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-            done: false,
-            reason: Some("Appeal length must be between 7 and 4000 characters".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::TextError));
     }
 
     let (request_field, title, request_type) = if req_data.request_type == models::AppealType::Certification {
@@ -70,11 +66,7 @@ async fn appeal_bot(
 
     if req_data.request_type == models::AppealType::Certification {
         if bot.state != models::State::Approved {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot appeal a bot that is not approved".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::BotNotApproved));
         }
         if bot.banner_card.is_none()
             || !bot
@@ -82,11 +74,7 @@ async fn appeal_bot(
                 .unwrap_or_else(|| "".to_string())
                 .starts_with("https://")
         {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot certify a bot that has no banner card".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::NoBannerCard));
         }
         if bot.banner_page.is_none()
             || !bot
@@ -94,18 +82,10 @@ async fn appeal_bot(
                 .unwrap_or_else(|| "".to_string())
                 .starts_with("https://")
         {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot certify a bot that has no banner page".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::NoBannerPage));
         }
         if bot.guild_count < 100 {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot certify a bot that has fewer than 100 guilds (verified using japi.rest)".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::TooFewGuilds));
         }
     }
 
@@ -190,11 +170,7 @@ async fn appeal_server(
     }
 
     if req_data.appeal.len() < 7 || req_data.appeal.len() > 4000 {
-        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-            done: false,
-            reason: Some("Appeal length must be between 7 and 4000 characters".to_string()),
-            context: None,
-        });
+        return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::TextError));
     }
 
     let (request_field, title, request_type) = if req_data.request_type == models::AppealType::Certification {
@@ -207,11 +183,7 @@ async fn appeal_server(
 
     if req_data.request_type == models::AppealType::Certification {
         if server.state != models::State::Approved {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot appeal a server that is not approved".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::BotNotApproved));
         }
         if server.banner_card.is_none()
             || !server
@@ -219,11 +191,7 @@ async fn appeal_server(
                 .unwrap_or_else(|| "".to_string())
                 .starts_with("https://")
         {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot certify a server that has no banner card".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::NoBannerCard));
         }
         if server.banner_page.is_none()
             || !server
@@ -231,18 +199,10 @@ async fn appeal_server(
                 .unwrap_or_else(|| "".to_string())
                 .starts_with("https://")
         {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot certify a server that has no banner page".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::NoBannerPage));
         }
         if server.guild_count < 100 {
-            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                done: false,
-                reason: Some("You cannot certify a server that has fewer than 100 members".to_string()),
-                context: None,
-            });
+            return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::AppealError::TooFewMembers));
         }
     }
 

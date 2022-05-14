@@ -33,7 +33,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> HttpRe
         index 
    });
     data.database.index_cache.insert(info.target_type, index.clone()).await;
-    return HttpResponse::Ok().json(index);
+    HttpResponse::Ok().json(index)
 }
 
 #[get("/code/{vanity}")]

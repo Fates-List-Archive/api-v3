@@ -540,6 +540,7 @@ impl Database {
             Err(_) => false,
         }
     }
+
     pub async fn authorize_bot(&self, bot_id: i64, token: &str) -> bool {
         if token.is_empty() {
             return false;
@@ -556,6 +557,7 @@ impl Database {
             Err(_) => false,
         }
     }
+
     pub async fn authorize_server(&self, server_id: i64, token: &str) -> bool {
         if token.is_empty() {
             return false;
@@ -573,7 +575,123 @@ impl Database {
         }
     }
 
-    // Get bot
+    // Get bot and its helpers
+    pub async fn get_votes_per_month(&self, bot_id: i64) -> Vec<models::VotesPerMonth> {
+        let mut vpm = Vec::new();
+        let vpm_row = sqlx::query!(
+            "SELECT votes, epoch FROM bot_stats_votes_pm WHERE bot_id = $1",
+            bot_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        for row in vpm_row {
+            vpm.push(models::VotesPerMonth {
+                votes: row.votes.unwrap_or(0),
+                ts: Utc
+                    .timestamp_opt(row.epoch.unwrap_or(0), 0)
+                    .latest()
+                    .unwrap_or_else(|| {
+                        chrono::DateTime::<chrono::Utc>::from_utc(
+                            chrono::NaiveDateTime::from_timestamp(0, 0),
+                            chrono::Utc,
+                        )
+                    }),
+            });
+        }
+
+        vpm
+    }
+
+    pub async fn get_bot_tags(&self, bot_id: i64) -> Vec<models::Tag> {
+        let tag_rows = sqlx::query!("SELECT tag FROM bot_tags WHERE bot_id = $1", bot_id)
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        let mut tags = Vec::new();
+
+        for tag in tag_rows {
+            // Get tag info
+            let tag_info =
+                sqlx::query!("SELECT icon FROM bot_list_tags WHERE id = $1", tag.tag)
+                    .fetch_one(&self.pool)
+                    .await
+                    .unwrap();
+            tags.push(models::Tag {
+                name: tag.tag.to_title_case(),
+                iconify_data: tag_info.icon,
+                id: tag.tag.to_string(),
+                owner_guild: None,
+            });
+        }
+
+        tags
+    }
+
+    pub async fn get_bot_owners(&self, bot_id: i64) -> Vec<models::BotOwner> {
+        let owner_rows = sqlx::query!(
+            "SELECT owner, main FROM bot_owner WHERE bot_id = $1 ORDER BY main DESC",
+            bot_id
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if owner_rows.is_err() {
+            return Vec::new();
+        }
+
+        let owner_rows = owner_rows.unwrap();
+
+        let mut owners = Vec::new();
+        for row in owner_rows {
+            let user = self.get_user(row.owner).await;
+            owners.push(models::BotOwner {
+                user,
+                main: row.main.unwrap_or(false),
+            });
+        }
+
+        owners
+    }
+
+    pub async fn get_bot_commands(&self, bot_id: i64) -> Vec<models::BotCommand> {
+        // Commands
+        let mut commands = Vec::new();
+
+        let commands_rows = sqlx::query!(
+            "SELECT id, cmd_type, description, args, examples, 
+            premium_only, notes, doc_link, groups, name, 
+            vote_locked, nsfw FROM bot_commands WHERE bot_id = $1",
+            bot_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        for command in commands_rows {
+            commands.push(models::BotCommand {
+                id: Some(command.id.to_string()),
+                nsfw: command.nsfw.unwrap_or(false),
+                cmd_type: models::CommandType::try_from(command.cmd_type)
+                    .unwrap_or(models::CommandType::SlashCommandGlobal),
+                description: command.description.to_string(),
+                args: command.args,
+                examples: command.examples,
+                premium_only: command.premium_only,
+                notes: command.notes,
+                doc_link: command.doc_link,
+                name: command.name,
+                vote_locked: command.vote_locked,
+                groups: command.groups,
+            });
+        }
+
+        commands
+    }
+
+
     pub async fn get_bot(&self, bot_id: i64) -> Option<models::Bot> {
         let row = sqlx::query!(
             "SELECT bot_id, created_at, last_stats_post, description, 
@@ -617,46 +735,6 @@ impl Database {
                     &data.long_description,
                 );
 
-                // Tags
-                let tag_rows = sqlx::query!("SELECT tag FROM bot_tags WHERE bot_id = $1", bot_id)
-                    .fetch_all(&self.pool)
-                    .await
-                    .unwrap();
-
-                let mut tags = Vec::new();
-
-                for tag in tag_rows {
-                    // Get tag info
-                    let tag_info =
-                        sqlx::query!("SELECT icon FROM bot_list_tags WHERE id = $1", tag.tag)
-                            .fetch_one(&self.pool)
-                            .await
-                            .unwrap();
-                    tags.push(models::Tag {
-                        name: tag.tag.to_title_case(),
-                        iconify_data: tag_info.icon,
-                        id: tag.tag.to_string(),
-                        owner_guild: None,
-                    });
-                }
-
-                // Owners
-                let owner_rows = sqlx::query!(
-                    "SELECT owner, main FROM bot_owner WHERE bot_id = $1 ORDER BY main DESC",
-                    bot_id
-                )
-                .fetch_all(&self.pool)
-                .await
-                .unwrap();
-                let mut owners = Vec::new();
-                for row in owner_rows {
-                    let user = self.get_user(row.owner).await;
-                    owners.push(models::BotOwner {
-                        user,
-                        main: row.main.unwrap_or(false),
-                    });
-                }
-
                 // Action logs
                 let mut action_logs = Vec::new();
                 let action_log_rows = sqlx::query!(
@@ -674,64 +752,6 @@ impl Database {
                         action: action_row.action,
                         action_time: action_row.action_time,
                         context: action_row.context,
-                    });
-                }
-
-                // Commands
-                let mut commands = Vec::new();
-
-                let commands_rows = sqlx::query!(
-                    "SELECT id, cmd_type, description, args, examples, 
-                    premium_only, notes, doc_link, groups, name, 
-                    vote_locked, nsfw FROM bot_commands WHERE bot_id = $1",
-                    bot_id
-                )
-                .fetch_all(&self.pool)
-                .await
-                .unwrap();
-
-                debug!("Commands: {:?}", commands_rows);
-
-                for command in commands_rows {
-                    commands.push(models::BotCommand {
-                        id: Some(command.id.to_string()),
-                        nsfw: command.nsfw.unwrap_or(false),
-                        cmd_type: models::CommandType::try_from(command.cmd_type)
-                            .unwrap_or(models::CommandType::SlashCommandGlobal),
-                        description: command.description.to_string(),
-                        args: command.args,
-                        examples: command.examples,
-                        premium_only: command.premium_only,
-                        notes: command.notes,
-                        doc_link: command.doc_link,
-                        name: command.name,
-                        vote_locked: command.vote_locked,
-                        groups: command.groups,
-                    });
-                }
-
-                // VPM
-                let mut vpm = Vec::new();
-                let vpm_row = sqlx::query!(
-                    "SELECT votes, epoch FROM bot_stats_votes_pm WHERE bot_id = $1",
-                    bot_id
-                )
-                .fetch_all(&self.pool)
-                .await
-                .unwrap();
-
-                for row in vpm_row {
-                    vpm.push(models::VotesPerMonth {
-                        votes: row.votes.unwrap_or(0),
-                        ts: Utc
-                            .timestamp_opt(row.epoch.unwrap_or(0), 0)
-                            .latest()
-                            .unwrap_or_else(|| {
-                                chrono::DateTime::<chrono::Utc>::from_utc(
-                                    chrono::NaiveDateTime::from_timestamp(0, 0),
-                                    chrono::Utc,
-                                )
-                            }),
                     });
                 }
 
@@ -758,7 +778,7 @@ impl Database {
                 let bot = models::Bot {
                     extra_links,
                     created_at: data.created_at,
-                    vpm: Some(vpm),
+                    vpm: Some(self.get_votes_per_month(bot_id).await),
                     last_stats_post: data.last_stats_post,
                     last_updated_at: data.last_updated_at,
                     description: data.description,
@@ -781,12 +801,12 @@ impl Database {
                     votes: data.votes.unwrap_or(0),
                     total_votes: data.total_votes.unwrap_or(0),
                     client_id,
-                    tags,
-                    commands,
+                    tags: self.get_bot_tags(bot_id).await,
+                    commands: self.get_bot_commands(bot_id).await,
                     long_description_type,
                     long_description: long_description_parsed,
                     long_description_raw: data.long_description,
-                    owners,
+                    owners: self.get_bot_owners(bot_id).await,
                     vanity: self
                         .get_vanity_from_id(bot_id)
                         .await
@@ -1445,7 +1465,7 @@ impl Database {
             ));
         } else if stats.guild_count < 100 && (approx_count - stats.guild_count) > 100 {
             return Err(models::StatsError::BadStats(
-                format!("Server count is way too high! This bot only has a approximate guild count of {}", approx_count),
+                "Server count is way too high! This bot only has a approximate guild count of".to_string() + &approx_count.to_string(),
             ));
         }
 
@@ -1462,7 +1482,7 @@ impl Database {
                 .map_err(models::StatsError::SQLError)?;
             }
             None => {
-                debug!("Not setting shard_count as it is not provided!")
+                debug!("Not setting shard_count as it is not provided!");
             }
         }
 
@@ -1478,7 +1498,7 @@ impl Database {
                 .map_err(models::StatsError::SQLError)?;
             }
             None => {
-                debug!("Not setting user_count as it is not provided!")
+                debug!("Not setting user_count as it is not provided!");
             }
         }
 
@@ -1495,7 +1515,7 @@ impl Database {
                 .map_err(models::StatsError::SQLError)?;
             }
             None => {
-                debug!("Not setting shards as it is not provided!")
+                debug!("Not setting shards as it is not provided!");
             }
         }
 
@@ -1592,15 +1612,14 @@ impl Database {
             return Err(models::GuildInviteError::NotAcceptingInvites);
         } else if whitelist_only {
             let form = row.whitelist_form;
-            let form_html: String;
-            if form.is_none() {
-                form_html = "There is no form to get access to this server!".to_string()
+            let form_html = if form.is_none() {
+                "There is no form to get access to this server!".to_string()
             } else {
-                form_html = format!(
+                format!(
                     "<a href='{}'>You can get access to this server here</a>",
                     form.unwrap()
-                );
-            }
+                )
+            };
             return Err(models::GuildInviteError::WhitelistRequired(form_html));
         } else if user_blacklist.contains(&user_id) {
             return Err(models::GuildInviteError::Blacklisted);
