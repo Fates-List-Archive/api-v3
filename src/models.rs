@@ -367,6 +367,17 @@ pub struct FrostpawUserConnection {
     pub repeats: i64,
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct NotificationInfo {
+    pub public_key: String
+}
+
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct NotificationSub {
+    pub endpoint: String,
+    pub p256dh: String,
+    pub auth: String
+}
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct FrostpawLogin {
@@ -446,6 +457,8 @@ pub struct Secrets {
     pub japi_key: String,
     pub ibl_fates_key: String,
     pub metro_key: String,
+    pub notif_private_key: String,
+    pub notif_public_key: String,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
@@ -1239,6 +1252,20 @@ impl APIError for GenericError {
     }
 }
 
+#[derive(Serialize, Debug)]
+pub enum NotifSubError {
+    TooManySubscriptions, // Added
+}
+
+impl APIError for NotifSubError {
+    fn name(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+
+    fn context(&self) -> Option<String> {
+        None
+    }
+}
 
 #[derive(Serialize, Debug)]
 pub enum GuildInviteError {

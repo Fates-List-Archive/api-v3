@@ -31,6 +31,7 @@ mod user;
 mod ws;
 mod votes;
 mod docser; // Used internally by docs.rs
+mod notifs;
 
 use crate::models::APIResponse;
 
@@ -231,6 +232,11 @@ async fn main() -> std::io::Result<()> {
             // WS
             .service(ws::preview)
             .service(ws::bot_ws)
+
+            // Notifications
+            .service(notifs::get_notif_info)
+            .service(notifs::subscribe)
+            .service(notifs::test_notifs)
     })
     .workers(8)
     .bind("localhost:3010")?

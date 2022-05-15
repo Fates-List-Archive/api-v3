@@ -91,7 +91,7 @@ impl Database {
                 // Create the cache.
                 .build(),
             discord_main,
-            discord_server
+            discord_server,
         }
     }
 
@@ -3605,5 +3605,88 @@ impl Database {
             secret: row.secret,
             owner: self.get_user(row.owner_id).await
         })
+    }
+
+    pub async fn subscribe_notifs(&self, id: i64, notif: models::NotificationSub) -> Result<(), models::NotifSubError> {
+        /* Remove old subscriptions, if any, we don't care if this fails
+           We call this _e to get clippy to shut up
+        */
+        let _e = sqlx::query!(
+            "DELETE FROM push_notifications WHERE endpoint = $1",
+            notif.endpoint,
+        )
+        .execute(&self.pool)
+        .await;
+        
+        // Check how many subs they have already
+        let row = sqlx::query!(
+            "SELECT count(*) FROM push_notifications WHERE user_id = $1",
+            id
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        if row.is_err() {
+            return Err(models::NotifSubError::TooManySubscriptions);
+        }
+
+        let row = row.unwrap();
+
+        if row.count.unwrap_or(0) > 10 {
+            return Err(models::NotifSubError::TooManySubscriptions);
+        }
+        
+        let res = sqlx::query!(
+            "INSERT INTO push_notifications (user_id, endpoint, p256dh, auth) 
+            VALUES ($1, $2, $3, $4)",
+            id,
+            notif.endpoint,
+            notif.p256dh,
+            notif.auth
+        )
+        .execute(&self.pool)
+        .await;
+
+        if res.is_err() {
+            // No point returning a error at this point. They can't do anything about it
+            error!("Failed to subscribe user {} to push notifications", id);
+        }
+
+        Ok(())
+    }
+
+    pub async fn test_notifs(&self, id: i64) {
+        // Test API call
+        let devices = sqlx::query!(
+            "SELECT endpoint, p256dh, auth FROM push_notifications WHERE user_id = $1",
+            id
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if devices.is_err() {
+            debug!("Failed to get devices for user {}", id);
+            return;
+        }
+
+        let devices = devices.unwrap();
+
+        for device in devices {
+            // Call flamepaw
+            let res = self.requests.post("http://127.0.0.1:1292/_remind")
+            .json(&models::NotificationSub {
+                endpoint: device.endpoint,
+                p256dh: device.p256dh,
+                auth: device.auth,
+            })
+            .send()
+            .await;
+
+            if res.is_err() {
+                error!("Failed to send test notification to user {}", id);
+            }
+
+            debug!("{}", res.unwrap().status());
+        }
     }
 }

@@ -2,7 +2,7 @@
 
 This is version 3 of the Fates List API and backend upon which the Fates List frontend (sunbeam) and all other services sit upon. 
 
-*Relies on baypaw to work*
+*Relies on baypaw (and flamepaw for push notifications) to work*
 
 **This requires nightly rust in order to compile**
 
