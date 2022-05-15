@@ -3674,10 +3674,14 @@ impl Database {
         for device in devices {
             // Call flamepaw
             let res = self.requests.post("http://127.0.0.1:1292/flamepaw/_remind")
-            .json(&models::NotificationSub {
+            .json(&models::NotificationSubData {
                 endpoint: device.endpoint,
                 p256dh: device.p256dh,
                 auth: device.auth,
+                data: serde_json::to_string(&json!({
+                    "title": "Test notification",
+                    "icon": "https://api.fateslist.xyz/static/botlisticon.webp"
+                })).unwrap(),
             })
             .send()
             .await;

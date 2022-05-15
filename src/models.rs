@@ -379,6 +379,14 @@ pub struct NotificationSub {
     pub auth: String
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct NotificationSubData {
+    pub endpoint: String,
+    pub p256dh: String,
+    pub auth: String,
+    pub data: String
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct FrostpawLogin {
     pub client_id: String,
