@@ -3673,7 +3673,7 @@ impl Database {
 
         for device in devices {
             // Call flamepaw
-            let res = self.requests.post("http://127.0.0.1:1292/_remind")
+            let res = self.requests.post("http://127.0.0.1:1292/flamepaw/_remind")
             .json(&models::NotificationSub {
                 endpoint: device.endpoint,
                 p256dh: device.p256dh,

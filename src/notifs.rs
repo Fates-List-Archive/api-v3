@@ -52,7 +52,8 @@ pub async fn test_notifs(
         .to_str()
         .unwrap();
     if data.database.authorize_user(id.id, auth).await {
-        let notif_res = data.database.test_notifs(id.id).await;
+        data.database.test_notifs(id.id).await;
+        return HttpResponse::build(http::StatusCode::OK).json(models::APIResponse::ok());
     }
     HttpResponse::build(http::StatusCode::FORBIDDEN).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
 }
