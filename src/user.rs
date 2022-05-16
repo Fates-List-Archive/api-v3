@@ -26,7 +26,7 @@ pub async fn get_user_perms(req: HttpRequest, info: web::Path<models::FetchBotPa
     .await
     .unwrap();
 
-    HttpResponse::Ok().json(req.json::<bristlefrost::StaffPerm>().await.unwrap())
+    HttpResponse::Ok().json(req.json::<bristlefrost::models::StaffRole>().await.unwrap())
 }
 
 
