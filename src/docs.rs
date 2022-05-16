@@ -1607,7 +1607,7 @@ if the list grows and then requires it.
         query_params: &models::Empty {},
         request_body: &models::Empty {},
         response_body: &models::ListStats {
-            bots: index_bots.clone(),
+            bots: index_bots,
             ..models::ListStats::default()
         },
         auth_types: vec![],
@@ -1673,6 +1673,58 @@ UUIDs in the case of ids. Bad names/ids will be ignored
             context: None,
         },
         auth_types: vec![models::RouteAuthType::Bot],
+    });
+
+    docs += &doc_category("Notifications");
+
+    docs += &doc(models::Route {
+        title: "Get Notification Public Info",
+        method: "GET",
+        path: "/notifications/info",
+        description: r#"
+Get the public information required for creating a push notification
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params:&models::NotificationSub::default(),
+        request_body: &models::Empty {},
+        response_body: &models::NotificationInfo::default(),
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
+        title: "Create Push Notification Subscription",
+        method: "POST",
+        path: "/notifications/{id}/sub",
+        description: r#"
+Subscribes a user to a push notification.
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Create Test Push Notification",
+        method: "GET",
+        path: "/notifications/{id}/test",
+        description: r#"
+Creates a test push notification
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
     });
 
     // Return docs
