@@ -11,6 +11,25 @@ pub async fn get_user_from_id(req: HttpRequest, info: web::Path<models::FetchBot
     HttpResponse::Ok().json(data.database.get_user(info.id).await)
 }
 
+/// Gets a users perms given a id
+#[get("/baypaw/perms/{id}")]
+pub async fn get_user_perms(req: HttpRequest, info: web::Path<models::FetchBotPath>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    // This api may crash with 408 if baypaw is down, it merely proxies
+    let req = data.database.requests.get(
+    format!(
+        "http://127.0.0.1:1234/perms/{id}",
+        id = info.id
+    ))
+    .send()
+    .await
+    .unwrap();
+
+    HttpResponse::Ok().json(req.json::<bristlefrost::StaffPerm>().await.unwrap())
+}
+
+
 #[get("/profiles/{id}")]
 async fn get_profile(req: HttpRequest, info: web::Path<models::FetchBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
