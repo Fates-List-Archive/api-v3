@@ -269,16 +269,23 @@ async fn check_bot(
     let mut done_owners = Vec::new();
     let mut done_owners_lst = Vec::new();
 
-    for owner in bot.owners.clone() {
-        if owner.main {
-            return Err(models::CheckBotError::MainOwnerAddAttempt);
-        }
+    let mut main = 0;
 
+    for owner in bot.owners.clone() {
         let id = owner
             .user
             .id
             .parse::<i64>()
             .map_err(|_| models::CheckBotError::OwnerIDParseError)?;
+
+        if owner.main {
+            main += 1;
+            if main > 1 {
+                return Err(models::CheckBotError::MainOwnerAddAttempt);
+            }
+            done_owners_lst.push(id);
+            continue;
+        }
 
         if done_owners_lst.contains(&id) {
             continue;
@@ -319,11 +326,7 @@ async fn add_bot(
         .unwrap();
     let mut bot = bot.into_inner();
     if data.database.authorize_user(id.id, auth).await {
-        let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
-        if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err())); 
-        }
-        bot.owners.push(models::BotOwner {
+        bot.owners.insert(0, models::BotOwner {
             user: models::User {
                 id: id.id.to_string(),
                 username: "".to_string(),
@@ -334,6 +337,12 @@ async fn add_bot(
             },
             main: true,
         });
+        
+        let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
+        if res.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err()));
+        }
+
         let res = data.database.add_bot(&bot).await;
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::SQLError(res.unwrap_err()))); 
@@ -454,6 +463,18 @@ async fn edit_bot(
         if !got_owner {
             return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::Forbidden));
         }
+
+        bot.owners.insert(0, models::BotOwner {
+            user: models::User {
+                id: id.id.clone().to_string(),
+                username: "".to_string(),
+                avatar: "".to_string(),
+                disc: "0000".to_string(),
+                bot: false,
+                status: models::Status::Unknown,
+            },
+            main: true,
+        });
 
         let res = check_bot(&data, models::BotActionMode::Edit, &mut bot).await;
         if res.is_err() {
@@ -979,7 +1000,7 @@ async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
         if res.is_err() {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&res.unwrap_err()));
         }
-        bot.owners.push(models::BotOwner {
+        bot.owners.insert(0, models::BotOwner {
             user: models::User {
                 id: user_id.clone().to_string(),
                 username: "".to_string(),
