@@ -457,24 +457,24 @@ async fn edit_bot(
             if owner.user.id == id.id.to_string() {
                 got_owner = true;
                 break;
+            } else if owner.main {
+                bot.owners.insert(0, models::BotOwner {
+                    user: models::User {
+                        id: owner.user.id,
+                        username: "".to_string(),
+                        avatar: "".to_string(),
+                        disc: "0000".to_string(),
+                        bot: false,
+                        status: models::Status::Unknown,
+                    },
+                    main: true,
+                });        
             }
         }
 
         if !got_owner {
             return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::Forbidden));
         }
-
-        bot.owners.insert(0, models::BotOwner {
-            user: models::User {
-                id: id.id.clone().to_string(),
-                username: "".to_string(),
-                avatar: "".to_string(),
-                disc: "0000".to_string(),
-                bot: false,
-                status: models::Status::Unknown,
-            },
-            main: true,
-        });
 
         let res = check_bot(&data, models::BotActionMode::Edit, &mut bot).await;
         if res.is_err() {
