@@ -735,6 +735,30 @@ You **must** be main owner of the bot to use this endpoint."#,
                             ]
                         }),
                         auth_types: vec![],
+                    },
+
+                    models::Route {
+                        title: "Import Bot",
+                        method: "POST",
+                        path: "/users/{user_id}/bots/{bot_id}/import?src={source}",
+                        description: "Imports a bot from a source listed in ``Get Import Sources``",
+                        path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
+                            user_id: 0,
+                            bot_id: 0,
+                        }),
+                        query_params: &body(QUERY_PARAMS, &models::ImportQuery {
+                            src: models::ImportSource::Rdl,
+                            custom_source: Some("".to_string()),
+                        }),
+                        request_body: &body(REQ_BODY, &models::ImportBody {
+                            ext_data: Some(std::collections::HashMap::from([("key".to_string(), json!("value"))]))
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
                     }
                 ]
             }

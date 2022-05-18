@@ -1,27 +1,3 @@
-    docs += &doc(models::Route {
-        title: "Import Bot",
-        method: "POST",
-        path: "/users/{user_id}/bots/{bot_id}/import?src={source}",
-        description: r#"
-Imports a bot from a source listed in ``Get Import Sources``.
-"#,
-        path_params: &models::GetUserBotPath {
-            user_id: 0,
-            bot_id: 0,
-        },
-        query_params: &models::ImportQuery {
-            src: models::ImportSource::Rdl,
-            custom_source: Some("".to_string()),
-        },
-        request_body: &models::Empty {},
-        response_body: &models::APIResponse {
-            done: true,
-            reason: None,
-            context: None,
-        },
-        auth_types: vec![models::RouteAuthType::User],
-    });
-
     docs += &doc_category("Server Actions");
 
     docs += &doc( models::Route {
