@@ -1,0 +1,847 @@
+        docs += &doc();
+
+        docs += &doc(
+            models::Route {
+                title: "Random Bot",
+                method: "GET",
+                path: "/random-bot",
+                path_params: &models::Empty {},
+                query_params: &models::Empty {},
+                request_body: &models::Empty {},
+                response_body: &models::IndexBot::default(),
+    description: r#"
+Fetches a random bot on the list
+
+Example:
+```py
+import requests
+
+def random_bot():
+    res = requests.get(api_url"/random-bot")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+    "#,
+                auth_types: vec![]
+        });
+
+    docs += &doc(models::Route {
+        title: "New Bot",
+        method: "POST",
+        path: "/users/{id}/bots",
+        description: r#"
+Creates a new bot. 
+
+Set ``created_at``, ``last_stats_post`` to sometime in the past
+
+Set ``api_token``, ``guild_count`` etc (unknown/not editable fields) to any 
+random value of the same type
+
+With regards to ``extra_owners``, put all of them as a ``BotOwner`` object
+containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object 
+containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot``
+to false.
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Bot::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Edit Bot",
+        method: "PATCH",
+        path: "/users/{id}/bots",
+        description: r#"
+Edits a existing bot. 
+
+Set ``created_at``, ``last_stats_post`` to sometime in the past
+
+Set ``api_token``, ``guild_count`` etc (unknown/not editable fields) to any 
+random value of the same type
+
+With regards to ``extra_owners``, put all of them as a ``BotOwner`` object
+containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object 
+containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot``
+to false.
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Bot::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Transfer Ownership",
+        method: "PATCH",
+        path: "/users/{user_id}/bots/{bot_id}/main-owner",
+        description: r#"
+Transfers bot ownership.
+
+You **must** be main owner to use this endpoint.
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::BotOwner {
+            main: true,
+            user: models::User {
+                id: "id here".to_string(),
+                username: "Leave blank".to_string(),
+                disc: "Leave blank".to_string(),
+                avatar: "Leave blank".to_string(),
+                status: models::Status::Unknown,
+                bot: false,
+            },
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Delete Bot",
+        method: "DELETE",
+        path: "/users/{user_id}/bots/{bot_id}",
+        description: r#"
+Deletes a bot.
+
+You **must** be main owner to use this endpoint.
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Get Import Sources",
+        method: "GET",
+        path: "/import-sources",
+        description: r#"
+Returns a array of sources that a bot can be imported from.
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::ImportSourceList {
+            sources: vec![
+                models::ImportSourceListItem {
+                    id: models::ImportSource::Rdl,
+                    name: "Rovel Bot List".to_string()
+                }
+            ]
+        },
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
+        title: "Import Bot",
+        method: "POST",
+        path: "/users/{user_id}/bots/{bot_id}/import?src={source}",
+        description: r#"
+Imports a bot from a source listed in ``Get Import Sources``.
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::ImportQuery {
+            src: models::ImportSource::Rdl,
+            custom_source: Some("".to_string()),
+        },
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc_category("Server Actions");
+
+    docs += &doc( models::Route {
+        title: "Get Server",
+        method: "GET",
+        path: "/servers/{id}",
+        path_params: &models::FetchBotPath::default(),
+        query_params: &models::Empty {},
+description: r#"
+Fetches server information given a server/guild ID. If not found, 404 will be returned. 
+
+Differences from API v2:
+
+- Unlike API v2, this does not support compact or no_cache.
+- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
+- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
+- Some fields have been renamed or removed
+- ``invite_link`` is returned, however is always None unless ``Frostpaw-Invite`` header is set which then pushes you into 
+server privacy restrictions. **Note that when fetching invite links, requires login to join is now enabled by default for all new servers**
+
+**Set the Frostpaw header if you are a custom client**
+"#,
+        request_body: &models::Empty{},
+        response_body: &models::Server::default(),
+        auth_types: vec![]
+    });
+
+    docs += &doc(
+        models::Route {
+            title: "Random Server",
+            method: "GET",
+            path: "/random-server",
+            path_params: &models::Empty {},
+            query_params: &models::Empty {},
+            request_body: &models::Empty {},
+            response_body: &models::IndexBot::default(),
+description: r#"
+Fetches a random server on the list
+
+Example:
+```py
+import requests
+
+def random_server():
+    res = requests.get(api_url"/random-server")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```
+"#,
+            auth_types: vec![]
+    });
+
+    docs += &doc_category("Votes");
+
+   // - Create Bot Vote
+   docs += &doc(models::Route {
+        title: "Create Bot Vote",
+        method: "PATCH",
+        path: "/users/{user_id}/bots/{bot_id}/votes",
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::VoteBotQuery { test: true },
+        description: r#"
+This endpoint creates a vote for a bot which can only be done *once* every 8 hours.
+    "#,
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: false,
+            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
+            context: Some("Some context on the vote".to_string()),
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    // - Create Server Vote
+    docs += &doc(models::Route {
+        title: "Create Server Vote",
+        method: "PATCH",
+        path: "/users/{user_id}/servers/{server_id}/votes",
+        path_params: &models::GetUserServerPath {
+            user_id: 0,
+            server_id: 0,
+        },
+        query_params: &models::VoteBotQuery { test: true },
+        description: r#"
+    This endpoint creates a vote for a server which can only be done *once* every 8 hours
+    and is independent from a bot vote.
+    "#,
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: false,
+            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
+            context: Some("Some context on the vote".to_string()),
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    // - Get User Votes
+    docs += &doc( models::Route {
+        title: "Get Bot Votes",
+        method: "GET",
+        path: "/users/{user_id}/bots/{bot_id}/votes",
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the bot has.
+- voted | Whether or not the user has *ever* voted for a bot in the past 8 hours.
+- timestamps | A list of timestamps that the user has voted for the bot on that has been recorded.
+- expiry | The time when the user can next vote.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+
+Differences from API v2:
+
+- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
+- ``vts`` has been renamed to ``timestamps``
+
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::UserVoted {
+            votes: 10,
+            voted: true,
+            expiry: 101,
+            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+            vote_right_now: false,
+        },
+        auth_types: vec![]
+    });
+
+    // - Get User Votes
+    docs += &doc( models::Route {
+        title: "Get Server Votes",
+        method: "GET",
+        path: "/users/{user_id}/servers/{server_id}/votes",
+        path_params: &models::GetUserServerPath {
+            user_id: 0,
+            server_id: 0,
+        },
+        query_params: &models::Empty {},
+description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the server has.
+- voted | Whether or not the user has *ever* voted for a server in the past 8 hours.
+- timestamps | A list of timestamps that the user has voted for the server on that has been recorded.
+- expiry | The time when the user can next vote.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+
+Differences from API v2:
+
+- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
+- ``vts`` has been renamed to ``timestamps``
+
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**
+"#,
+        request_body: &models::Empty {},
+        response_body: &models::UserVoted {
+            votes: 10,
+            voted: true,
+            expiry: 101,
+            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+            vote_right_now: false,
+        },
+        auth_types: vec![]
+    });
+
+    docs += &doc_category("Appeal");
+
+    // New Appeal
+    docs += &doc(models::Route {
+        title: "New Appeal",
+        method: "POST",
+        path: "/users/{user_id}/bots/{bot_id}/appeal",
+        description: r#"
+Creates a appeal/request for a bot.
+
+``request_type`` is a [AppealType](https://lynx.fateslist.xyz/docs/enums-ref#appealtype)
+
+**Ideally only useful for custom clients**
+"#,
+        path_params: &models::GetUserBotPath {
+            user_id: 0,
+            bot_id: 0,
+        },
+        query_params: &models::Empty {},
+        request_body: &models::Appeal {
+            request_type: models::AppealType::Appeal,
+            appeal: "This bot deserves to be unbanned because...".to_string(),
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc_category("Packs");
+
+    docs += &doc(models::Route {
+        title: "Add Pack",
+        method: "GET",
+        path: "/users/{id}/packs",
+        description: r#"
+Creates a bot pack. 
+
+- Set ``id`` to empty string, 
+- Set ``created_at`` to any datetime
+- In user and bot, only ``id`` must be filled, all others can be left empty string
+but must exist in the object
+"#,
+        path_params: &models::FetchBotPath { 
+            id: 0
+        },
+        query_params: &models::Empty {},
+        request_body: &models::BotPack::default(),
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc_category("Users");
+
+    docs += &doc(models::Route {
+        title: "Get User From ID",
+        method: "GET",
+        path: "/blazefire/{id}",
+        description: r#"
+Gets a User object given a ID. 
+
+Internally will be used by client for extra owner rendering etc.
+
+May be used by our partners to get user information.
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::User::default(),
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
+        title: "Get Profile",
+        method: "GET",
+        path: "/profiles/{id}",
+        description: r#"
+Gets a user profile.
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::Profile {
+            vote_reminder_channel: Some("939123825885474898".to_string()),
+            action_logs: vec![models::ActionLog::default()],
+            ..models::Profile::default()
+        },
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
+        title: "Update Profile",
+        method: "PATCH",
+        path: "/profiles/{id}",
+        description: r#"
+Edits a user profile.
+
+``user`` can be completely empty valued but the keys present in a User must
+be present
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Profile {
+            vote_reminder_channel: Some("939123825885474898".to_string()),
+            action_logs: vec![models::ActionLog::default()],
+            ..models::Profile::default()
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Put User Roles",
+        method: "PUT",
+        path: "/profiles/{id}/roles",
+        description: r#"
+Gives user roles on the Fates List support server
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::RoleUpdate::default(),
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc_category("Reviews");
+
+    docs += &doc(models::Route {
+        title: "Get Reviews",
+        method: "GET",
+        path: "/reviews/{id}",
+        description: r#"
+Gets reviews for a reviewable entity.
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+This reviewable entities id which is a ``i64`` is the id that is specifed in the
+path.
+
+``page`` must be greater than 0 or omitted (which will default to page 1).
+
+``user_id`` is optional for this endpoint but specifying it will provide ``user_reviews`` if
+the user has made a review. This will tell you the users review for the entity.
+
+``per_page`` (amount of root/non-reply reviews per page) is currently set to 9. 
+This may change in the future and is given by ``per_page`` key.
+
+``from`` contains the index/count of the first review of the page.
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::ReviewQuery {
+            page: Some(1),
+            user_id: Some(0),
+            target_type: models::TargetType::Bot,
+        },
+        request_body: &models::Empty {},
+        response_body: &models::ParsedReview {
+            reviews: vec![models::Review::default()],
+            user_review: Some(models::Review::default()),
+            per_page: 9,
+            from: 0,
+            stats: models::ReviewStats {
+                total: 78,
+                average_stars: bigdecimal::BigDecimal::from_f32(8.8).unwrap(),
+            },
+        },
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
+        title: "Create Review",
+        method: "POST",
+        path: "/reviews/{id}",
+        description: r#"
+Creates a review.
+
+``id`` and ``page`` should be set to null or omitted though are ignored by this endpoint
+so there should not be an error even if provided.
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+The ``parent_id`` is optional and is used to create a reply to a review.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+``review`` is a [Review](https://lynx.fateslist.xyz/docs/models-ref#review)
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::ReviewQuery {
+            page: None,
+            user_id: Some(0),
+            target_type: models::TargetType::Bot,
+        },
+        request_body: &models::Review {
+            parent_id: Some(uuid::Uuid::new_v4()),
+            ..models::Review::default()
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Edit Review",
+        method: "PATCH",
+        path: "/reviews/{id}",
+        description: r#"
+Edits a review.
+
+``page`` should be set to null or omitted though are ignored by this endpoint
+so there should not be an error even if provided.
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+This reviewable entities id which is a ``i64`` is the id that is specifed in the
+path.
+
+The id of the review must be specified as ``id`` in the request body which accepts a ``Review``
+object. The ``user_id`` specified must *own*/have created the review being editted. Staff should
+edit reviews using Lynx when required.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::ReviewQuery {
+            page: None,
+            user_id: Some(0),
+            target_type: models::TargetType::Bot,
+        },
+        request_body: &models::Review {
+            id: Some(uuid::Uuid::new_v4()),
+            ..models::Review::default()
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Delete Review",
+        method: "DELETE",
+        path: "/reviews/{rid}",
+        description: r#"
+Deletes a review
+
+``rid`` must be a valid uuid.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header. ``page`` is currently ignored
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+``target_type`` is not currently checked but it is a good idea to set it anyways. You must
+set this anyways so you might as well set it correctly.
+"#,
+        path_params: &models::ReviewDeletePath {
+            rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
+        },
+        query_params: &models::ReviewQuery {
+            page: None,
+            user_id: Some(0),
+            target_type: models::TargetType::Bot,
+        },
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Vote Review",
+        method: "PATCH",
+        path: "/reviews/{rid}/votes",
+        description: r#"
+Creates a vote for a review
+
+``rid`` must be a valid uuid.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header. 
+
+**Unlike other review APIs, ``user_id`` here is in request body as ReviewVote object**
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+**This endpoint does not require ``target_type`` at all. You can safely omit it**
+"#,
+        path_params: &models::ReviewDeletePath {
+            rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
+        },
+        query_params: &models::Empty {},
+        request_body: &models::ReviewVote {
+            user_id: "user id here".to_string(),
+            upvote: true,
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc_category("Stats");
+
+    docs += &doc(models::Route {
+        title: "Get List Stats",
+        method: "GET",
+        path: "/stats",
+        description: r#"
+Returns the bot list stats. This currently returns the full list of all bots
+as a vector/list of IndexBot structs.
+
+As a client, it is your responsibility, to parse this. Pagination may be added
+if the list grows and then requires it.
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::ListStats {
+            bots: index_bots,
+            ..models::ListStats::default()
+        },
+        auth_types: vec![],
+    });
+
+    docs += &doc_category("Commands");
+
+    docs += &doc(models::Route {
+        title: "Create Bot Command",
+        method: "POST",
+        path: "/bots/{id}/commands",
+        description: r#"
+Creates a command.
+
+The ``id`` here must be the bot id you wish to add the command for
+
+**This performs a *upsert* meaning it will either create or update 
+the command depending on its ``name``.**
+
+**Only post up to 10-20 commands at a time, otherwise requests may be truncated
+or otherwise fail with odd errors.  If you have more than this, then perform 
+multiple requests**
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::TargetQuery {
+            target_type: models::TargetType::Bot,
+        },
+        request_body: &models::BotCommandVec {
+            commands: vec![models::BotCommand::default()],
+        },
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::Bot],
+    });
+
+    docs += &doc(models::Route {
+        title: "Delete Bot Command",
+        method: "DELETE",
+        path: "/bots/{id}/commands",
+        description: r#"
+DELETE a command.
+
+The ``id`` here must be the bot id you wish to add the command for
+
+``names`` and ``ids`` must be a ``|`` seperated list of ``names`` or valid
+UUIDs in the case of ids. Bad names/ids will be ignored
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params: &models::CommandDeleteQuery {
+            nuke: Some(false),
+            names: Some("command name|command name 2".to_string()),
+            ids: Some("id 1|id 2".to_string()),
+        },
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::Bot],
+    });
+
+    docs += &doc_category("Notifications");
+
+    docs += &doc(models::Route {
+        title: "Get Notification Public Info",
+        method: "GET",
+        path: "/notifications/info",
+        description: r#"
+Get the public information required for creating a push notification
+"#,
+        path_params: &models::FetchBotPath { id: 0 },
+        query_params:&models::NotificationSub::default(),
+        request_body: &models::Empty {},
+        response_body: &models::NotificationInfo::default(),
+        auth_types: vec![],
+    });
+
+    docs += &doc(models::Route {
+        title: "Create Push Notification Subscription",
+        method: "POST",
+        path: "/notifications/{id}/sub",
+        description: r#"
+Subscribes a user to a push notification.
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    docs += &doc(models::Route {
+        title: "Create Test Push Notification",
+        method: "GET",
+        path: "/notifications/{id}/test",
+        description: r#"
+Creates a test push notification
+"#,
+        path_params: &models::Empty {},
+        query_params: &models::Empty {},
+        request_body: &models::Empty {},
+        response_body: &models::APIResponse {
+            done: true,
+            reason: None,
+            context: None,
+        },
+        auth_types: vec![models::RouteAuthType::User],
+    });
+
+    // Return docs
+    docs
+}
+

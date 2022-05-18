@@ -1581,14 +1581,19 @@ pub struct EnumDesc {
     pub gen: fn() -> String,
 }
 
-pub struct Route<'a, T: Serialize, T2: Serialize, T3: Serialize, T4: Serialize> {
+pub struct Route<'a> {
     pub title: &'a str,
     pub method: &'a str,
     pub path: &'a str,
-    pub path_params: &'a T3,
-    pub query_params: &'a T4,
+    pub path_params: &'a str,
+    pub query_params: &'a str,
     pub description: &'a str,
-    pub request_body: &'a T,
-    pub response_body: &'a T2,
+    pub request_body: &'a str,
+    pub response_body: &'a str,
     pub auth_types: Vec<RouteAuthType>,
+}
+
+pub struct RouteList<'a> {
+    pub file_name: &'a str,
+    pub routes: Vec<Route<'a>>,
 }
