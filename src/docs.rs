@@ -670,7 +670,7 @@ to false."#,
                         description: r#"
 Transfers bot ownership.
 
-You **must** be main owner to use this endpoint.
+You **must** be main owner of the bot to use this endpoint.
                 "#,
                         path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
                             user_id: 0,
@@ -694,6 +694,47 @@ You **must** be main owner to use this endpoint.
                             context: None,
                         }),
                         auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Delete Bot",
+                        method: "DELETE",
+                        path: "/users/{user_id}/bots/{bot_id}",
+                        description: r#"
+Deletes a bot.
+
+You **must** be main owner of the bot to use this endpoint."#,
+                        path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
+                            user_id: 0,
+                            bot_id: 0,
+                        }),
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Get Import Sources",
+                        method: "GET",
+                        path: "/import-sources",
+                        description: r"Returns a array of sources that a bot can be imported from.",
+                        path_params: "",
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::ImportSourceList {
+                            sources: vec![
+                                models::ImportSourceListItem {
+                                    id: models::ImportSource::Rdl,
+                                    name: "Rovel Bot List".to_string()
+                                }
+                            ]
+                        }),
+                        auth_types: vec![],
                     }
                 ]
             }

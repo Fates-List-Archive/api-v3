@@ -86,6 +86,7 @@ async fn main() -> std::io::Result<()> {
     });
 
     docs::document_routes();
+    docs::document_enums();
 
     error!("This is a error");
 
