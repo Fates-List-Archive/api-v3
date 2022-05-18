@@ -192,18 +192,6 @@ A default API Response will be of the below format:
                     },
 
                     models::Route {
-                        title: "Enum Docs Template",
-                        method: "GET",
-                        path: "/_enum_docs_template",
-                        path_params:"",
-                        query_params: "",
-                        description: "Internal route to return enum docs template",
-                        request_body: "",
-                        response_body: "",
-                        auth_types: vec![]
-                    },
-
-                    models::Route {
                         title: "Experiment List",
                         method: "GET",
                         path: "/experiments",

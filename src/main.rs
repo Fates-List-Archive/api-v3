@@ -158,7 +158,6 @@ async fn main() -> std::io::Result<()> {
             .service(core::index)
             .service(core::mini_index) // Add Bot
             .service(core::get_vanity)
-            .service(core::enum_docs_tmpl)
             .service(core::experiments)
             .service(core::partners)
             .service(core::search)
