@@ -1,4 +1,5 @@
 #![feature(derive_default_enum)]
+#![feature(lint_reasons)]
 #![warn(clippy::pedantic)]
 
 use actix_cors::Cors;
@@ -80,11 +81,11 @@ async fn main() -> std::io::Result<()> {
 
     let app_state = web::Data::new(models::AppState {
         database: pool,
-        docs: docs::document_routes(),
-        enum_docs: docs::document_enums(),
         config: models::AppConfig::default(),
         requests: client,
     });
+
+    docs::document_routes();
 
     error!("This is a error");
 
@@ -157,7 +158,6 @@ async fn main() -> std::io::Result<()> {
             .service(core::index)
             .service(core::mini_index) // Add Bot
             .service(core::get_vanity)
-            .service(core::docs_tmpl)
             .service(core::enum_docs_tmpl)
             .service(core::experiments)
             .service(core::partners)

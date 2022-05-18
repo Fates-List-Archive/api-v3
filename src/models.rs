@@ -619,8 +619,6 @@ impl Default for AppConfig {
 pub struct AppState {
     pub database: database::Database,
     pub config: AppConfig,
-    pub docs: String,
-    pub enum_docs: String,
     pub requests: reqwest::Client,
 }
 

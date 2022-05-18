@@ -110,7 +110,8 @@ fn new_doc_file(
     file.write_all(docs.join("").as_bytes()).unwrap();
 }
 
-pub fn document_routes() -> String {
+#[allow(clippy::too_many_lines, reason="This is a doc file. Lots of lines are ok")]
+pub fn document_routes() {
     const BASIC_API: &str = r#"
 **API URL**: ``https://api.fateslist.xyz``
 
@@ -187,18 +188,6 @@ A default API Response will be of the below format:
                             tags: tags.clone(),
                             features: features.clone(),
                         }),
-                        auth_types: vec![]
-                    },
-
-                    models::Route {
-                        title: "Docs Template",
-                        method: "GET",
-                        path: "/_docs_template",
-                        path_params: "",
-                        query_params: "",
-                        description: "Internal route to return docs template",
-                        request_body: "",
-                        response_body: "",
                         auth_types: vec![]
                     },
 
@@ -604,13 +593,124 @@ differences:
 
 Staff members *must* instead use Lynx."#,
                         auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Random Bot",
+                        method: "GET",
+                        path: "/random-bot",
+                        path_params: "",
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::IndexBot::default()),
+                        description: r#"
+Fetches a random bot on the list
+
+Example:
+```py
+import requests
+
+def random_bot():
+    res = requests.get(api_url"/random-bot")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```"#,
+                        auth_types: vec![]
+                    },
+                    
+                    models::Route {
+                        title: "New Bot",
+                        method: "POST",
+                        path: "/users/{id}/bots",
+                        description: r#"
+Creates a new bot. 
+
+Set ``created_at``, ``last_stats_post`` to sometime in the past
+
+Set ``api_token``, ``guild_count`` etc (unknown/not editable fields) to any 
+random value of the same type.
+
+With regards to ``extra_owners``, put all of them as a ``BotOwner`` object
+containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object 
+containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot``
+to false."#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::Bot::default()),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Edit Bot",
+                        method: "PATCH",
+                        path: "/users/{id}/bots",
+                        description: r#"
+Edits a existing bot. 
+
+Set ``created_at``, ``last_stats_post`` to sometime in the past
+
+Set ``api_token``, ``guild_count`` etc (unknown/not editable fields) to any 
+random value of the same type
+
+With regards to ``extra_owners``, put all of them as a ``BotOwner`` object
+containing ``main`` set to ``false`` and ``user`` as a dummy ``user`` object 
+containing ``id`` filled in and the rest of a ``user``empty strings. Set ``bot`` 
+to false."#,
+                        path_params: &body(PATH_PARAMS, models::FetchBotPath { id: 0 }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::Bot::default()),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Transfer Ownership",
+                        method: "PATCH",
+                        path: "/users/{user_id}/bots/{bot_id}/main-owner",
+                        description: r#"
+Transfers bot ownership.
+
+You **must** be main owner to use this endpoint.
+                "#,
+                        path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
+                            user_id: 0,
+                            bot_id: 0,
+                        }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::BotOwner {
+                            main: true,
+                            user: models::User {
+                                id: "id here".to_string(),
+                                username: "Leave blank".to_string(),
+                                disc: "Leave blank".to_string(),
+                                avatar: "Leave blank".to_string(),
+                                status: models::Status::Unknown,
+                                bot: false,
+                            },
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
                     }
                 ]
             }
         ]
     );
-
-    "".to_string()
 }
 
 
@@ -653,7 +753,7 @@ fn new_enum(data: models::EnumDesc) -> String {
     )
 }
 
-pub fn document_enums() -> String {
+pub fn document_enums() {
     let mut docs: String = "Below is a reference of all the enums used in Fates List, 
     
 It is semi-automatically generated
@@ -869,5 +969,18 @@ It is semi-automatically generated
         },
     });
 
-    docs
+    docs += "To see errors, please see https://github.com/Fates-List/api-v3/blob/main/src/models.rs and search for all ``APIError`` trait implementations";
+
+    let path = match std::env::var_os("HOME") {
+        None => {
+            panic!("$HOME not set");
+        }
+        Some(path) => std::path::PathBuf::from(path),
+    };
+
+    let file_name = path.into_os_string().into_string().unwrap() + "/lynx/api-docs/enums.md";
+
+    let mut file = std::fs::File::create(file_name).unwrap();
+
+    file.write_all(docs.as_bytes()).unwrap();
 }

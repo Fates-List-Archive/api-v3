@@ -49,13 +49,6 @@ async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
     }
 }
 
-// Docs template
-#[get("/_docs_template")]
-async fn docs_tmpl(req: HttpRequest) -> HttpResponse {
-    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
-    HttpResponse::build(http::StatusCode::OK).body(data.docs.clone())
-}
-
 // Enum Docs template
 #[get("/_enum_docs_template")]
 async fn enum_docs_tmpl(req: HttpRequest) -> HttpResponse {
