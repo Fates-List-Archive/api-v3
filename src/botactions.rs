@@ -283,8 +283,6 @@ async fn check_bot(
             if main > 1 {
                 return Err(models::CheckBotError::MainOwnerAddAttempt);
             }
-            done_owners_lst.push(id);
-            continue;
         }
 
         if done_owners_lst.contains(&id) {
@@ -298,7 +296,7 @@ async fn check_bot(
 
         done_owners.push(models::BotOwner {
             user,
-            main: false,
+            main: owner.main,
         });
         done_owners_lst.push(id);
     }
@@ -338,7 +336,7 @@ async fn add_bot(
             main: true,
         });
         
-        let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
+        let res = check_bot(data, models::BotActionMode::Add, &mut bot).await;
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err()));
         }

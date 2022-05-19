@@ -58,6 +58,19 @@ fn new_doc_file(
 ) {
     let mut docs = vec![basic_api + "\n"];
 
+    match std::env::var_os("SANITY") {
+        None => {}, 
+        Some(_) => {
+            // Check length to ensure all routes
+            let contents = std::fs::read_to_string("src/main.rs")
+                .expect("Something went wrong reading src/main.rs to validate docs");
+
+                for line in contents.lines() {
+                    let check_d = line.replace(" ", "").replace("\t", "");
+                }
+        },
+    };
+
     for route in routes.routes {
         let mut auth_needed: String = "".to_string();
         let mut i = 1;
@@ -947,7 +960,95 @@ this however, it is prone to change *anytime* in the future and may return bogus
                         }),
                         auth_types: vec![]
                     }
+                ]
+            },
 
+            models::RouteList {
+                file_name: "appeals.md",
+                routes: vec![
+
+                    models::Route {
+                        title: "Create Bot Appeal",
+                        method: "POST",
+                        path: "/users/{user_id}/bots/{bot_id}/appeal",
+                        description: r#"
+Creates a appeal for a bot.
+
+``request_type`` is a [AppealType](./enums#appealtype)
+                "#,
+                        path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
+                            user_id: 0,
+                            bot_id: 0,
+                        }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::Appeal {
+                            request_type: models::AppealType::Appeal,
+                            appeal: "This bot deserves to be unbanned because...".to_string(),
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Create Server Appeal",
+                        method: "POST",
+                        path: "/users/{user_id}/servers/{server_id}/appeal",
+                        description: r#"
+Creates a appeal for a server.
+
+**Currently only `report` is supported by this endpoint**
+
+``request_type`` is a [AppealType](./enums#appealtype)
+                "#,
+                        path_params: &body(PATH_PARAMS, &models::GetUserServerPath {
+                            user_id: 0,
+                            server_id: 0,
+                        }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::Appeal {
+                            request_type: models::AppealType::Appeal,
+                            appeal: "This server deserves to be unbanned because...".to_string(),
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    }
+                ]
+            },
+
+            models::RouteList {
+                file_name: "packs.md",
+                routes: vec![
+                    models::Route {
+                        title: "Add Pack",
+                        method: "POST",
+                        path: "/users/{id}/packs",
+                        description: r#"
+Creates a bot pack. 
+
+- Set ``id`` to empty string, 
+- Set ``created_at`` to any datetime
+- In user and bot, only ``id`` must be filled, all others can be left empty string
+but must exist in the object"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { 
+                            id: 0
+                        }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::BotPack::default()),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    }
                 ]
             }
         ]
