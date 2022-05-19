@@ -17,7 +17,7 @@ const RESP_BODY: &str = "Response Body";
 fn body<T: Serialize>(typ: &str, obj: T) -> String {
     if typ == PATH_PARAMS || typ == QUERY_PARAMS {
         return format!(
-            "\n\n**{typ}**\n\n{body_desc}\n\n",
+            "**{typ}**\n\n{body_desc}\n\n",
             body_desc = docser::serialize_docs(&obj).unwrap(),
         )    
     }
@@ -29,7 +29,8 @@ fn body<T: Serialize>(typ: &str, obj: T) -> String {
     obj.serialize(&mut ser).unwrap();
 
     format!(
-        "\n\n**{typ}**\n\n{body_desc}\n\n**{typ} Example**\n\n```json\n{body_ex}\n```\n\n",
+        // If this is ever editted, make sure to update the panic call accordingly
+        "**{typ}**\n\n{body_desc}\n\n**{typ} Example**\n\n```json\n{body_ex}\n```\n\n",
         body_desc = docser::serialize_docs(&obj).unwrap(),
         body_ex = String::from_utf8(ser.into_inner()).unwrap()
     )
@@ -43,6 +44,12 @@ fn doc(
         debug!("Creating new doc file for: {}", route.file_name);
         new_doc_file(basic_api.to_string(), route);
     }
+}
+
+#[inline]
+// Given a type, return what starts_with should be called with
+fn typ_to_swith(typ: &str) -> String {
+    "**".to_string() + typ + "**"
 }
 
 fn new_doc_file(
@@ -79,12 +86,22 @@ fn new_doc_file(
             auth_needed = "None".to_string();
         }
 
+        // Some basic checks to make sure we don't have any errors
+        assert!(route.path_params.is_empty() || route.path_params.starts_with(&typ_to_swith(PATH_PARAMS)), "{} is not a valid route: path_params is not of type PATH_PARAMS", route.title);
+
+        assert!(route.query_params.is_empty() || route.query_params.starts_with(&typ_to_swith(QUERY_PARAMS)), "{} is not a valid route: query_params is not of type QUERY_PARAMS", route.title);
+
+        assert!(route.request_body.is_empty() || route.request_body.starts_with(&typ_to_swith(REQ_BODY)), "{} is not a valid route: request_body is not of type REQ_BODY", route.title);
+
+        assert!(route.response_body.is_empty() || route.response_body.starts_with(&typ_to_swith(RESP_BODY)), "{} is not a valid route: response_body is not of type RESP_BODY", route.title);
+
         docs.push(
             format!(
-                "## {title}\n### {method} {url}\n{query_params}\n{path_params}\n{request_body}\n{response_body}\n**Authorization Needed** | {auth_needed}\n\n\n",
+                "## {title}\n### {method} {url}\n{desc}\n{query_params}\n{path_params}\n{request_body}\n{response_body}\n**Authorization Needed** | {auth_needed}\n\n\n",
                 title = route.title,
                 method = route.method,
                 url = "`https://api.fateslist.xyz`".to_string() + route.path,
+                desc = route.description,
                 request_body = route.request_body,
                 response_body = route.response_body,
                 query_params = route.query_params,
@@ -264,7 +281,7 @@ Searches the list based on a query named ``q``.
         
 Using -1 for ``gc_to`` will disable ``gc_to`` field"#,
                         request_body: "",
-                        response_body: &body(QUERY_PARAMS, &models::Search {
+                        response_body: &body(RESP_BODY, &models::Search {
                             bots: vec![models::IndexBot::default()],
                             servers: vec![models::IndexBot::default()],
                             packs: vec![models::BotPack::default()],
@@ -485,7 +502,7 @@ token ever gets leaked."#,
             },
 
             models::RouteList {
-                file_name: "bot_actions.md",
+                file_name: "bot-actions.md",
                 routes: vec![
                     models::Route {
                         title: "Post Stats",
@@ -761,6 +778,177 @@ You **must** be main owner of the bot to use this endpoint."#,
                         auth_types: vec![models::RouteAuthType::User],
                     }
                 ]
+            },
+
+            models::RouteList {
+                file_name: "server-actions.md",
+                routes: vec![
+
+                    models::Route {
+                        title: "Get Server",
+                        method: "GET",
+                        path: "/servers/{id}",
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath::default()),
+                        query_params: "",
+                        description: r#"
+Fetches server information given a server/guild ID. If not found, 404 will be returned. 
+
+- *``long_description/css`` is sanitized with ammonia by default, use `long_description_raw` if you want the unsanitized version*
+- All responses are cached for a short period of time. There is *no* way to opt out unlike API v2
+- Some fields have been renamed or removed
+- ``invite_link`` is returned, however is always None unless ``Frostpaw-Invite`` header is set which then pushes you into 
+server privacy restrictions. **Note that when fetching invite links, requires login to join is now enabled by default for all new servers**
+                
+**Set the Frostpaw header if you are a custom client. This is also needed for invites to work**"#,
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::Server::default()),
+                        auth_types: vec![]
+                    },
+
+                    models::Route {
+                        title: "Random Server",
+                        method: "GET",
+                        path: "/random-server",
+                        path_params: "",
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::IndexBot::default()),
+                        description: r#"
+Fetches a random server on the list
+
+Example:
+```py
+import requests
+
+def random_server():
+    res = requests.get(api_url"/random-server")
+    json = res.json()
+    if res.status != 200:
+        # Handle an error in the api
+        ...
+    return json
+```"#,
+                        auth_types: vec![]
+                    }                    
+                ]
+            },
+
+            models::RouteList {
+                file_name: "votes.md",
+                routes: vec![
+
+                    models::Route {
+                        title: "Create Bot Vote",
+                        method: "PATCH",
+                        path: "/users/{user_id}/bots/{bot_id}/votes",
+                        path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
+                            user_id: 0,
+                            bot_id: 0,
+                        }),
+                        query_params: &body(QUERY_PARAMS, &models::VoteBotQuery { test: true }),
+                        description: "This endpoint creates a vote for a bot which can only be done *once* every 8 hours.",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: false,
+                            reason: Some("Error code".to_string()),
+                            context: Some("Some context on the error".to_string()),
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Create Server Vote",
+                        method: "PATCH",
+                        path: "/users/{user_id}/servers/{server_id}/votes",
+                        path_params: &body(PATH_PARAMS, &models::GetUserServerPath {
+                            user_id: 0,
+                            server_id: 0,
+                        }),
+                        query_params: &body(QUERY_PARAMS, &models::VoteBotQuery { test: true }),
+                        description: r#"
+This endpoint creates a vote for a server which can only be done *once* every 8 hours
+and is independent from a bot vote.
+                    "#,
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: false,
+                            reason: Some("Why the vote failed or any extra info to send to client if the vote succeeded".to_string()),
+                            context: Some("Some context on the vote".to_string()),
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Get Bot Votes",
+                        method: "GET",
+                        path: "/users/{user_id}/bots/{bot_id}/votes",
+                        path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
+                            user_id: 0,
+                            bot_id: 0,
+                        }),
+                        query_params: "",
+                        description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the bot has.
+- voted | Whether or not the user has *ever* voted for a bot in the past 8 hours.
+- timestamps | A list of timestamps that the user has voted for the bot on that has been recorded.
+- expiry | The time when the user can next vote.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+
+- Unlike API v2, this *does not* require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
+- ``vts`` has been renamed to ``timestamps``
+
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**"#,
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::UserVoted {
+                            votes: 10,
+                            voted: true,
+                            expiry: 101,
+                            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+                            vote_right_now: false,
+                        }),
+                        auth_types: vec![]
+                    },
+
+                    models::Route {
+                        title: "Get Server Votes",
+                        method: "GET",
+                        path: "/users/{user_id}/servers/{server_id}/votes",
+                        path_params: &body(PATH_PARAMS, &models::GetUserServerPath {
+                            user_id: 0,
+                            server_id: 0,
+                        }),
+                        query_params: "",
+                        description: r#"
+Endpoint to check amount of votes a user has.
+
+- votes | The amount of votes the server has.
+- voted | Whether or not the user has *ever* voted for a server in the past 8 hours.
+- timestamps | A list of timestamps that the user has voted for the server on that has been recorded.
+- expiry | The time when the user can next vote.
+- vote_right_now | Whether a user can vote right now. Currently equivalent to `vote_epoch < 0`.
+                
+- Unlike API v2, this does not require authorization to use. This is to speed up responses and 
+because the last thing people want to scrape are Fates List user votes anyways. **You should not rely on
+this however, it is prone to change *anytime* in the future and may return bogus results for privacy purposes**.
+- ``vts`` has been renamed to ``timestamps``
+
+**This endpoint will return bogus data if "Hide votes to other users" is enabled**"#,
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::UserVoted {
+                            votes: 10,
+                            voted: true,
+                            expiry: 101,
+                            timestamps: vec![chrono::DateTime::<chrono::Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(0, 0), chrono::Utc)],
+                            vote_right_now: false,
+                        }),
+                        auth_types: vec![]
+                    }
+
+                ]
             }
         ]
     );
@@ -806,6 +994,7 @@ fn new_enum(data: models::EnumDesc) -> String {
     )
 }
 
+#[allow(clippy::too_many_lines, reason="This is a doc file. Lots of lines are ok")]
 pub fn document_enums() {
     let mut docs: String = "Below is a reference of all the enums used in Fates List, 
     
@@ -1031,7 +1220,7 @@ It is semi-automatically generated
         Some(path) => std::path::PathBuf::from(path),
     };
 
-    let file_name = path.into_os_string().into_string().unwrap() + "/lynx/api-docs/enums.md";
+    let file_name = path.into_os_string().into_string().unwrap() + "/lynx/api-docs/endpoints/enums.md";
 
     let mut file = std::fs::File::create(file_name).unwrap();
 
