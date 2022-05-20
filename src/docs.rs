@@ -1175,7 +1175,7 @@ Deletes a bot pack.
             },
 
             models::RouteList {
-                file_name: "users.md",
+                file_name: "user.md",
                 routes: vec![
                     models::Route {
                         title: "Get User From ID",
