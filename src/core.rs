@@ -37,7 +37,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> HttpRe
 }
 
 #[get("/code/{vanity}")]
-async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
+async fn resolve_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
     if code.starts_with('_') {
         return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
     }
@@ -51,7 +51,7 @@ async fn get_vanity(req: HttpRequest, code: web::Path<String>) -> HttpResponse {
 
 // Experiment List
 #[get("/experiments")]
-async fn experiments(_req: HttpRequest) -> HttpResponse {
+async fn get_experiment_list(_req: HttpRequest) -> HttpResponse {
     let mut exp_map = Vec::new();
     for exp in models::UserExperiments::iter() {
         exp_map.push(models::UserExperimentListItem {
@@ -67,14 +67,14 @@ async fn experiments(_req: HttpRequest) -> HttpResponse {
 
 // Partners
 #[get("/partners")]
-async fn partners(req: HttpRequest) -> HttpResponse {
+async fn get_partners(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     HttpResponse::build(http::StatusCode::OK).json(&data.config.partners)
 }
 
 /// Search route.
 #[get("/search")]
-async fn search(req: HttpRequest, info: web::Query<models::SearchQuery>) -> HttpResponse {
+async fn search_list(req: HttpRequest, info: web::Query<models::SearchQuery>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let search = info.into_inner();

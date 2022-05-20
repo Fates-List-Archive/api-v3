@@ -157,11 +157,11 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(not_found))
             // Core
             .service(core::index)
-            .service(core::mini_index) // Add Bot
-            .service(core::get_vanity)
-            .service(core::experiments)
-            .service(core::partners)
-            .service(core::search)
+            .service(core::mini_index) // Used Add Bot
+            .service(core::resolve_vanity)
+            .service(core::get_experiment_list)
+            .service(core::get_partners)
+            .service(core::search_list)
             .service(core::search_tags)
 
             // Votes

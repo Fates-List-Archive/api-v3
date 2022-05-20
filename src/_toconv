@@ -1,68 +1,3 @@
-    docs += &doc_category("Packs");
-
-    docs += &doc(models::Route {
-        title: "Add Pack",
-        method: "POST",
-        path: "/users/{id}/packs",
-        description: r#"
-Creates a bot pack. 
-
-- Set ``id`` to empty string, 
-- Set ``created_at`` to any datetime
-- In user and bot, only ``id`` must be filled, all others can be left empty string
-but must exist in the object
-"#,
-        path_params: &models::FetchBotPath { 
-            id: 0
-        },
-        query_params: &models::Empty {},
-        request_body: &models::BotPack::default(),
-        response_body: &models::APIResponse {
-            done: true,
-            reason: None,
-            context: None,
-        },
-        auth_types: vec![models::RouteAuthType::User],
-    });
-
-    docs += &doc_category("Users");
-
-    docs += &doc(models::Route {
-        title: "Get User From ID",
-        method: "GET",
-        path: "/blazefire/{id}",
-        description: r#"
-Gets a User object given a ID. 
-
-Internally will be used by client for extra owner rendering etc.
-
-May be used by our partners to get user information.
-"#,
-        path_params: &models::FetchBotPath { id: 0 },
-        query_params: &models::Empty {},
-        request_body: &models::Empty {},
-        response_body: &models::User::default(),
-        auth_types: vec![],
-    });
-
-    docs += &doc(models::Route {
-        title: "Get Profile",
-        method: "GET",
-        path: "/profiles/{id}",
-        description: r#"
-Gets a user profile.
-"#,
-        path_params: &models::FetchBotPath { id: 0 },
-        query_params: &models::Empty {},
-        request_body: &models::Empty {},
-        response_body: &models::Profile {
-            vote_reminder_channel: Some("939123825885474898".to_string()),
-            action_logs: vec![models::ActionLog::default()],
-            ..models::Profile::default()
-        },
-        auth_types: vec![],
-    });
-
     docs += &doc(models::Route {
         title: "Update Profile",
         method: "PATCH",
@@ -442,8 +377,3 @@ Creates a test push notification
         },
         auth_types: vec![models::RouteAuthType::User],
     });
-
-    // Return docs
-    docs
-}
-

@@ -42,6 +42,49 @@ fn doc(
 ) {
     for route in routes {
         debug!("Creating new doc file for: {}", route.file_name);
+
+        match std::env::var_os("SANITY") {
+            None => {}, 
+            Some(_) => {
+                // Check length to ensure all routes
+                let contents = std::fs::read_to_string("src/main.rs")
+                    .expect("Something went wrong reading src/main.rs to validate docs");
+    
+                    for line in contents.lines() {
+                        let check_d = line.replace(' ', "").replace('\t', "");
+                        if check_d.starts_with(".service") {
+                            // If we find a service, we parse it and remove comments and then split by namespace
+                            let service = check_d.replace(".service(", "");
+                            let service = service.split(')').collect::<Vec<&str>>();
+                            let service = service.get(0).unwrap();
+                            let service = service.split("::").collect::<Vec<&str>>();
+                            
+                            if *(*service.get(0).unwrap()) != route.file_name.replace(".md", "").replace('-', "") {
+                                continue;
+                            }
+    
+                            debug!("Found service {:?}", service);
+
+                            // Validate that we have the service
+                            let endpoint = service.get(1).unwrap();
+
+                            // Step 1. Does endpoint exist in route list?
+                            let mut got_ep = false;
+                            for doc in &route.routes {
+                                if doc.title.replace(' ', "_").to_lowercase() == **endpoint {
+                                    got_ep = true;
+                                    break;
+                                }
+                            }
+
+                            assert!(got_ep, "Could not find endpoint {} in route list", endpoint);
+
+                            // TODO: Check method
+                        }
+                    }
+            },
+        };
+
         new_doc_file(basic_api.to_string(), route);
     }
 }
@@ -57,19 +100,6 @@ fn new_doc_file(
     routes: models::RouteList,
 ) {
     let mut docs = vec![basic_api + "\n"];
-
-    match std::env::var_os("SANITY") {
-        None => {}, 
-        Some(_) => {
-            // Check length to ensure all routes
-            let contents = std::fs::read_to_string("src/main.rs")
-                .expect("Something went wrong reading src/main.rs to validate docs");
-
-                for line in contents.lines() {
-                    let check_d = line.replace(" ", "").replace("\t", "");
-                }
-        },
-    };
 
     for route in routes.routes {
         let mut auth_needed: String = "".to_string();
@@ -222,7 +252,7 @@ A default API Response will be of the below format:
                     },
 
                     models::Route {
-                        title: "Experiment List",
+                        title: "Get Experiment List",
                         method: "GET",
                         path: "/experiments",
                         path_params: "",
@@ -293,6 +323,29 @@ A default API Response will be of the below format:
 Searches the list based on a query named ``q``. 
         
 Using -1 for ``gc_to`` will disable ``gc_to`` field"#,
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::Search {
+                            bots: vec![models::IndexBot::default()],
+                            servers: vec![models::IndexBot::default()],
+                            packs: vec![models::BotPack::default()],
+                            profiles: vec![models::SearchProfile::default()],
+                            tags: models::SearchTags {
+                                bots: vec![models::Tag::default()],
+                                servers: vec![models::Tag::default()]
+                            },
+                        }),
+                        auth_types: vec![]
+                    },
+
+                    models::Route {
+                        title: "Search Tags",
+                        method: "GET",
+                        path: "/search-tags?q={query}",
+                        path_params: "",
+                        query_params: &body(QUERY_PARAMS, &models::SearchTagQuery {
+                            q: "mew".to_string(),
+                        }),
+                        description: "Searches the list based on a tag named ``q``.",
                         request_body: "",
                         response_body: &body(RESP_BODY, &models::Search {
                             bots: vec![models::IndexBot::default()],
@@ -471,17 +524,13 @@ token ever gets leaked! Also used by the official client"#,
                     },
 
                     models::Route {
-                        title: "Revoke Frostpaw Client Auth",
+                        title: "New User Token",
                         method: "DELETE",
-                        path: "/users/{id}/frostpaw/clients/{client_id}",
+                        path: "/users/{id}/token",
                         description: r#"
-'Deletes' a user token and reissues a new user token. Use this if your user
-token ever gets leaked.
-                "#,
-                        path_params: &body(PATH_PARAMS, &models::UserClientAuth { 
-                            id: 0, 
-                            client_id: "client_id".to_string() 
-                        }),
+'Deletes' a user token and reissues a new user token. Use this if your bots
+token ever gets leaked! Also used by the official client"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
                         query_params: "",
                         request_body: "",
                         response_body: &body(RESP_BODY, &models::APIResponse {
@@ -510,7 +559,30 @@ token ever gets leaked."#,
                             context: None,
                         }),
                         auth_types: vec![models::RouteAuthType::Server],
-                    }
+                    },
+
+                    models::Route {
+                        title: "Revoke Frostpaw Client Auth",
+                        method: "DELETE",
+                        path: "/users/{id}/frostpaw/clients/{client_id}",
+                        description: r#"
+'Deletes' a user token and reissues a new user token. Use this if your user
+token ever gets leaked.
+                "#,
+                        path_params: &body(PATH_PARAMS, &models::UserClientAuth { 
+                            id: 0, 
+                            client_id: "client_id".to_string() 
+                        }),
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
                 ]
             },
 
@@ -1048,6 +1120,59 @@ but must exist in the object"#,
                             context: None,
                         }),
                         auth_types: vec![models::RouteAuthType::User],
+                    }
+                ]
+            },
+
+            models::RouteList {
+                file_name: "users.md",
+                routes: vec![
+                    models::Route {
+                        title: "Get User From ID",
+                        method: "GET",
+                        path: "/blazefire/{id}",
+                        description: r#"
+Gets a User object given a ID. 
+
+Internally is used by client for extra owner rendering etc.
+
+May be used by our partners to get user information."#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::User::default()),
+                        auth_types: vec![],
+                    },
+
+                    models::Route {
+                        title: "Get User Perms",
+                        method: "GET",
+                        path: "/baypaw/perms/{id}",
+                        description: r#"
+Gets the permissions of a user from Baypaw (our microservices handling user fetching and permissions)
+
+Internally is used by client for extra owner rendering etc."#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &bristlefrost::models::StaffRole::default()),
+                        auth_types: vec![],
+                    },
+
+                    models::Route {
+                        title: "Get Profile",
+                        method: "GET",
+                        path: "/profiles/{id}",
+                        description: "Gets a user profile.",
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::Profile {
+                            vote_reminder_channel: Some("939123825885474898".to_string()),
+                            action_logs: vec![models::ActionLog::default()],
+                            ..models::Profile::default()
+                        }),
+                        auth_types: vec![],
                     }
                 ]
             }

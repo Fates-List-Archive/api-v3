@@ -118,7 +118,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
         .to_str()
         .unwrap();
 
-    let valid_domains = vec!["https://fateslist.xyz", "https://www.fateslist.xyz", "https://sunbeam.fateslist.xyz"];
+    let valid_domains = vec!["https://fateslist.xyz", "https://www.fateslist.xyz", "https://sunbeam.fateslist.xyz", "https://selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
     
     
     if !valid_domains.contains(&redirect_url_domain) {

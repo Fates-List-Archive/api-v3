@@ -100,62 +100,62 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.output += &("bool [default/example = ".to_string() + (if v { "true" } else { "false" }) + "]");
+        self.output += &("bool [ex ".to_string() + (if v { "true" } else { "false" }) + "]");
         Ok(())
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
-        self.output += &("i8 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("i8 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
-        self.output += &("i16 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("i16 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.output += &("i32 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("i32 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.output += &("i64 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("i64 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
-        self.output += &("u8 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("u8 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
-        self.output += &("u16 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("u16 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        self.output += &("u32 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("u32 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.output += &("u64 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("u64 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
-        self.output += &("f32 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("f32 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
-        self.output += &("f64 [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("f64 [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
     fn serialize_char(self, v: char) -> Result<()> {
-        self.output += &("char [default/example = ".to_string() + v.to_string().as_str() + "]");
+        self.output += &("char [ex ".to_string() + v.to_string().as_str() + "]");
         Ok(())
     }
 
@@ -163,7 +163,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         if self.is_key {
             self.output += &("**".to_string() + v.to_string().as_str() + "**");
         } else {
-            self.output += &("string [default/example = \"".to_string() + v.to_string().as_str() + "\"]");
+            self.output += &("string [ex \"".to_string() + v.to_string().as_str() + "\"]");
         }
         Ok(())
     }
@@ -357,7 +357,10 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        value.serialize(&mut **self)?;
+        self.output += ", ";
+
+        Ok(())
     }
 
     // Close the sequence.
