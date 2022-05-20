@@ -1147,6 +1147,29 @@ but must exist in the object"#,
                             context: None,
                         }),
                         auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Delete Pack",
+                        method: "DELETE",
+                        path: "/users/{user_id}/packs/{pack_id}",
+                        description: r#"
+Deletes a bot pack. 
+
+- Set ``pack_id`` to the pack id that is to be editted
+- This endpoint may not always delete the pack in question in certain cases (pack not existant)"#,
+                        path_params: &body(PATH_PARAMS, &models::GetUserPackPath { 
+                            user_id: 0,
+                            pack_id: uuid::Uuid::new_v4().to_string()
+                        }),
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
                     }
                 ]
             },

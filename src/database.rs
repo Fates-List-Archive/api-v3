@@ -1078,20 +1078,20 @@ impl Database {
         for pack in packs_row {
             packs.push(models::BotPack {
                 id: pack.id.to_string(),
-                name: pack.name.unwrap_or_default().to_string(),
-                description: pack.description.unwrap_or_default(),
+                name: pack.name.to_string(),
+                description: pack.description,
                 icon: pack.icon.unwrap_or_default(),
                 banner: pack.banner.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
-                owner: self.get_user(pack.owner.unwrap_or_default()).await,
+                owner: self.get_user(pack.owner).await,
                 created_at: pack.created_at.unwrap_or_else(|| {
                     chrono::DateTime::<chrono::Utc>::from_utc(
                         chrono::NaiveDateTime::from_timestamp(0, 0),
                         chrono::Utc,
                     )
                 }),
-                resolved_bots: self.resolve_pack_bots(pack.bots.unwrap_or_default()).await,
+                resolved_bots: self.resolve_pack_bots(pack.bots).await,
             });
         }
 
@@ -2081,7 +2081,7 @@ impl Database {
                 .await;
 
             if let Ok(owners) = owners {
-                return owners.owner;
+                return Some(owners.owner);
             } else {
                 return None;
             }
@@ -2108,7 +2108,7 @@ impl Database {
         )
         .execute(&self.pool)
         .await
-        .unwrap(); // If this errors,
+        .map_err(models::PackCheckError::SQLError)?;
 
         Ok(())
     }
@@ -2185,7 +2185,7 @@ impl Database {
 
         // Fetch enabled experiments
         for experiment in row.experiments {
-            user_experiments.push(models::UserExperiments::try_from(experiment).unwrap_or(models::UserExperiments::Unknown))
+            user_experiments.push(models::UserExperiments::try_from(experiment).unwrap_or(models::UserExperiments::Unknown));
         }
 
         user_experiments
@@ -2244,20 +2244,20 @@ impl Database {
         for pack in packs_row {
             packs.push(models::BotPack {
                 id: pack.id.to_string(),
-                name: pack.name.unwrap_or_default().to_string(),
-                description: pack.description.unwrap_or_default(),
+                name: pack.name.to_string(),
+                description: pack.description,
                 icon: pack.icon.unwrap_or_default(),
                 banner: pack.banner.unwrap_or_else(|| {
                     "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
                 }),
-                owner: self.get_user(pack.owner.unwrap_or_default()).await,
+                owner: self.get_user(pack.owner).await,
                 created_at: pack.created_at.unwrap_or_else(|| {
                     chrono::DateTime::<chrono::Utc>::from_utc(
                         chrono::NaiveDateTime::from_timestamp(0, 0),
                         chrono::Utc,
                     )
                 }),
-                resolved_bots: self.resolve_pack_bots(pack.bots.unwrap_or_default()).await,
+                resolved_bots: self.resolve_pack_bots(pack.bots).await,
             });
         }
 
