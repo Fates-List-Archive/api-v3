@@ -165,10 +165,10 @@ async fn main() -> std::io::Result<()> {
             .service(core::search_tags)
 
             // Votes
-            .service(votes::vote_bot)
-            .service(votes::vote_server)
-            .service(votes::has_user_bot_voted)
-            .service(votes::has_user_server_voted)
+            .service(votes::create_bot_vote)
+            .service(votes::create_server_vote)
+            .service(votes::get_bot_votes)
+            .service(votes::get_server_votes)
 
             // Login
             .service(login::get_oauth2)
@@ -181,15 +181,15 @@ async fn main() -> std::io::Result<()> {
             .service(security::new_bot_token)
             .service(security::new_user_token)
             .service(security::new_server_token)
-            .service(security::revoke_client)
+            .service(security::revoke_frostpaw_client_auth)
             
             // Bot Actions
             .service(botactions::add_bot)
             .service(botactions::edit_bot)
             .service(botactions::transfer_ownership)
             .service(botactions::delete_bot)
-            .service(botactions::import_rdl)
-            .service(botactions::import_sources)
+            .service(botactions::import_bot)
+            .service(botactions::get_import_sources)
             .service(botactions::get_bot)
             .service(botactions::random_bot)
             .service(botactions::post_stats)            

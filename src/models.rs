@@ -645,7 +645,7 @@ impl APIResponse {
     pub fn err_small(reason: &dyn APIError) -> Self {
         APIResponse {
             done: false,
-            reason: Some(reason.name().replace("\"", "")),
+            reason: Some(reason.name().replace('"', "")),
             context: reason.context(),
         }
     }
@@ -1460,39 +1460,31 @@ impl APIError for CheckBotError {
     }
 }
 
+#[derive(Serialize)]
 pub enum PackCheckError {
     TooManyBots,
     InvalidBotId,
     TooFewBots,
     InvalidIcon,
     InvalidBanner,
-    SQLError(sqlx::Error),
     InvalidPackId,
     DescriptionTooShort,
+    SQLError(#[serde(skip)] sqlx::Error),
 }
 
-impl PackCheckError {
-    pub fn to_string(&self) -> String {
+impl APIError for PackCheckError {
+    fn name(&self) -> String {
         match self {
-            Self::TooManyBots => "You cannot have more than 7 bots in a pack".to_string(),
-            Self::InvalidBotId => "One of your bot IDs is invalid".to_string(),
-            Self::TooFewBots => {
-                "You must have at least 2 bots in a pack. Recheck the Bot IDs?".to_string()
-            }
-            Self::InvalidIcon => "Your icon must start with https://".to_string(),
-            Self::InvalidBanner => "Your icon must start with https://".to_string(),
-            Self::SQLError(err) => format!("SQL error: {}", err),
-            Self::InvalidPackId => {
-                "Your pack ID is invalid. This error should *never* be seen".to_string()
-            }
-            Self::DescriptionTooShort => {
-                "Your description must be at least 10 characters long".to_string()
-            }
+            Self::SQLError(_) => format!("SQLError"),
+            _ => "PackCheckError.".to_string()+&serde_json::to_string(self).unwrap_or_default()
         }
+    }
+
+    fn context(&self) -> Option<String> {
+        None
     }
 }
 
-// Ignore serialize
 pub enum BannerCheckError {
     BadURL(reqwest::Error),
     StatusError(String),

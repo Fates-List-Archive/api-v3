@@ -7,7 +7,7 @@ use log::error;
 
 /// Create Bot Vote
 #[patch("/users/{user_id}/bots/{bot_id}/votes")]
-async fn vote_bot(
+async fn create_bot_vote(
     req: HttpRequest,
     info: web::Path<models::GetUserBotPath>,
     vote: web::Query<models::VoteBotQuery>,
@@ -45,7 +45,7 @@ async fn vote_bot(
 
 /// Create Server Vote
 #[patch("/users/{user_id}/servers/{server_id}/votes")]
-async fn vote_server(
+async fn create_server_vote(
     req: HttpRequest,
     info: web::Path<models::GetUserServerPath>,
     vote: web::Query<models::VoteBotQuery>,
@@ -91,7 +91,7 @@ async fn vote_server(
 
 /// Bot: Has User Voted?
 #[get("/users/{user_id}/bots/{bot_id}/votes")]
-async fn has_user_bot_voted(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
+async fn get_bot_votes(req: HttpRequest, info: web::Path<models::GetUserBotPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let user_flags = data.database.get_user_flags(info.user_id).await;
@@ -109,7 +109,7 @@ async fn has_user_bot_voted(req: HttpRequest, info: web::Path<models::GetUserBot
 
 /// Server: Has User Voted?
 #[get("/users/{user_id}/servers/{server_id}/votes")]
-async fn has_user_server_voted(req: HttpRequest, info: web::Path<models::GetUserServerPath>) -> HttpResponse {
+async fn get_server_votes(req: HttpRequest, info: web::Path<models::GetUserServerPath>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     
     let user_flags = data.database.get_user_flags(info.user_id).await;

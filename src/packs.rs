@@ -74,21 +74,13 @@ async fn add_pack(
     let res = pack_check(data, &mut pack).await;
 
     if res.is_err() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(res.unwrap_err().to_string()),
-            context: Some("Add pack error".to_string()),
-        });
+        HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&res.unwrap_err()));
     }
 
     let res = data.database.add_pack(pack).await;
 
     if res.is_err() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(res.unwrap_err().to_string()),
-            context: Some("Add pack error".to_string()),
-        });
+        HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&res.unwrap_err()));
     }
 
     HttpResponse::Ok().json(models::APIResponse::ok())
@@ -132,21 +124,14 @@ async fn edit_pack(
     let res = pack_check(data, &mut pack).await;
 
     if res.is_err() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(res.unwrap_err().to_string()),
-            context: Some("Edit pack error".to_string()),
-        });
+        HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&res.unwrap_err()));
     }
 
     let res = data.database.edit_pack(pack).await;
 
     if res.is_err() {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some(res.unwrap_err().to_string()),
-            context: Some("Edit pack error".to_string()),
-        });
+        HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&res.unwrap_err()));
+
     }
 
     HttpResponse::Ok().json(models::APIResponse::ok())

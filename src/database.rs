@@ -2108,7 +2108,7 @@ impl Database {
         )
         .execute(&self.pool)
         .await
-        .map_err(models::PackCheckError::SQLError)?;
+        .unwrap(); // If this errors,
 
         Ok(())
     }

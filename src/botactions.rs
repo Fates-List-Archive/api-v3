@@ -676,7 +676,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
 
 // Get Import Sources
 #[get("/import-sources")]
-async fn import_sources(_req: HttpRequest) -> HttpResponse {
+async fn get_import_sources(_req: HttpRequest) -> HttpResponse {
     HttpResponse::Ok().json(models::ImportSourceList {
         sources: vec![
             models::ImportSourceListItem {
@@ -695,9 +695,8 @@ async fn import_sources(_req: HttpRequest) -> HttpResponse {
     })
 }
 
-// Import bots
 #[post("/users/{user_id}/bots/{bot_id}/import")]
-async fn import_rdl(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src: web::Query<models::ImportQuery>, body: web::Json<models::ImportBody>) -> HttpResponse {
+async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src: web::Query<models::ImportQuery>, body: web::Json<models::ImportBody>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = id.user_id;
     let auth_default = &HeaderValue::from_str("").unwrap();

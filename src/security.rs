@@ -47,7 +47,7 @@ async fn new_user_token(req: HttpRequest, id: web::Path<models::FetchBotPath>) -
 
 /// Revokes a clients auth
 #[delete("/users/{id}/frostpaw/clients/{client_id}")]
-async fn revoke_client(req: HttpRequest, id: web::Path<models::UserClientAuth>) -> HttpResponse {
+async fn revoke_frostpaw_client_auth(req: HttpRequest, id: web::Path<models::UserClientAuth>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
     let user_id = id.id;
     let client_id = id.client_id.clone();

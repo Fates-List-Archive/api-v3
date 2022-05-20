@@ -658,7 +658,7 @@ This is to allow reuse of the Bot struct in Get Bot Settings which *does* contai
                     },
 
                     models::Route {
-                        title: "Gets Bot Settings",
+                        title: "Get Bot Settings",
                         method: "GET",
                         path: "/users/{user_id}/bots/{bot_id}/settings",
                         path_params: &body(PATH_PARAMS, &models::GetUserBotPath {
@@ -712,7 +712,7 @@ def random_bot():
                     },
                     
                     models::Route {
-                        title: "New Bot",
+                        title: "Add Bot",
                         method: "POST",
                         path: "/users/{id}/bots",
                         description: r#"
@@ -1114,6 +1114,33 @@ but must exist in the object"#,
                         }),
                         query_params: "",
                         request_body: &body(REQ_BODY, &models::BotPack::default()),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Edit Pack",
+                        method: "PATCH",
+                        path: "/users/{id}/packs",
+                        description: r#"
+Edits a bot pack. 
+
+- Set ``id`` to the pack id that is to be editted, 
+- Set ``created_at`` to any datetime
+- In user and bot, only ``id`` must be filled, all others can be left empty string
+but must exist in the object"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { 
+                            id: 0
+                        }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::BotPack {
+                            id: uuid::Uuid::new_v4().to_string(),
+                            ..models::BotPack::default()
+                        }),
                         response_body: &body(RESP_BODY, &models::APIResponse {
                             done: true,
                             reason: None,
