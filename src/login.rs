@@ -111,7 +111,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
     let auth_default = &HeaderValue::from_str("").unwrap();
 
-    let redirect_url_domain = req
+    let mut redirect_url_domain = req
         .headers()
         .get("Frostpaw-Server")
         .unwrap_or(auth_default)
@@ -210,10 +210,14 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 return HttpResponse::Ok().json(user);
             }
 
+            if redirect_url_domain.ends_with("fateslist.xyz") {
+                redirect_url_domain = "https://fateslist.xyz"
+            }
+
             let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());
             let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", cookie_val)
                 .path("/")
-                .domain("fateslist.xyz")
+                .domain(redirect_url_domain)
                 .secure(true)
                 .http_only(true)
                 .max_age(CookieDuration::new(60 * 60 * 8, 0))
