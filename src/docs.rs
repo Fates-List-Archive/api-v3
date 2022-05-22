@@ -46,6 +46,8 @@ fn doc(
         match std::env::var_os("SANITY") {
             None => {}, 
             Some(_) => {
+                // Stage 1 sanity checker (stage 2 WIP but will cover the reverse)
+
                 // Check length to ensure all routes
                 let contents = std::fs::read_to_string("src/main.rs")
                     .expect("Something went wrong reading src/main.rs to validate docs");
@@ -1220,7 +1222,94 @@ Internally is used by client for extra owner rendering etc."#,
                         response_body: &body(RESP_BODY, &models::Profile {
                             vote_reminder_channel: Some("939123825885474898".to_string()),
                             action_logs: vec![models::ActionLog::default()],
+                            connections: vec![models::FrostpawUserConnection::default()],
                             ..models::Profile::default()
+                        }),
+                        auth_types: vec![],
+                    },
+
+                    models::Route {
+                        title: "Update Profile",
+                        method: "PATCH",
+                        path: "/profiles/{id}",
+                        description: r#"
+Edits a user profile.
+
+``user`` can be completely empty valued but the keys present in a User must
+be present"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::Profile {
+                            vote_reminder_channel: Some("939123825885474898".to_string()),
+                            action_logs: vec![models::ActionLog::default()],
+                            ..models::Profile::default()
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Receive Profile Roles",
+                        method: "PUT",
+                        path: "/profiles/{id}/roles",
+                        description: "Gives user roles on the Fates List support server",
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::RoleUpdate::default()),
+                        auth_types: vec![models::RouteAuthType::User],
+                    }
+                ]
+            },
+
+            models::RouteList {
+                file_name: "reviews.md",
+                routes: vec![
+
+                    models::Route {
+                        title: "Get Reviews",
+                        method: "GET",
+                        path: "/reviews/{id}",
+                        description: r#"
+Gets reviews for a reviewable entity.
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+This reviewable entities id which is a ``i64`` is the id that is specifed in the
+path.
+
+``page`` must be greater than 0 or omitted (which will default to page 1).
+
+``user_id`` is optional for this endpoint but specifying it will provide ``user_reviews`` if
+the user has made a review. This will tell you the users review for the entity.
+
+``per_page`` (amount of root/non-reply reviews per page) is currently set to 9. 
+This may change in the future and is given by ``per_page`` key.
+
+``from`` contains the index/count of the first review of the page."#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: &body(QUERY_PARAMS, &models::ReviewQuery {
+                            page: Some(1),
+                            user_id: Some(0),
+                            target_type: models::TargetType::Bot,
+                        }),
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::ParsedReview {
+                            reviews: vec![models::Review::default()],
+                            user_review: Some(models::Review::default()),
+                            per_page: 9,
+                            from: 0,
+                            stats: models::ReviewStats {
+                                total: 78,
+                                average_stars: bigdecimal::BigDecimal::from_f32(8.8).unwrap(),
+                            },
                         }),
                         auth_types: vec![],
                     }

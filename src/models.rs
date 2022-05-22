@@ -367,6 +367,20 @@ pub struct FrostpawUserConnection {
     pub repeats: i64,
 }
 
+impl Default for FrostpawUserConnection {
+    fn default() -> Self {
+        FrostpawUserConnection {
+            client: FrostpawClient::default(),
+            user_id: 0,
+            expires_on: chrono::DateTime::<chrono::Utc>::from_utc(
+                chrono::NaiveDateTime::from_timestamp(0, 0),
+                chrono::Utc,
+            ),
+            repeats: 0,
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct NotificationInfo {
     pub public_key: String

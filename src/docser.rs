@@ -65,6 +65,8 @@ pub struct Serializer {
     is_key: bool,
     in_struct: usize,
     root_ser: bool, // Whether or not root struct has been serialized
+    array_len: usize,
+    array_curr: usize,
 }
 
 pub fn serialize_docs<T>(value: &T) -> Result<String>
@@ -75,7 +77,9 @@ where
         output: String::new(),
         is_key: true, // This is set by serialize_key, value does not matter
         in_struct: 0,
-        root_ser: false
+        root_ser: false,
+        array_len: 0,
+        array_curr: 0,
     };
     value.serialize(&mut serializer)?;
     Ok(serializer.output)
@@ -270,8 +274,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     // doesn't make a difference in JSON because the length is not represented
     // explicitly in the serialized form. Some serializers may only be able to
     // support sequences for which the length is known up front.
-    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.output += "(Array) ";
+        self.array_len = len.unwrap_or_default();
         Ok(self)
     }
 
@@ -358,13 +363,19 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         value.serialize(&mut **self)?;
-        self.output += ", ";
+
+        if self.array_len > 1 && self.array_curr < self.array_len - 1 {
+            self.output += ", ";
+        }
+
+        self.array_curr += 1;
 
         Ok(())
     }
 
     // Close the sequence.
     fn end(self) -> Result<()> {
+        self.array_curr = 0;
         Ok(())
     }
 }

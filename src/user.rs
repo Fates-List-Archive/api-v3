@@ -90,7 +90,7 @@ async fn update_profile(
 }
 
 #[put("/profiles/{id}/old-roles")]
-async fn recieve_profile_roles(
+async fn receive_profile_roles(
     req: HttpRequest,
     info: web::Path<models::FetchBotPath>,
 ) -> HttpResponse {
