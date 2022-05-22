@@ -211,13 +211,13 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
             }
 
             if redirect_url_domain.ends_with("fateslist.xyz") {
-                redirect_url_domain = "https://fateslist.xyz"
+                redirect_url_domain = "fateslist.xyz";
             }
 
             let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());
             let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", cookie_val)
                 .path("/")
-                .domain(redirect_url_domain)
+                .domain(redirect_url_domain.replace("https://", ""))
                 .secure(true)
                 .http_only(true)
                 .max_age(CookieDuration::new(60 * 60 * 8, 0))
