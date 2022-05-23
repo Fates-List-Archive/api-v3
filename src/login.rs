@@ -117,12 +117,11 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
         .unwrap_or(auth_default)
         .to_str()
         .unwrap()
-        .replace("https://", "")
-        .replace("www.", "");
+        .replace("https://", "");
 
     let redirect_url_domain = redirect_url_domain.as_str();
 
-    let valid_domains = vec!["fateslist.xyz", "www.fateslist.xyz", "sunbeam.fateslist.xyz", "selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
+    let valid_domains = vec!["fateslist.xyz", "sunbeam.fateslist.xyz", "selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
     
     
     if !valid_domains.contains(&redirect_url_domain) {
@@ -239,8 +238,7 @@ async fn del_oauth2(req: HttpRequest) -> HttpResponse {
         .unwrap_or(auth_default)
         .to_str()
         .unwrap()
-        .replace("https://", "")
-        .replace("www.", "");
+        .replace("https://", "");
 
     let redirect_url_domain = redirect_url_domain.as_str();
 
