@@ -95,7 +95,7 @@ async fn main() -> std::io::Result<()> {
     
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin_fn(|origin, _req_head| origin.as_bytes().ends_with(b"fateslist.xyz") || origin.as_bytes().ends_with(b"githubpreview.dev"))
+            .allowed_origin_fn(|origin, _req_head| origin.as_bytes().ends_with(b"fateslist.xyz") || origin.as_bytes().ends_with(b"pages.dev") || origin.as_bytes().ends_with(b"githubpreview.dev"))
             .allowed_methods(vec![
                 "GET", "HEAD", "PUT", "POST", "PATCH", "DELETE", "OPTIONS",
             ])
