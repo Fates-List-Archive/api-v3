@@ -1,4 +1,3 @@
-#![feature(derive_default_enum)]
 #![feature(lint_reasons)]
 #![warn(clippy::pedantic)]
 

@@ -111,25 +111,29 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
     let auth_default = &HeaderValue::from_str("").unwrap();
 
-    let mut redirect_url_domain = req
+    let redirect_url_domain = req
         .headers()
-        .get("Frostpaw-Server")
+        .get("Origin")
         .unwrap_or(auth_default)
         .to_str()
-        .unwrap();
+        .unwrap()
+        .replace("https://", "")
+        .replace("www.", "");
 
-    let valid_domains = vec!["https://fateslist.xyz", "https://www.fateslist.xyz", "https://sunbeam.fateslist.xyz", "https://selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
+    let redirect_url_domain = redirect_url_domain.as_str();
+
+    let valid_domains = vec!["fateslist.xyz", "www.fateslist.xyz", "sunbeam.fateslist.xyz", "selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
     
     
     if !valid_domains.contains(&redirect_url_domain) {
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
-            reason: Some("Frostpaw-Server is not in valid format, perhaps your client isn't setting the header properly?".to_string()),
-            context: Some("Frostpaw-Server".to_string())
+            reason: Some("Origin header is not in valid format, perhaps your client isn't setting the header properly?".to_string()),
+            context: None,
         });
     }
 
-    let redirect_uri = format!("{}/frostpaw/login", redirect_url_domain);
+    let redirect_uri = format!("https://{}/frostpaw/login", redirect_url_domain);
 
     let login = login_user(data, code, redirect_uri).await;
 
@@ -210,14 +214,10 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 return HttpResponse::Ok().json(user);
             }
 
-            if redirect_url_domain.ends_with("fateslist.xyz") {
-                redirect_url_domain = "fateslist.xyz";
-            }
-
             let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());
             let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", cookie_val)
+                .domain(".".to_string() + redirect_url_domain)
                 .path("/")
-                .domain(redirect_url_domain.replace("https://", ""))
                 .secure(true)
                 .http_only(true)
                 .max_age(CookieDuration::new(60 * 60 * 8, 0))
@@ -230,10 +230,23 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
 /// 'Deletes' (logs out) a oauth2 login
 #[delete("/oauth2")]
-async fn del_oauth2(_req: HttpRequest) -> HttpResponse {
+async fn del_oauth2(req: HttpRequest) -> HttpResponse {
+    let auth_default = &HeaderValue::from_str("").unwrap();
+
+    let redirect_url_domain = req
+        .headers()
+        .get("Origin")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap()
+        .replace("https://", "")
+        .replace("www.", "");
+
+    let redirect_url_domain = redirect_url_domain.as_str();
+
     let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", "")
+        .domain(".".to_string() + redirect_url_domain)
         .path("/")
-        .domain("fateslist.xyz")
         .secure(true)
         .http_only(true)
         .same_site(SameSite::Strict)
