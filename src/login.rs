@@ -5,7 +5,7 @@ use crate::converters;
 use actix_web::cookie::time::Duration as CookieDuration;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::http::header::HeaderValue;
-use actix_web::{delete, get, post, web, HttpRequest, HttpResponse};
+use actix_web::{delete, get, post, web, http, HttpRequest, HttpResponse};
 use log::error;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -123,7 +123,6 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
     let valid_domains = vec!["fateslist.xyz", "sunbeam.fateslist.xyz", "selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
     
-    
     if !valid_domains.contains(&redirect_url_domain) {
         return HttpResponse::BadRequest().json(models::APIResponse {
             done: false,
@@ -213,19 +212,36 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 return HttpResponse::Ok().json(user);
             }
 
+            let url = if redirect_url_domain.ends_with("fateslist.xyz") {
+                "fateslist.xyz"
+            } else {
+                redirect_url_domain
+            };
+
             let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());
             let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", cookie_val)
-                .domain(".".to_string() + redirect_url_domain)
-                .path("/")
+                .domain(url)
                 .secure(true)
                 .http_only(true)
                 .max_age(CookieDuration::new(60 * 60 * 8, 0))
-                .same_site(SameSite::Strict)
+                .same_site(SameSite::Lax)
                 .finish();
             return HttpResponse::Ok().cookie(sunbeam_cookie).json(user);
         }
     }
 }
+
+#[get("/confirm-login")]
+async fn confirm_login(req: HttpRequest) -> HttpResponse {
+    let cookie = req.cookie("sunbeam-session:warriorcats");
+
+    if cookie.is_none() {
+        HttpResponse::build(http::StatusCode::NO_CONTENT).finish()
+    } else {
+        HttpResponse::build(http::StatusCode::NOT_FOUND).finish()
+    }
+}
+
 
 /// 'Deletes' (logs out) a oauth2 login
 #[delete("/oauth2")]
@@ -243,21 +259,17 @@ async fn del_oauth2(req: HttpRequest) -> HttpResponse {
     let redirect_url_domain = redirect_url_domain.as_str();
 
     let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", "")
-        .domain(".".to_string() + redirect_url_domain)
-        .path("/")
+        .domain(redirect_url_domain)
         .secure(true)
         .http_only(true)
-        .same_site(SameSite::Strict)
+        .same_site(SameSite::Lax)
         .finish();
 
     let mut resp = HttpResponse::Ok().json(models::APIResponse::ok());
     let cookie_del = resp.add_removal_cookie(&sunbeam_cookie);
 
-    match cookie_del {
-        Err(err) => {
-            error!("{}", err);
-        }
-        _ => {}
+    if let Err(err) = cookie_del {
+        error!("{}", err);
     }
 
     resp
