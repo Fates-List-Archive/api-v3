@@ -36,6 +36,11 @@ fn body<T: Serialize>(typ: &str, obj: T) -> String {
     )
 }
 
+struct Sanity {
+    id: String,
+    method: String
+}
+
 fn doc(
     basic_api: &str,
     routes: Vec<models::RouteList>
@@ -46,44 +51,109 @@ fn doc(
         match std::env::var_os("SANITY") {
             None => {}, 
             Some(_) => {
-                // Stage 1 sanity checker (stage 2 WIP but will cover the reverse)
-
                 // Check length to ensure all routes
                 let contents = std::fs::read_to_string("src/main.rs")
                     .expect("Something went wrong reading src/main.rs to validate docs");
     
-                    for line in contents.lines() {
-                        let check_d = line.replace(' ', "").replace('\t', "");
-                        if check_d.starts_with(".service") {
-                            // If we find a service, we parse it and remove comments and then split by namespace
-                            let service = check_d.replace(".service(", "");
-                            let service = service.split(')').collect::<Vec<&str>>();
-                            let service = service.get(0).unwrap();
-                            let service = service.split("::").collect::<Vec<&str>>();
-                            
-                            if *(*service.get(0).unwrap()) != route.file_name.replace(".md", "").replace('-', "") {
-                                continue;
+                for line in contents.lines() {
+                    let check_d = line.replace(' ', "").replace('\t', "");
+                    if check_d.starts_with(".service") {
+                        // If we find a service, we parse it and remove comments and then split by namespace
+                        let service = check_d.replace(".service(", "");
+                        let service = service.split(')').collect::<Vec<&str>>();
+                        let service = service.get(0).unwrap();
+                        let service = service.split("::").collect::<Vec<&str>>();
+                        
+                        let route_service = route.file_name.replace(".md", "").replace('-', "");
+
+                        if *(*service.get(0).unwrap()) != route_service {
+                            continue;
+                        }
+
+                        debug!("Found service {:?}", service);
+                        
+                        // This is highly inefficient but on most devices, hits cache and as such is not a problem
+                        let router_file = std::fs::read_to_string(format!("src/{}.rs", route_service))
+                            .expect("Something went wrong reading src/main.rs to validate docs");
+
+                        // Validate that we have the service
+                        let endpoint = service.get(1).unwrap();
+
+                        // Step 1. Does endpoint exist in route list?
+
+                        let mut got_ep = false;
+                        for doc in &route.routes {
+                            if doc.title.replace(' ', "_").to_lowercase() == **endpoint {
+                                got_ep = true;
+                                break;
                             }
-    
-                            debug!("Found service {:?}", service);
+                        }
 
-                            // Validate that we have the service
-                            let endpoint = service.get(1).unwrap();
+                        assert!(got_ep, "Could not find endpoint {} in route list", endpoint);
 
-                            // Step 1. Does endpoint exist in route list?
-                            let mut got_ep = false;
-                            for doc in &route.routes {
-                                if doc.title.replace(' ', "_").to_lowercase() == **endpoint {
-                                    got_ep = true;
+                        // Find the endpoint in router_file
+                        let lines = router_file.lines();
+                        let mut peekable = lines.peekable();
+                        
+                        let mut found_services = Vec::new();
+
+                        while let Some(line) = peekable.next() {
+                            if line.starts_with("#[") {
+                                let next_line = peekable.peek().expect("Could not peek next line of file");
+                                
+                                // Appeasing the borrow checker is fun
+                                let service = next_line
+                                    .replace("async fn", "")
+                                    .replace("pub", "")
+                                    .replace(' ', "");
+                                    
+                                let service = service.split("(");
+
+                                let service = service
+                                    .collect::<Vec<&str>>();
+                                
+                                let service = service
+                                    .get(0)
+                                    .unwrap();
+
+                                let method = line.split("(");
+
+                                let method = method
+                                    .collect::<Vec<&str>>();
+                                
+                                let method = method
+                                    .get(0)
+                                    .unwrap();
+                                
+                                let method = method
+                                    .replace("#[", "");
+                                
+                                debug!("Found service (in file) {:?} with method {:?}", service, method);
+
+                                found_services.push(Sanity {
+                                    id: (**service).to_string(),
+                                    method,
+                                });
+                            }
+                        }
+
+                        // Step 2. Does all endpoint in docs exist in found_services with the proper method?
+                        for doc in &route.routes { 
+                            let ep = doc.title.replace(' ', "_").to_lowercase();
+
+                            let mut found_ep = false;
+                            for service in &found_services {
+                                if service.id == ep {
+                                    assert!(service.method.to_uppercase() == doc.method, "Found endpoint {} in found_services but got invalid method {}, expected {}", ep, service.method, doc.method);
+                                    found_ep = true;
                                     break;
                                 }
                             }
 
-                            assert!(got_ep, "Could not find endpoint {} in route list", endpoint);
-
-                            // TODO: Check method
+                            assert!(found_ep, "Could not find endpoint {} in found_services", ep);
                         }
                     }
+                }
             },
         };
 
@@ -300,18 +370,6 @@ A default API Response will be of the below format:
                     },
 
                     models::Route {
-                        title: "Preview Description",
-                        method: "WS",
-                        path: "/ws/_preview",
-                        path_params: "",
-                        query_params: "",
-                        description: "Given the preview and long description, parse it and give the sanitized output. You must first connect over websocket!",
-                        request_body: &body(REQ_BODY, &models::PreviewRequest::default()),
-                        response_body: &body(RESP_BODY, &models::PreviewResponse::default()),
-                        auth_types: vec![]
-                    },
-
-                    models::Route {
                         title: "Search List",
                         method: "GET",
                         path: "/search?q={query}",
@@ -481,26 +539,6 @@ by the site to login.
                         response_body: &body(RESP_BODY, &models::OauthUserLogin::default()),
                         auth_types: vec![]
                     },
-
-                    models::Route {
-                        title: "Delete OAuth2 Login",
-                        method: "DELETE",
-                        path: "/oauth2",
-                        description: r#"
-'Deletes' (logs out) a oauth2 login. Always call this when logging out 
-even if you do not use cookies as it may perform other logout tasks in future
-
-This API is essentially a logout"#,
-                        path_params: "",
-                        query_params: "",
-                        request_body: "",
-                        response_body: &body(RESP_BODY, &models::APIResponse {
-                            done: true,
-                            reason: None,
-                            context: None,
-                        }),
-                        auth_types: vec![]
-                    }
                 ] 
             },
 
@@ -1312,6 +1350,87 @@ This may change in the future and is given by ``per_page`` key.
                             },
                         }),
                         auth_types: vec![],
+                    },
+
+                    models::Route {
+                        title: "Add Review",
+                        method: "POST",
+                        path: "/reviews/{id}",
+                        description: r#"
+Creates a review.
+
+``id`` and ``page`` should be set to null or omitted though are ignored by this endpoint
+so there should not be an error even if provided.
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+The ``parent_id`` is optional and is used to create a reply to a review.
+
+``target_type`` is a [TargetType](../enums-ref#targettype)
+
+``review`` is a [Review](../enums-ref#review)
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: &body(QUERY_PARAMS, &models::ReviewQuery {
+                            page: None,
+                            user_id: Some(0),
+                            target_type: models::TargetType::Bot,
+                        }),
+                        request_body: &body(REQ_BODY, &models::Review {
+                            parent_id: Some(uuid::Uuid::new_v4()),
+                            ..models::Review::default()
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Edit Review",
+                        method: "PATCH",
+                        path: "/reviews/{id}",
+                        description: r#"
+Edits a review.
+
+``page`` should be set to null or omitted though are ignored by this endpoint
+so there should not be an error even if provided.
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+This reviewable entities id which is a ``i64`` is the id that is specifed in the
+path.
+
+The id of the review must be specified as ``id`` in the request body which accepts a ``Review``
+object. The ``user_id`` specified must *own*/have created the review being editted. Staff should
+edit reviews using Lynx when required.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: &body(QUERY_PARAMS, &models::ReviewQuery {
+                            page: None,
+                            user_id: Some(0),
+                            target_type: models::TargetType::Bot,
+                        }),
+                        request_body: &body(REQ_BODY, &models::Review {
+                            id: Some(uuid::Uuid::new_v4()),
+                            ..models::Review::default()
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
                     }
                 ]
             }

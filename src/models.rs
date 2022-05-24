@@ -491,17 +491,6 @@ pub struct ListStats {
     pub bots: Vec<IndexBot>,
     pub servers: Vec<IndexBot>,
     pub uptime: f64,
-    pub cpu_idle: f64,
-    pub mem_total: u64,
-    pub mem_free: u64,
-    pub mem_available: u64,
-    pub swap_total: u64,
-    pub swap_free: u64,
-    pub mem_dirty: u64,
-    pub mem_active: u64,
-    pub mem_inactive: u64,
-    pub mem_buffers: u64,
-    pub mem_committed: u64,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]

@@ -171,11 +171,9 @@ async fn main() -> std::io::Result<()> {
 
             // Login
             .service(login::get_oauth2)
-            .service(login::del_oauth2)
             .service(login::do_oauth2)
             .service(login::get_frostpaw_client)
             .service(login::refresh_access_token)
-            .service(login::confirm_login)
             
             // Security
             .service(security::new_bot_token)
@@ -231,7 +229,7 @@ async fn main() -> std::io::Result<()> {
             .service(commands::delete_commands)
 
             // WS
-            .service(ws::preview)
+            .service(ws::preview_description)
             .service(ws::bot_ws)
 
             // Notifications

@@ -2,10 +2,8 @@
 use crate::models;
 use crate::models::APIError;
 use crate::converters;
-use actix_web::cookie::time::Duration as CookieDuration;
-use actix_web::cookie::{Cookie, SameSite};
 use actix_web::http::header::HeaderValue;
-use actix_web::{delete, get, post, web, http, HttpRequest, HttpResponse};
+use actix_web::{get, post, web, HttpRequest, HttpResponse};
 use log::error;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -212,67 +210,9 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 return HttpResponse::Ok().json(user);
             }
 
-            let url = if redirect_url_domain.ends_with("fateslist.xyz") {
-                "fateslist.xyz"
-            } else {
-                redirect_url_domain
-            };
-
-            let cookie_val = base64::encode(serde_json::to_string(&user).unwrap());
-            let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", cookie_val)
-                .domain(url)
-                .secure(true)
-                .http_only(true)
-                .max_age(CookieDuration::new(60 * 60 * 8, 0))
-                .same_site(SameSite::Lax)
-                .finish();
-            return HttpResponse::Ok().cookie(sunbeam_cookie).json(user);
+            return HttpResponse::Ok().json(user);
         }
     }
-}
-
-#[get("/confirm-login")]
-async fn confirm_login(req: HttpRequest) -> HttpResponse {
-    let cookie = req.cookie("sunbeam-session:warriorcats");
-
-    if cookie.is_none() {
-        HttpResponse::build(http::StatusCode::NO_CONTENT).finish()
-    } else {
-        HttpResponse::build(http::StatusCode::NOT_FOUND).finish()
-    }
-}
-
-
-/// 'Deletes' (logs out) a oauth2 login
-#[delete("/oauth2")]
-async fn del_oauth2(req: HttpRequest) -> HttpResponse {
-    let auth_default = &HeaderValue::from_str("").unwrap();
-
-    let redirect_url_domain = req
-        .headers()
-        .get("Origin")
-        .unwrap_or(auth_default)
-        .to_str()
-        .unwrap()
-        .replace("https://", "");
-
-    let redirect_url_domain = redirect_url_domain.as_str();
-
-    let sunbeam_cookie = Cookie::build("sunbeam-session:warriorcats", "")
-        .domain(redirect_url_domain)
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::Lax)
-        .finish();
-
-    let mut resp = HttpResponse::Ok().json(models::APIResponse::ok());
-    let cookie_del = resp.add_removal_cookie(&sunbeam_cookie);
-
-    if let Err(err) = cookie_del {
-        error!("{}", err);
-    }
-
-    resp
 }
 
 /// Actual Oauth2 impl

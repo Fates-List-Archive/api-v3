@@ -9,7 +9,7 @@ use log::{error};
 use sqlx::postgres::PgPool;
 
 #[get("/ws/_preview")]
-pub async fn preview(req: HttpRequest, body: web::Payload) -> Result<HttpResponse, Error> {
+pub async fn preview_description(req: HttpRequest, body: web::Payload) -> Result<HttpResponse, Error> {
     let (response, mut session, mut msg_stream) = actix_ws::handle(&req, body)?;
 
     let mut close_reason = None;
