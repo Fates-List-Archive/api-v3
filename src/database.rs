@@ -656,6 +656,37 @@ impl Database {
         owners
     }
 
+    pub async fn get_bot_events(&self, bot_id: i64) -> Vec<models::BotEvent> {
+        let mut events = Vec::new();
+
+        let events_row = sqlx::query!(
+            "SELECT id, event_type, ts, css, reason FROM bot_events WHERE bot_id = $1",
+            bot_id
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        if events_row.is_err() {
+            return Vec::new();
+        }
+
+        let events_row = events_row.unwrap();
+
+        for row in events_row {
+            let event = models::BotEvent {
+                id: row.id.to_string(),
+                event_type: models::BotEventType::try_from(row.event_type)
+                    .unwrap_or(models::BotEventType::Promotion),
+                ts: row.ts,
+                css: row.css,
+                reason: row.reason,
+            };
+            events.push(event);
+        }
+
+        events
+    }
+
     pub async fn get_bot_commands(&self, bot_id: i64) -> Vec<models::BotCommand> {
         // Commands
         let mut commands = Vec::new();
@@ -779,6 +810,7 @@ impl Database {
                     extra_links,
                     created_at: data.created_at,
                     vpm: Some(self.get_votes_per_month(bot_id).await),
+                    events: self.get_bot_events(bot_id).await,
                     last_stats_post: data.last_stats_post,
                     last_updated_at: data.last_updated_at,
                     description: data.description,
@@ -1244,7 +1276,7 @@ impl Database {
         };
 
         sqlx::query!(
-            "INSERT INTO events (id, type, event) VALUES ($1, $2, $3)",
+            "INSERT INTO ws_events (id, type, event) VALUES ($1, $2, $3)",
             target_id,
             target_type,
             json!(hashmap)

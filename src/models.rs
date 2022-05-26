@@ -120,6 +120,17 @@ impl ImportSource {
     }
 }
 
+#[derive(
+    Eq, TryFromPrimitive, Serialize_repr, Deserialize_repr, PartialEq, Clone, Copy, Default, Debug, EnumIter
+)]
+#[repr(i32)]
+pub enum BotEventType {
+    #[default]
+    Promotion = 0,
+    Maintenance = 1,
+    Announcement = 2,
+}
+
 // A import source item - a bot list that can be imported from
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct ImportSourceListItem {
@@ -694,6 +705,27 @@ pub struct UserClientAuth {
     pub client_id: String,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct BotEvent {
+    pub id: String,
+    pub event_type: BotEventType,
+    pub ts: chrono::DateTime<chrono::Utc>,
+    pub reason: String,
+    pub css: String,
+}
+
+impl Default for BotEvent {
+    fn default() -> Self {
+        BotEvent {
+            id: "Some UUID here".to_string(),
+            event_type: BotEventType::Promotion,
+            ts: chrono::Utc::now(),
+            reason: "Some reason here".to_string(),
+            css: "Some CSS here".to_string(),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct BotCommand {
     pub cmd_type: CommandType,
@@ -872,6 +904,7 @@ pub struct Bot {
     pub uptime_checks_total: Option<i32>,
     pub uptime_checks_failed: Option<i32>,
     pub commands: Vec<BotCommand>,
+    pub events: Vec<BotEvent>,
     pub webhook: Option<String>,
     pub webhook_secret: Option<String>,
     pub webhook_type: Option<WebhookType>,
@@ -906,6 +939,7 @@ impl Default for Bot {
                 chrono::NaiveDateTime::from_timestamp(0, 0),
                 chrono::Utc,
             ),
+            events: vec![BotEvent::default()],
             long_description: "blah blah blah".to_string(),
             long_description_raw: "blah blah blah unsanitized".to_string(),
             long_description_type: LongDescriptionType::MarkdownServerSide,

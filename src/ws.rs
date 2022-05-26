@@ -125,7 +125,7 @@ async fn bot_gateway_task_archive(pool: PgPool, mode: models::TargetType, id: i6
 
     // Now we get every event from redis
     let rows = sqlx::query!(
-        "SELECT event FROM events WHERE id = $1 AND type = $2",
+        "SELECT event FROM ws_events WHERE id = $1 AND type = $2",
         id,
         mode
     )

@@ -1318,7 +1318,7 @@ Gets reviews for a reviewable entity.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1367,9 +1367,9 @@ in the future.
 
 The ``parent_id`` is optional and is used to create a reply to a review.
 
-``target_type`` is a [TargetType](../enums-ref#targettype)
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
 
-``review`` is a [Review](../enums-ref#review)
+``review`` is a [Review](https://lynx.fateslist.xyz/docs/endpoints/enums#review)
 
 ``user_id`` is *required* for this endpoint and must be the user making the review. It must
 also match the user token sent in the ``Authorization`` header"#,
@@ -1404,7 +1404,7 @@ so there should not be an error even if provided.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1425,6 +1425,42 @@ also match the user token sent in the ``Authorization`` header"#,
                             id: Some(uuid::Uuid::new_v4()),
                             ..models::Review::default()
                         }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Delete Review",
+                        method: "DELETE",
+                        path: "/reviews/{rid}",
+                        description: r#"
+Deletes a review
+
+``rid`` must be a valid uuid.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header. ``page`` is currently ignored
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
+
+``target_type`` is not currently checked but it is a good idea to set it anyways. You must
+set this anyways so you might as well set it correctly."#,
+                        path_params: &body(PATH_PARAMS, &models::ReviewDeletePath {
+                            rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
+                        }),
+                        query_params: &body(QUERY_PARAMS, &models::ReviewQuery {
+                            page: None,
+                            user_id: Some(0),
+                            target_type: models::TargetType::Bot,
+                        }),
+                        request_body: "",
                         response_body: &body(RESP_BODY, &models::APIResponse {
                             done: true,
                             reason: None,
