@@ -1,5 +1,3 @@
-    docs += &doc();
-
     docs += &doc_category("Stats");
 
     docs += &doc(models::Route {

@@ -1486,7 +1486,7 @@ also match the user token sent in the ``Authorization`` header.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
 
 **This endpoint does not require ``target_type`` at all. You can safely omit it**
                 "#,
