@@ -1467,6 +1467,43 @@ set this anyways so you might as well set it correctly."#,
                             context: None,
                         }),
                         auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Vote Review",
+                        method: "PATCH",
+                        path: "/reviews/{rid}/votes",
+                        description: r#"
+Creates a vote for a review
+
+``rid`` must be a valid uuid.
+
+``user_id`` is *required* for this endpoint and must be the user making the review. It must
+also match the user token sent in the ``Authorization`` header. 
+
+**Unlike other review APIs, ``user_id`` here is in request body as ReviewVote object**
+
+A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
+in the future.
+
+``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/enums-ref#targettype)
+
+**This endpoint does not require ``target_type`` at all. You can safely omit it**
+                "#,
+                        path_params: &body(PATH_PARAMS, &models::ReviewDeletePath {
+                            rid: uuid::Uuid::new_v4().to_hyphenated().to_string(),
+                        }),
+                        query_params: "",
+                        request_body: &body(REQ_BODY, &models::ReviewVote {
+                            user_id: "user id here".to_string(),
+                            upvote: true,
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
                     }
                 ]
             }
