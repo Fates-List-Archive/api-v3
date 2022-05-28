@@ -1,16 +1,13 @@
 // Handle simple data conversions and webhook sending
 use crate::models;
 use actix_web::http::StatusCode;
-use hmac::{Hmac, Mac};
 use log::{debug, error};
 use pulldown_cmark::{html::push_html, Options, Parser};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use sha2::Sha512;
 use serde_json::json;
 use std::sync::Arc;
-
-type HmacSha512 = Hmac<Sha512>;
+use ring::hmac;
 
 pub fn invite_link(client_id: &str, invite: &str) -> String {
     if invite.starts_with("P:") && invite.len() > 2 {
@@ -163,18 +160,11 @@ pub async fn send_vote_webhook(
         let hmac_data = hmac_data.unwrap();
 
         // Add HMAC
-        let mac = HmacSha512::new_from_slice(webhook_token.as_bytes());
+	let key = hmac::Key::new(hmac::HMAC_SHA512, webhook_token.as_bytes());
 
-        if mac.is_err() {
-            error!("Failed to create HMAC");
-            return;
-        }
+	let tag = hmac::sign(&key, hmac_data.as_bytes());
 
-        let mut mac = mac.unwrap();
-
-        mac.update(hmac_data.as_bytes());
-
-        let hmac = hex::encode(mac.finalize().into_bytes());
+        let hmac = hex::encode(tag.as_ref());
 
         req = req.header("X-Webhook-Signature", hmac);
 

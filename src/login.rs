@@ -9,10 +9,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::sync::Arc;
 use uuid::Uuid;
-use sha2::Sha512;
-use hmac::{Hmac, Mac};
-
-type HmacSha512 = Hmac<Sha512>;
+use ring::hmac;
 
 /// Returns the oauth2 link to use for login
 #[get("/oauth2")]
@@ -169,27 +166,14 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 let client = client.unwrap();
 
                 // Now check HMAC
-                let mac = HmacSha512::new_from_slice(client.secret.as_bytes());
-    
-                if mac.is_err() {
-                    error!("Failed to create HMAC");
+		let key = hmac::Key::new(hmac::HMAC_SHA512, client.secret.as_bytes());
+	
+		let decoded_claw = hex::decode(claw).unwrap_or_default();
+	
+		if let Err(err) = hmac::verify(&key, claw_unseathe_time.to_string().as_bytes(), &decoded_claw) {
                     return HttpResponse::BadRequest().json(models::APIResponse {
                         done: false,
-                        reason: Some("Failed to create HMAC".to_string()),
-                        context: None,
-                    });
-                }
-        
-                let mut mac = mac.unwrap();        
-
-                mac.update(claw_unseathe_time.to_string().as_bytes());
-
-                let expected_hmac = hex::encode(mac.finalize().into_bytes());
-
-                if expected_hmac != claw {
-                    return HttpResponse::BadRequest().json(models::APIResponse {
-                        done: false,
-                        reason: Some(format!("Expected HMAC of {expected} but got {got}", expected = expected_hmac, got = claw)),
+                        reason: Some(format!("Whoa there! This client didn't provide a proper auth! {}", err)),
                         context: None,
                     });
                 }

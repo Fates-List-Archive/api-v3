@@ -3,7 +3,6 @@ name = "fates"
 version = "0.1.0"
 edition = "2021"
 
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -41,8 +40,7 @@ indexmap = { version = "1.8.0", features = ["serde"] }
 serenity = { version = "0.11", features = ["model", "http"] }
 bigdecimal = { version = "0.2.2", features = ["serde"] }
 uptime_lib = { version = "0.2.1" }
-sha2 = { version = "0.10.2" }
-hmac = { version = "0.12.1" }
+ring = "0.16"
 hex = "0.4.3"
 strum = "0.24.0"
 strum_macros = "0.24.0"
