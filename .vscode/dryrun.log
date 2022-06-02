@@ -1,5 +1,5 @@
 make --dry-run --always-make --keep-going --print-directory
 make: Entering directory '/home/meow/api-v3'
-RUSTFLAGS="-C target-cpu=native  -C link-arg=-fuse-ld=lld" DATABASE_URL=postgresql://localhost/fateslist cargo build  --release
+make cross
 make: Leaving directory '/home/meow/api-v3'
  

@@ -1,15 +1,25 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # GNU Make 4.3
+ 
 # Built for x86_64-redhat-linux-gnu
+ 
 # Copyright (C) 1988-2020 Free Software Foundation, Inc.
+ 
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+ 
 # This is free software: you are free to change and redistribute it.
+ 
 # There is NO WARRANTY, to the extent permitted by law.
+ 
 
-# Make data base, printed on Mon May 23 12:44:47 2022
+ 
+# Make data base, printed on Tue May 31 10:47:35 2022
+ 
 
 # Variables
 
+# makefile (from 'Makefile', line 2)
+PROJ_NAME = api-v3
 # environment
 LC_ALL = C
 # environment
@@ -32,6 +42,8 @@ VSCODE_HANDLES_UNCAUGHT_ERRORS = true
 .VARIABLES := 
 # environment
 PWD = /home/meow/api-v3
+# makefile (from 'common-mk/Makefile', line 10)
+HOST = 100.87.78.60
 # automatic
 %D = $(patsubst %/,%,$(dir $%))
 # environment
@@ -66,6 +78,8 @@ VSCODE_PIPE_LOGGING = true
 APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = true
 # environment
 LESSOPEN = | /usr/bin/env lesspipe.sh %s 2>&-
+# makefile (from 'common-mk/Makefile', line 3)
+RUSTFLAGS_LOCAL = "-C target-cpu=native $(RUSTFLAGS) -C link-arg=-fuse-ld=lld"
 # automatic
 *D = $(patsubst %/,%,$(dir $*))
 # environment
@@ -78,8 +92,8 @@ MFLAGS = -pqrR
 HISTSIZE = 10000
 # automatic
 +D = $(patsubst %/,%,$(dir $+))
-# makefile (from 'Makefile', line 1)
-MAKEFILE_LIST := Makefile
+# makefile (from 'common-mk/Makefile', line 1)
+MAKEFILE_LIST := Makefile common-mk/Makefile
 # automatic
 @F = $(notdir $@)
 # environment
@@ -127,7 +141,7 @@ VIRTUAL_ENV_DISABLE_PROMPT = 1
 # environment
 LESS_TERMCAP_mb = [01;31m
 # environment
-SSH_CLIENT = 100.121.115.22 49337 911
+SSH_CLIENT = 100.108.96.128 62504 911
 # environment
 VSCODE_LOG_NATIVE = false
 # automatic
@@ -142,6 +156,8 @@ LESS = -g -i -M -R -S -w -X -z-4
 GNUMAKEFLAGS := 
 # environment
 BROWSER = /home/meow/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/bin/helpers/browser.sh
+# makefile (from 'Makefile', line 1)
+BIN_NAME = fates
 # environment
 GREP_COLOR = 37;45
 # environment
@@ -178,8 +194,10 @@ VSCODE_AGENT_FOLDER = /home/meow/.vscode-server
 _ = /usr/bin/make
 # environment
 XDG_RUNTIME_DIR = /run/user/1000
+# makefile (from 'common-mk/Makefile', line 5)
+CARGO_TARGET_GNU_LINKER = "x86_64-unknown-linux-gnu-gcc"
 # environment
-VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-998a32d3-5f4e-44db-bf39-b45052e85975.sock
+VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-bcc0f516-e98a-44eb-8bb8-aea528d44863.sock
 # environment
 VISUAL = nano
 # environment
@@ -193,21 +211,23 @@ SELINUX_LEVEL_REQUESTED =
 # environment
 CYCLONE_TOKEN = NzQ1MjI2MjI1NDU0NDE1OTIz.XzusAQ.iFqKilQ8bDXkEvzS052GO8a1EWc
 # environment
-XDG_SESSION_ID = 377
+XDG_SESSION_ID = 69
 # default
 .RECIPEPREFIX := 
 # automatic
 <F = $(notdir $<)
 # default
 SUFFIXES := 
+# makefile (from 'common-mk/Makefile', line 4)
+DATABASE_URL = "postgresql://localhost/fateslist"
 # environment
 PGUSER = fateslist
 # default
 .FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync check-symlink guile load
 # environment
-SSH_CONNECTION = 100.121.115.22 49337 100.87.78.60 911
+SSH_CONNECTION = 100.108.96.128 62504 100.67.94.49 911
 # variable set hash-table stats:
-# Load=98/1024=10%, Rehash=0, Collisions=8/133=6%
+# Load=104/1024=10%, Rehash=0, Collisions=11/142=8%
 
 # Pattern-specific Variable Values
 
@@ -215,9 +235,9 @@ SSH_CONNECTION = 100.121.115.22 49337 100.87.78.60 911
 
 # Directories
 
-# . (device 64513, inode 649025): 12 files, no impossibilities.
+# . (device 64513, inode 649025): 16 files, no impossibilities.
 
-# 12 files, no impossibilities in 1 directories.
+# 16 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -225,10 +245,38 @@ SSH_CONNECTION = 100.121.115.22 49337 100.87.78.60 911
 
 # Files
 
+devrun:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'common-mk/Makefile', line 17):
+	DATABASE_URL=$(DATABASE_URL) RUSTFLAGS=$(RUSTFLAGS_LOCAL) cargo run
+
+cross:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'common-mk/Makefile', line 24):
+	DATABASE_URL=$(DATABASE_URL) CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=$(CARGO_TARGET_GNU_LINKER) cargo build --target=x86_64-unknown-linux-gnu --release
+
 # Not a target:
 Makefile:
 #  Implicit rule search has been done.
-#  Last modified 2022-05-19 11:57:28.458767366
+#  Last modified 2022-05-28 15:40:37.229532901
+#  File has been updated.
+#  Successfully updated.
+
+up:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'common-mk/Makefile', line 30):
+	git submodule foreach git pull
+
+# Not a target:
+common-mk/Makefile:
+#  Implicit rule search has been done.
+#  Last modified 2022-05-28 15:40:57.278291782
 #  File has been updated.
 #  Successfully updated.
 
@@ -236,14 +284,30 @@ flame:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 6):
-	RUSTFLAGS="-C target-cpu=native $(RUSTFLAGS) -C link-arg=-fuse-ld=lld" DATABASE_URL=postgresql://localhost/fateslist cargo flamegraph $(CARGOFLAGS) --bin fates
+#  recipe to execute (from 'common-mk/Makefile', line 22):
+	RUSTFLAGS=$RUSTFLAGS_LOCAL) DATABASE_URL=$(DATABASE_URL) cargo flamegraph $(CARGOFLAGS) --bin $(BIN_NAME)
 
+push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'common-mk/Makefile', line 26):
+	scp -C -P 911 target/x86_64-unknown-linux-gnu/release/$(BIN_NAME) meow@$(HOST):$(PROJ_NAME)/$(BIN_NAME).new
+
+ 
 # Not a target:
+ 
 .DEFAULT:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
+
+dev:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'common-mk/Makefile', line 15):
+	DATABASE_URL=$(DATABASE_URL) RUSTFLAGS=$(RUSTFLAGS_LOCAL) cargo build
 
 all:
 #  Command line target.
@@ -269,17 +333,25 @@ all:
 # automatic
 # | := 
 # variable set hash-table stats:
-# Load=8/32=25%, Rehash=0, Collisions=4/13=31%
-#  recipe to execute (from 'Makefile', line 2):
-	RUSTFLAGS="-C target-cpu=native $(RUSTFLAGS) -C link-arg=-fuse-ld=lld" DATABASE_URL=postgresql://localhost/fateslist cargo build $(CARGOFLAGS) --release
+ 
+# Load=8/32=25%, Rehash=0, Collisions=1/11=9%
+#  recipe to execute (from 'common-mk/Makefile', line 13):
+	@make cross
 
 run:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 4):
- 
-	./target/release/fates $(FATESFLAGS)
+#  recipe to execute (from 'common-mk/Makefile', line 19):
+	-mv -vf fates.new fates # If it exists
+	./$(BIN_NAME)
+
+remote:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'common-mk/Makefile', line 28):
+	ssh meow@$(HOST) -p 911
 
 # Not a target:
 .SUFFIXES:
@@ -288,19 +360,19 @@ run:
 #  File has not been updated.
 
 # files hash-table stats:
-# Load=6/1024=1%, Rehash=0, Collisions=0/18=0%
+# Load=13/1024=1%, Rehash=0, Collisions=0/26=0%
 # VPATH Search Paths
 
 # No 'vpath' search paths.
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 19 / storage = 151 B / avg = 7 B
-# current buf: size = 8162 B / used = 151 B / count = 19 / avg = 7 B
+# strcache buffers: 1 (0) / strings = 30 / storage = 238 B / avg = 7 B
+# current buf: size = 8162 B / used = 238 B / count = 30 / avg = 7 B
 
-# strcache performance: lookups = 28 / hit rate = 32%
+# strcache performance: lookups = 46 / hit rate = 34%
 # hash-table stats:
-# Load=19/8192=0%, Rehash=0, Collisions=0/28=0%
-# Finished Make data base on Mon May 23 12:44:47 2022
+# Load=30/8192=0%, Rehash=0, Collisions=0/46=0%
+# Finished Make data base on Tue May 31 10:47:35 2022
 
  
