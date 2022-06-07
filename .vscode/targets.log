@@ -1,20 +1,12 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # GNU Make 4.3
- 
 # Built for x86_64-redhat-linux-gnu
- 
 # Copyright (C) 1988-2020 Free Software Foundation, Inc.
- 
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
- 
 # This is free software: you are free to change and redistribute it.
- 
 # There is NO WARRANTY, to the extent permitted by law.
- 
 
- 
-# Make data base, printed on Tue May 31 10:47:35 2022
- 
+# Make data base, printed on Sat Jun  4 10:15:18 2022
 
 # Variables
 
@@ -127,7 +119,7 @@ MAKELEVEL := 0
 # default
 MAKE = $(MAKE_COMMAND)
 # environment
-PATH = /home/meow/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/bin/remote-cli:/home/meow/FatesList/modules/infra/flamepaw:/home/meow/src/go/bin:/home/meow/bin:/usr/local/bin:/usr/local/sbin:/home/meow/.cargo/bin:/usr/bin:/usr/sbin
+PATH = /home/meow/.vscode-server/bin/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5/bin/remote-cli:/home/meow/.local/bin:/home/meow/FatesList/modules/infra/flamepaw:/home/meow/src/go/bin:/home/meow/bin:/usr/local/bin:/usr/local/sbin:/home/meow/.cargo/bin:/usr/bin:/usr/sbin
 # environment
 LESS_TERMCAP_se = [0m
 # default
@@ -141,7 +133,7 @@ VIRTUAL_ENV_DISABLE_PROMPT = 1
 # environment
 LESS_TERMCAP_mb = [01;31m
 # environment
-SSH_CLIENT = 100.108.96.128 62504 911
+SSH_CLIENT = 100.108.96.128 55324 911
 # environment
 VSCODE_LOG_NATIVE = false
 # automatic
@@ -197,7 +189,7 @@ XDG_RUNTIME_DIR = /run/user/1000
 # makefile (from 'common-mk/Makefile', line 5)
 CARGO_TARGET_GNU_LINKER = "x86_64-unknown-linux-gnu-gcc"
 # environment
-VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-bcc0f516-e98a-44eb-8bb8-aea528d44863.sock
+VSCODE_IPC_HOOK_CLI = /run/user/1000/vscode-ipc-09c38af6-0dfc-4872-9308-7c879c88f686.sock
 # environment
 VISUAL = nano
 # environment
@@ -211,7 +203,7 @@ SELINUX_LEVEL_REQUESTED =
 # environment
 CYCLONE_TOKEN = NzQ1MjI2MjI1NDU0NDE1OTIz.XzusAQ.iFqKilQ8bDXkEvzS052GO8a1EWc
 # environment
-XDG_SESSION_ID = 69
+XDG_SESSION_ID = 12
 # default
 .RECIPEPREFIX := 
 # automatic
@@ -225,7 +217,7 @@ PGUSER = fateslist
 # default
 .FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync check-symlink guile load
 # environment
-SSH_CONNECTION = 100.108.96.128 62504 100.67.94.49 911
+SSH_CONNECTION = 100.108.96.128 55324 100.67.94.49 911
 # variable set hash-table stats:
 # Load=104/1024=10%, Rehash=0, Collisions=11/142=8%
 
@@ -294,12 +286,11 @@ push:
 #  recipe to execute (from 'common-mk/Makefile', line 26):
 	scp -C -P 911 target/x86_64-unknown-linux-gnu/release/$(BIN_NAME) meow@$(HOST):$(PROJ_NAME)/$(BIN_NAME).new
 
- 
 # Not a target:
- 
 .DEFAULT:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
+ 
 #  File has not been updated.
 
 dev:
@@ -333,7 +324,6 @@ all:
 # automatic
 # | := 
 # variable set hash-table stats:
- 
 # Load=8/32=25%, Rehash=0, Collisions=1/11=9%
 #  recipe to execute (from 'common-mk/Makefile', line 13):
 	@make cross
@@ -373,6 +363,6 @@ remote:
 # strcache performance: lookups = 46 / hit rate = 34%
 # hash-table stats:
 # Load=30/8192=0%, Rehash=0, Collisions=0/46=0%
-# Finished Make data base on Tue May 31 10:47:35 2022
+# Finished Make data base on Sat Jun  4 10:15:18 2022
 
  
