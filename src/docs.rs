@@ -233,7 +233,7 @@ fn new_doc_file(
         Some(path) => std::path::PathBuf::from(path),
     };
 
-    let endpoints_dir = path.into_os_string().into_string().unwrap() + "/lynx/api-docs/endpoints";
+    let endpoints_dir = path.into_os_string().into_string().unwrap() + "/electrodragon/api-docs/endpoints";
 
     std::fs::create_dir_all(&endpoints_dir).expect("Unable to create directory for endpoint docs");
 
@@ -242,7 +242,8 @@ fn new_doc_file(
     file.write_all(docs.join("").as_bytes()).unwrap();
 }
 
-#[allow(clippy::too_many_lines, reason="This is a doc file. Lots of lines are ok")]
+// This is a doc file. Lots of lines are ok
+#[allow(clippy::too_many_lines)]
 pub fn document_routes() {
     const BASIC_API: &str = r#"
 **API URL**: ``https://api.fateslist.xyz``
@@ -1551,7 +1552,8 @@ fn new_enum(data: models::EnumDesc) -> String {
     )
 }
 
-#[allow(clippy::too_many_lines, reason="This is a doc file. Lots of lines are ok")]
+// This is a doc file. Lots of lines are ok
+#[allow(clippy::too_many_lines)]
 pub fn document_enums() {
     let mut docs: String = "Below is a reference of all the enums used in Fates List, 
     
@@ -1777,7 +1779,7 @@ It is semi-automatically generated
         Some(path) => std::path::PathBuf::from(path),
     };
 
-    let file_name = path.into_os_string().into_string().unwrap() + "/lynx/api-docs/endpoints/enums.md";
+    let file_name = path.into_os_string().into_string().unwrap() + "/electrodragon/api-docs/endpoints/enums.md";
 
     let mut file = std::fs::File::create(file_name).unwrap();
 

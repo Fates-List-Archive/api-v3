@@ -4,6 +4,11 @@ use actix_web::{get, http, web, web::Json, HttpRequest, HttpResponse};
 use strum::IntoEnumIterator;
 use std::sync::Arc;
 
+#[get("/ping")]
+async fn ping(_req: HttpRequest) -> HttpResponse {
+	HttpResponse::Ok().finish()
+}
+
 #[get("/index")]
 async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> HttpResponse {
     let mut index = models::Index::new();

@@ -1,4 +1,3 @@
-#![feature(lint_reasons)]
 #![warn(clippy::pedantic)]
 
 use actix_cors::Cors;
@@ -156,6 +155,7 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(not_found))
             // Core
             .service(core::index)
+            .service(core::ping)
             .service(core::mini_index) // Used Add Bot
             .service(core::resolve_vanity)
             .service(core::get_experiment_list)

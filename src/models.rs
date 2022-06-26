@@ -361,6 +361,7 @@ pub struct FrostpawClient {
     #[serde(skip)]
     pub secret: String,
     pub owner: User,
+    pub verified: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone, Default)]
