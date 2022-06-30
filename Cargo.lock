@@ -812,6 +812,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "docser"
+version = "0.1.0"
+source = "git+https://github.com/RustLibs/docser.git?branch=main#766a255d35e6794cdfe67ccc57189161da20a392"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -893,6 +901,7 @@ dependencies = [
  "chrono",
  "deadpool",
  "deadpool-redis",
+ "docser",
  "env_logger",
  "futures",
  "hex",

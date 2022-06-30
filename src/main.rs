@@ -29,7 +29,6 @@ mod stats;
 mod user;
 mod ws;
 mod votes;
-mod docser; // Used internally by docs.rs
 mod notifs;
 
 use crate::models::APIResponse;
