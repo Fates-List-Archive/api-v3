@@ -814,7 +814,7 @@ dependencies = [
 [[package]]
 name = "docser"
 version = "0.1.0"
-source = "git+https://github.com/RustLibs/docser.git?branch=main#766a255d35e6794cdfe67ccc57189161da20a392"
+source = "git+https://github.com/RustLibs/docser.git?branch=main#4f42c50a23b01e6bdd32654f11e54dc5394aa4f0"
 dependencies = [
  "serde",
 ]
@@ -833,9 +833,9 @@ checksum = "56899898ce76aaf4a0f24d914c97ea6ed976d42fec6ad33fcbb0a1103e07b2b0"
 
 [[package]]
 name = "either"
-version = "1.6.1"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
 
 [[package]]
 name = "encoding_rs"
@@ -927,7 +927,7 @@ dependencies = [
  "time 0.3.11",
  "tokio",
  "uptime_lib",
- "uuid",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -1553,9 +1553,9 @@ dependencies = [
 
 [[package]]
 name = "moka"
-version = "0.8.5"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df72b50274c0988d9f4a6e808e06d9d926f265db6f8bbda1576bcaa658e72763"
+checksum = "975fa04238144061e7f8df9746b2e9cd93ef85881da5548d842a7c6a4b614415"
 dependencies = [
  "async-io",
  "async-lock",
@@ -1573,7 +1573,7 @@ dependencies = [
  "tagptr",
  "thiserror",
  "triomphe",
- "uuid",
+ "uuid 1.1.2",
 ]
 
 [[package]]
@@ -2207,9 +2207,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.10"
+version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a41d061efea015927ac527063765e73601444cdc344ba855bc7bd44578b25e1c"
+checksum = "3d92beeab217753479be2f74e54187a6aed4c125ff0703a866c3147a02f0c6dd"
 dependencies = [
  "serde",
 ]
@@ -2246,9 +2246,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.81"
+version = "1.0.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b7ce2b32a1aed03c558dc61a5cd328f15aff2dbc17daad8fb8af04d2100e15c"
+checksum = "82c2c1fdcd807d1098552c5b9a36e425e42e9fbd7c6a37a8425f390f781f7fa7"
 dependencies = [
  "indexmap",
  "itoa 1.0.2",
@@ -2400,9 +2400,9 @@ checksum = "eb703cfe953bccee95685111adeedb76fabe4e97549a58d16f03ea7b9367bb32"
 
 [[package]]
 name = "smallvec"
-version = "1.8.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc88c725d61fc6c3132893370cac4a0200e3fedf5da8331c570664b1987f5ca2"
+checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
 
 [[package]]
 name = "socket2"
@@ -2491,7 +2491,7 @@ dependencies = [
  "thiserror",
  "tokio-stream",
  "url",
- "uuid",
+ "uuid 0.8.2",
  "webpki 0.21.4",
  "webpki-roots 0.21.1",
  "whoami",
@@ -2992,6 +2992,15 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom",
  "serde",
+]
+
+[[package]]
+name = "uuid"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd6469f4314d5f1ffec476e05f17cc9a78bc7a27a6a857842170bdf8d6f98d2f"
+dependencies = [
+ "getrandom",
 ]
 
 [[package]]
