@@ -108,23 +108,13 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
     let redirect_url_domain = req
         .headers()
-        .get("Origin")
+        .get("Frostpaw-Server")
         .unwrap_or(auth_default)
         .to_str()
         .unwrap()
         .replace("https://", "");
 
     let redirect_url_domain = redirect_url_domain.as_str();
-
-    let valid_domains = vec!["fateslist.xyz", "sunbeam.fateslist.xyz", "selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
-    
-    if !valid_domains.contains(&redirect_url_domain) {
-        return HttpResponse::BadRequest().json(models::APIResponse {
-            done: false,
-            reason: Some("Origin header is not in valid format, perhaps your client isn't setting the header properly?".to_string()),
-            context: None,
-        });
-    }
 
     let redirect_uri = format!("https://{}/frostpaw/login", redirect_url_domain);
 
@@ -139,6 +129,16 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
             // Check for a frostpaw login
             if info.frostpaw {
                 // If a frostpaw custom client login is used 
+    		let valid_domains = vec!["fateslist.xyz", "sunbeam.fateslist.xyz", "selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
+
+    		if !valid_domains.contains(&redirect_url_domain) {
+        		return HttpResponse::BadRequest().json(models::APIResponse {
+            			done: false,
+            			reason: Some("Origin header is not in valid format, perhaps your client isn't setting the header properly?".to_string()),
+            			context: None,
+        		});
+    		}
+
                 // Check claw with blood
                 if info.frostpaw_blood.is_none() || info.frostpaw_claw.is_none() || info.frostpaw_claw_unseathe_time.is_none() {
                     return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::InvalidFields));
