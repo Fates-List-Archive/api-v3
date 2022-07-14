@@ -1,6 +1,7 @@
 // A core endpoint is one that is absolutely essential for proper list functions
 use crate::models;
-use actix_web::{get, http, web, web::Json, HttpRequest, HttpResponse};
+use actix_web::{get, http, web, web::Json, HttpRequest, HttpResponse, post};
+use reqwest::header::HeaderValue;
 use strum::IntoEnumIterator;
 use std::sync::Arc;
 
@@ -119,4 +120,20 @@ async fn mini_index(req: HttpRequest) -> Json<models::Index> {
     mini_index.features = data.database.bot_features().await;
 
     Json(mini_index)
+}
+
+#[post("/slwebset")]
+async fn slwebset(req: HttpRequest, info: web::Json<models::SlwebsetJson>) -> HttpResponse {
+    let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
+
+    let auth_default = &HeaderValue::from_str("").unwrap();
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .unwrap_or(auth_default)
+        .to_str()
+        .unwrap();
+
+    let resp = data.database.slwebset(auth, &info.value).await;
+    HttpResponse::Ok().json(resp)
 }

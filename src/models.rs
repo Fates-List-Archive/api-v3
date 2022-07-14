@@ -466,6 +466,11 @@ pub struct SearchQuery {
     pub gc_to: i64,
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct SlwebsetJson {
+    pub value: String,
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Empty {}
 
@@ -612,7 +617,7 @@ impl Default for AppConfig {
 
         // open discord.json, handle config
         let mut file =
-            File::open(data_dir.to_owned() + "discord.json").expect("No discord.json file found");
+            File::open(data_dir + "discord.json").expect("No discord.json file found");
         let mut discord = String::new();
         file.read_to_string(&mut discord).unwrap();
 
@@ -1363,20 +1368,6 @@ impl APIError for OauthError {
     }
 }
 
-pub enum SettingsError {
-    NotFound,
-    SQLError(sqlx::Error),
-}
-
-impl SettingsError {
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::NotFound => "Not Found".to_string(),
-            Self::SQLError(e) => format!("SQL error: {}", e),
-        }
-    }
-}
-
 #[derive(PartialEq, Clone)]
 pub enum BotActionMode {
     Add,
@@ -1402,6 +1393,7 @@ impl APIError for CommandError {
 }
 
 #[derive(Serialize, Debug)]
+#[non_exhaustive]
 pub enum AppealError {
     TextError, // Added
     BotNotApproved, // Added
@@ -1417,9 +1409,7 @@ impl APIError for AppealError {
     }
 
     fn context(&self) -> Option<String> {
-        match self {
-            _ => None
-        }
+        None
     }
 }
 
@@ -1489,8 +1479,8 @@ impl APIError for CheckBotError {
     fn context(&self) -> Option<String> {
         match self {
             Self::BotBannedOrDenied(s) => Some(serde_json::to_string(s).unwrap_or_default()),
-            Self::BannerCardError(s) => Some(s.to_string()),
-            Self::BannerPageError(s) => Some(s.to_string()),
+            Self::BannerCardError(s) => s.context(),
+            Self::BannerPageError(s) => s.context(),
             Self::JAPIError(e) => Some(e.to_string()),
             Self::JAPIDeserError(e) => Some(e.to_string()),
             _ => None
@@ -1513,7 +1503,7 @@ pub enum PackCheckError {
 impl APIError for PackCheckError {
     fn name(&self) -> String {
         match self {
-            Self::SQLError(_) => format!("SQLError"),
+            Self::SQLError(_) => "SQLError".to_string(),
             _ => "PackCheckError.".to_string()+&serde_json::to_string(self).unwrap_or_default()
         }
     }
@@ -1529,16 +1519,24 @@ pub enum BannerCheckError {
     BadContentType(String),
 }
 
-impl BannerCheckError {
-    pub fn to_string(&self) -> String {
+impl APIError for BannerCheckError {
+    fn name(&self) -> String {
         match self {
+            Self::BadURL(e) => e.to_string(),
+            Self::StatusError(e) => e.to_string(),
+            Self::BadContentType(e) => e.to_string(),
+        }
+    }
+
+    fn context(&self) -> Option<String> {
+        Some(match self {
             Self::BadURL(e) => format!("Bad banner url: {}", e),
             Self::StatusError(s) => format!("Got status code: {} when requesting this banner", s),
             Self::BadContentType(s) => format!(
                 "Got invalid content type: {} when requesting this banner",
                 s
             ),
-        }
+        })
     }
 }
 
@@ -1600,6 +1598,7 @@ pub enum RouteAuthType {
     User,
     Bot,
     Server,
+    Special,
 }
 
 pub struct EnumDesc {

@@ -37,7 +37,7 @@ pub fn sanitize_description(
     let mut html = String::new();
     if long_desc_type == models::LongDescriptionType::MarkdownServerSide {
         let options = Options::all();
-        let md_parse = Parser::new_ext(description.as_ref(), options);
+        let md_parse = Parser::new_ext(description, options);
         push_html(&mut html, md_parse);
     } else {
         html = description.to_string();

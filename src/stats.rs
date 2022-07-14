@@ -5,8 +5,6 @@ use actix_web::{get, web, HttpRequest, HttpResponse};
 
 use log::error;
 
-use uptime_lib;
-
 #[get("/stats")]
 async fn get_botlist_stats(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
@@ -28,6 +26,6 @@ async fn get_botlist_stats(req: HttpRequest) -> HttpResponse {
         total_servers: data.database.get_server_count().await,
         bots: data.database.get_all_bots().await,
         servers: data.database.get_all_servers().await,
-        uptime: uptime,
+        uptime,
     })
 }

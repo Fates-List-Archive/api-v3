@@ -52,6 +52,7 @@ pub async fn check_banner_img(
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 /// Does basic bot checks that are *common* to add and edit bot
 /// It is *very* important to note bot.user will only have a valid id, nothing else can be expected
 async fn check_bot(
@@ -336,9 +337,9 @@ async fn add_bot(
             main: true,
         });
         
-        let res = check_bot(data, models::BotActionMode::Add, &mut bot).await;
-        if res.is_err() {
-            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err()));
+        let check_err = check_bot(data, models::BotActionMode::Add, &mut bot).await;
+        if check_err.is_err() {
+            return HttpResponse::BadRequest().json(models::APIResponse::err_small(&check_err.unwrap_err()));
         }
 
         let res = data.database.add_bot(&bot).await;
@@ -406,7 +407,7 @@ async fn add_bot(
                 m.embed(|e| {
                     e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
                     e.title("New Bot!");
-                    e.color(0x00ff00 as u64);
+                    e.color(0x00ff00);
                     e.description(format!(
                         "{user} has added {bot} ({bot_name}) to the queue!",
                         user = UserId(id.id as u64).mention(),
@@ -474,7 +475,7 @@ async fn edit_bot(
             return HttpResponse::BadRequest().json(models::APIResponse::err_small(&models::GenericError::Forbidden));
         }
 
-        let res = check_bot(&data, models::BotActionMode::Edit, &mut bot).await;
+        let res = check_bot(data, models::BotActionMode::Edit, &mut bot).await;
         if res.is_err() {
             return HttpResponse::BadRequest().json(models::APIResponse::err_small(&res.unwrap_err()));
         }
@@ -491,7 +492,7 @@ async fn edit_bot(
                 m.embed(|e| {
                     e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
                     e.title("Bot Edit!");
-                    e.color(0x00ff00 as u64);
+                    e.color(0x00ff00);
                     e.description(format!(
                         "{user} has edited {bot} ({bot_name})!",
                         user = UserId(id.id as u64).mention(),
@@ -588,7 +589,7 @@ async fn transfer_ownership(
                 m.embed(|e| {
                     e.url("https://fateslist.xyz/bot/".to_owned() + &id.bot_id.to_string());
                     e.title("Bot Ownership Transfer!");
-                    e.color(0x00ff00 as u64);
+                    e.color(0x00ff00);
                     e.description(format!(
                         "{user} has transferred ownership of {bot} to {new_owner}!",
                         user = UserId(id.user_id as u64).mention(),
@@ -655,7 +656,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
                 m.embed(|e| {
                     e.url("https://fateslist.xyz/bot/".to_owned() + &id.bot_id.to_string());
                     e.title("Bot Deleted :(");
-                    e.color(0x00ff00 as u64);
+                    e.color(0x00ff00);
                     e.description(format!(
                         "{user} has deleted {bot} ({bot_name})",
                         user = UserId(id.user_id as u64).mention(),
@@ -784,7 +785,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     library: bot_data.remove("lib").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                     extra_links,
                     invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
-                    vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
+                    vanity: "_".to_string() + bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("") + "-" + &converters::create_token(32),
                     shard_count: 0,
                     owners: extra_owners,
                     tags: vec![
@@ -855,7 +856,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                             id: bot_id.to_string(),
                             ..models::User::default()
                         },                    
-                        vanity: "_".to_string() + &bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
+                        vanity: "_".to_string() + bot_data.remove("username").unwrap_or_else(|| json!("")).as_str().unwrap_or("") + "-" + &converters::create_token(32),
                         description: bot_data.remove("description").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                         long_description: bot_data.remove("long_description").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                         prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),   
@@ -881,13 +882,13 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
             },
             models::ImportSource::Ibl => {
                 let mut headers = reqwest::header::HeaderMap::new();
-                headers.insert("Authorization", HeaderValue::from_str(&data.config.secrets.ibl_fates_key).unwrap());
+                headers.insert("Import-Key", HeaderValue::from_str(&data.config.secrets.ibl_fates_key).unwrap());
                 headers.insert("Lightleap-Dest", HeaderValue::from_str("Fates List").unwrap());
                 headers.insert("Lightleap-Site", HeaderValue::from_str("https://fateslist.xyz").unwrap());
 
 
 
-                let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://api.infinitybotlist.com/fates/bots/".to_owned()+&bot_id.to_string())
+                let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://spider.infinitybotlist.com/bots/".to_owned()+&bot_id.to_string())
                 .timeout(Duration::from_secs(10))
                 .headers(headers)
                 .send()
@@ -955,7 +956,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     extra_links.insert("Github".to_string(), github);
                 };
 
-                let nsfw = bot_data.remove("nsfw").unwrap_or_else(|| json!(false)).as_bool().unwrap_or(false);
+                let nsfw = bot_data.remove("nsfw").unwrap_or(serde_json::Value::Bool(false)).as_bool().unwrap_or(false);
 
                 let mut flags = Vec::new();
 
@@ -974,7 +975,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     library: bot_data.remove("library").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
                     extra_links,
                     invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
-                    vanity: "_".to_string() + &bot_data.remove("name").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string() + "-" + &converters::create_token(32),
+                    vanity: "_".to_string() + bot_data.remove("name").unwrap_or_else(|| json!("")).as_str().unwrap_or("") + "-" + &converters::create_token(32),
                     shard_count: 0,
                     owners: extra_owners,
                     flags,
@@ -993,7 +994,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
             }
         };
 
-        let res = check_bot(&data, models::BotActionMode::Add, &mut bot).await;
+        let res = check_bot(data, models::BotActionMode::Add, &mut bot).await;
         if res.is_err() {
             return HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&res.unwrap_err()));
         }
@@ -1022,7 +1023,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                 m.embed(|e| {
                     e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
                     e.title("New Bot!");
-                    e.color(0x00ff00 as u64);
+                    e.color(0x00ff00);
                     e.description(format!(
                         "{user} has added {bot} ({bot_name}) to the queue through {source}!",
                         user = UserId(user_id as u64).mention(),
@@ -1219,11 +1220,7 @@ async fn get_bot_settings(
                 HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&models::GenericError::Forbidden))
             }
             Err(err) => {
-                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse {
-                    done: false,
-                    reason: Some(err.to_string()),
-                    context: None,
-                })
+                HttpResponse::build(http::StatusCode::BAD_REQUEST).json(models::APIResponse::err_small(&err))
             }
         }
     } else {

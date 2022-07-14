@@ -97,7 +97,7 @@ async fn appeal_bot(
         m.embed(|e| {
             e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
             e.title(title);
-            e.color(0x00ff00);
+            e.color(0x0000_ff00);
             e.description(
                 format!(
                     "{user} has requested {req_type} for {bot} ({bot_name})\n\n**Please check this bot again!**",
@@ -212,7 +212,7 @@ async fn appeal_server(
         m.embed(|e| {
             e.url("https://fateslist.xyz/server/".to_owned()+&server_id.to_string());
             e.title(title);
-            e.color(0x00ff00);
+            e.color(0x0000_ff00);
             e.description(
                 format!(
                     "{user} has requested {req_type} for server {server} ({server_name})\n\n**Please check this bot again!**",

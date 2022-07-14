@@ -1,4 +1,5 @@
-#![warn(clippy::pedantic)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::let_unit_value)]
 
 use actix_cors::Cors;
 use actix_web::dev::Service;
@@ -8,7 +9,6 @@ use actix_web::middleware::Logger;
 use actix_web::{http, middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use bytes::Bytes;
 use futures::future::FutureExt;
-use inflector;
 use log::{debug, error, info};
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ mod notifs;
 use crate::models::APIResponse;
 
 async fn not_found(_req: HttpRequest) -> HttpResponse {
-    return HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound));
+    HttpResponse::build(http::StatusCode::NOT_FOUND).json(models::APIResponse::err_small(&models::GenericError::NotFound))
 }
 
 fn actix_handle_err<T: std::error::Error + 'static>(err: T) -> actix_web::error::Error {

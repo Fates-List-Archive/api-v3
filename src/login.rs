@@ -4,7 +4,7 @@ use crate::models::APIError;
 use crate::converters;
 use actix_web::http::header::HeaderValue;
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
-use log::error;
+use log::{debug, error};
 use std::collections::HashMap;
 use std::time::Duration;
 use std::sync::Arc;
@@ -106,17 +106,27 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
 
     let auth_default = &HeaderValue::from_str("").unwrap();
 
-    let redirect_url_domain = req
+    let redirect_header = req
         .headers()
         .get("Frostpaw-Server")
         .unwrap_or(auth_default)
         .to_str()
-        .unwrap()
-        .replace("https://", "");
+        .unwrap();
+
+    let redirect_url_domain = redirect_header
+        .replace("https://", "")
+	.replace("http://", "");
 
     let redirect_url_domain = redirect_url_domain.as_str();
 
-    let redirect_uri = format!("https://{}/frostpaw/login", redirect_url_domain);
+
+    let mut redirect_uri = format!("https://{}/frostpaw/login", redirect_url_domain);
+
+    if redirect_header.starts_with("http://") {
+	redirect_uri = format!("http://{}/frostpaw/login", redirect_url_domain);
+    }
+
+    debug!("Got redirect URI: {}", redirect_uri);
 
     let login = login_user(data, code, redirect_uri).await;
 
@@ -194,7 +204,7 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
                 return HttpResponse::Ok().json(user);
             }
 
-            return HttpResponse::Ok().json(user);
+            HttpResponse::Ok().json(user)
         }
     }
 }

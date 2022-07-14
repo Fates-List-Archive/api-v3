@@ -1,12 +1,12 @@
 use crate::models;
-use docser;
 use bigdecimal::FromPrimitive;
 use serde::Serialize;
 use std::fmt::Debug;
 use strum::IntoEnumIterator;
 use serde_json::json;
 use log::debug;
-use std::io::Write;
+use std::io::{Write as W2};
+use std::fmt::Write;
 
 const PATH_PARAMS: &str = "Path Parameters";
 const QUERY_PARAMS: &str = "Query Parameters";
@@ -107,7 +107,7 @@ fn doc(
                                     .replace("pub", "")
                                     .replace(' ', "");
                                     
-                                let service = service.split("(");
+                                let service = service.split('(');
 
                                 let service = service
                                     .collect::<Vec<&str>>();
@@ -116,7 +116,7 @@ fn doc(
                                     .get(0)
                                     .unwrap();
 
-                                let method = line.split("(");
+                                let method = line.split('(');
 
                                 let method = method
                                     .collect::<Vec<&str>>();
@@ -190,6 +190,11 @@ fn new_doc_file(
                 }
             } else if auth == models::RouteAuthType::Server {
                 auth_needed += "[Server](#authorization)";
+                if i < auth_lengths {
+                    auth_needed += ", ";
+                }
+            } else if auth == models::RouteAuthType::Special {
+                auth_needed += "[Special](#authorization)";
                 if i < auth_lengths {
                     auth_needed += ", ";
                 }
@@ -278,6 +283,8 @@ you prefix the token with `User`. **A access token (for custom clients)
 can also be used on *most* endpoints as long as the token is prefixed with 
 ``Frostpaw``**
 
+- **Special:** These endpoint employ their own authentication system (such as ``slwebset``)
+
 ## Base Response
 
 A default API Response will be of the below format:
@@ -322,6 +329,22 @@ A default API Response will be of the below format:
                             features: features.clone(),
                         }),
                         auth_types: vec![]
+                    },
+
+                    models::Route {
+                        title: "Set Server Listing By Web",
+                        method: "POST",
+                        path: "/slwebset",
+                        path_params: "",
+                        query_params: "",
+                        description: "Sets the server listing on the web (after ``/webset`` command). Set ``Authorization`` to the token given by webset",
+                        request_body: &body(REQ_BODY, &models::SlwebsetJson::default()),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: Some("https://discord.com/.........".to_string()),
+                        }),
+                        auth_types: vec![models::RouteAuthType::Special]
                     },
 
                     models::Route {
@@ -691,8 +714,7 @@ This endpoint handles both bot IDs and client IDs
 This API returns some empty fields such as ``webhook``, ``webhook_secret``, ``api_token`` and more. 
 This is to allow reuse of the Bot struct in Get Bot Settings which *does* contain this sensitive data. 
 
-**Set the Frostpaw header if you are a custom client. Send Frostpaw-Invite header on invites**
-                "#,
+**Set the Frostpaw header if you are a custom client. Send Frostpaw-Invite header on invites**"#,
                         request_body: "",
                         response_body: &body(RESP_BODY, &models::Bot::default()),
                         auth_types: vec![],
@@ -1507,6 +1529,143 @@ in the future.
                         auth_types: vec![models::RouteAuthType::User],
                     }
                 ]
+            },
+
+            models::RouteList {
+                file_name: "stats.md",
+                routes: vec![
+                    models::Route {
+                        title: "Get List Stats",
+                        method: "GET",
+                        path: "/stats",
+                        description: r#"
+Returns the bot list stats. This currently returns the full list of all bots
+as a vector/list of IndexBot structs.
+
+As a client, it is your responsibility, to parse this. Pagination may be added
+if the list grows and then requires it."#,
+                        path_params: "",
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::ListStats {
+                            bots: index_bots,
+                            ..models::ListStats::default()
+                        }),
+                        auth_types: vec![],
+                    }
+                ]
+            },
+
+            models::RouteList {
+                file_name: "commands.md",
+                routes: vec![
+                    models::Route {
+                        title: "Create Bot Command",
+                        method: "POST",
+                        path: "/bots/{id}/commands",
+                        description: r#"
+Creates a command.
+
+The ``id`` here must be the bot id you wish to add the command for
+
+**This performs a *upsert* meaning it will either create or update 
+the command depending on its ``name``.**
+
+**Only post up to 10-20 commands at a time, otherwise requests may be truncated
+or otherwise fail with odd errors.  If you have more than this, then perform 
+multiple requests**
+
+``target_type`` is a [TargetType](./enums#targettype)"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: &body(QUERY_PARAMS, &models::TargetQuery {
+                            target_type: models::TargetType::Bot,
+                        }),
+                        request_body: &body(REQ_BODY, &models::BotCommandVec {
+                            commands: vec![models::BotCommand::default()],
+                        }),
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::Bot],
+                    },
+
+                    models::Route {
+                        title: "Delete Bot Command",
+                        method: "DELETE",
+                        path: "/bots/{id}/commands",
+                        description: r#"
+DELETE a command.
+
+The ``id`` here must be the bot id you wish to add the command for
+
+``names`` and ``ids`` must be a ``|`` seperated list of ``names`` or valid
+UUIDs in the case of ids. Bad names/ids will be ignored"#,
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: &body(QUERY_PARAMS, &models::CommandDeleteQuery {
+                            nuke: Some(false),
+                            names: Some("command name|command name 2".to_string()),
+                            ids: Some("id 1|id 2".to_string()),
+                        }),
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::Bot],
+                    }
+                ]
+            }, 
+
+            models::RouteList {
+                file_name: "notifications.md",
+                routes: vec![
+                    models::Route {
+                        title: "Get Notification Public Info",
+                        method: "GET",
+                        path: "/notifications/info",
+                        description: "Get the public information required for creating a push notification",
+                        path_params: &body(PATH_PARAMS, &models::FetchBotPath { id: 0 }),
+                        query_params: &body(QUERY_PARAMS, &models::NotificationSub::default()),
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::NotificationInfo::default()),
+                        auth_types: vec![],
+                    },
+
+                    models::Route {
+                        title: "Create Push Notification Subscription",
+                        method: "POST",
+                        path: "/notifications/{id}/sub",
+                        description: "Subscribes a user to a push notification.",
+                        path_params: "",
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    },
+
+                    models::Route {
+                        title: "Create Test Push Notification",
+                        method: "GET",
+                        path: "/notifications/{id}/test",
+                        description: "Creates a test push notification",
+                        path_params: "",
+                        query_params: "",
+                        request_body: "",
+                        response_body: &body(RESP_BODY, &models::APIResponse {
+                            done: true,
+                            reason: None,
+                            context: None,
+                        }),
+                        auth_types: vec![models::RouteAuthType::User],
+                    }
+                ]
             }
         ]
     );
@@ -1526,7 +1685,7 @@ fn new_enum(data: models::EnumDesc) -> String {
     let mut keys = String::new();
 
     for name in data.alt_names {
-        keys += &format!("- ``{}``\n", name);
+        writeln!(&mut keys, "- ``{}``\n", name).unwrap();
     }
 
     format!("

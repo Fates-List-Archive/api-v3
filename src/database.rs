@@ -1,5 +1,5 @@
 use crate::converters;
-use crate::inflector::Inflector;
+use inflector::Inflector;
 use crate::models;
 use async_recursion::async_recursion;
 use bigdecimal::FromPrimitive;
@@ -99,7 +99,7 @@ impl Database {
     pub async fn get_ratelimit(&self, identifier: models::Ratelimit, user_id: i64) -> Option<i64> {
         let mut conn = self.redis.get().await.unwrap();
         let key = format!("rlratelimit:{}:{}", identifier, user_id);
-        let ratelimit: Option<i64> = conn.ttl(&key).await.unwrap_or_else(|_| None);
+        let ratelimit: Option<i64> = conn.ttl(&key).await.unwrap_or(None);
         ratelimit
     }
 
@@ -107,7 +107,7 @@ impl Database {
     pub async fn set_ratelimit(&self, identifier: models::Ratelimit, user_id: i64) {
         let mut conn = self.redis.get().await.unwrap();
         let key = format!("rlratelimit:{}:{}", identifier, user_id);
-        conn.set_ex(&key, 0, identifier as usize).await.unwrap_or_else(|_| 0);
+        conn.set_ex(&key, 0, identifier as usize).await.unwrap_or(0);
     }
 
     pub async fn add_refresh_token(&self, client_id: &str, id: i64) -> String {
@@ -276,6 +276,34 @@ impl Database {
         }
         
         user
+    }
+
+    /// The webset command (server listing)
+    pub async fn slwebset(&self, token: &str, value: &str) -> Result<(), models::GenericError> {
+        let mut conn = self.redis.get().await.unwrap();
+        let data: String = conn
+            .get(token)
+            .await
+            .unwrap_or_else(|_| "".to_string());
+        if data.is_empty() {
+            return Err(models::GenericError::NotFound);
+        }
+
+        let (guild_id, col) = data.split_at(data.find(',').unwrap());
+
+        // Parse guild id to i64
+        let guild_id: i64 = guild_id.parse().unwrap();
+
+        sqlx::query(
+            &("UPDATE servers SET ".to_string() + col + " = $1 WHERE guild_id = $2")
+        )
+        .bind(value)
+        .bind(guild_id)
+        .execute(&self.pool)
+        .await
+        .map_err(models::GenericError::SQLError)?;
+
+        Ok(())
     }
 
     pub async fn index_bots(&self, state: models::State) -> Vec<models::IndexBot> {
@@ -1266,6 +1294,7 @@ impl Database {
         let message: String = serde_json::to_string(&hashmap).unwrap();
         let channel: String =
             models::TargetType::to_arg(event.ctx.target_type).to_owned() + "-" + &event.ctx.target;
+
         let _: () = conn.publish(channel, message).await.unwrap();
 
         let target_id = event.ctx.target.parse::<i64>().unwrap();
@@ -1561,11 +1590,11 @@ impl Database {
     pub async fn get_bot_settings(
         &self,
         bot_id: i64,
-    ) -> Result<models::Bot, models::SettingsError> {
+    ) -> Result<models::Bot, models::GenericError> {
         let bot = self
             .get_bot(bot_id)
             .await
-            .ok_or(models::SettingsError::NotFound)?;
+            .ok_or(models::GenericError::NotFound)?;
 
         let sensitive = sqlx::query!(
             "SELECT api_token, webhook, webhook_secret, webhook_hmac_only
@@ -1574,7 +1603,7 @@ impl Database {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(models::SettingsError::SQLError)?;
+        .map_err(models::GenericError::SQLError)?;
 
         let sensitive_bot = models::Bot {
             api_token: sensitive.api_token,
@@ -1701,7 +1730,7 @@ impl Database {
             return Ok(data.url);
         }
 
-        return Err(models::GuildInviteError::NoChannelFound);
+        Err(models::GuildInviteError::NoChannelFound)
     }
 
     // Invite amount updater
@@ -2452,7 +2481,7 @@ impl Database {
         .await
         .map_err(models::ProfileCheckError::SQLError)?;
 
-        if profile.extra_links.len() > 0 && profile.extra_links.len() <= 50 {
+        if profile.extra_links.is_empty() && profile.extra_links.len() <= 50 {
             sqlx::query!(
                 "UPDATE users SET extra_links = $1 WHERE user_id = $2",
                 json!(profile.extra_links),
@@ -2834,7 +2863,7 @@ impl Database {
 
         let row = row.unwrap();
 
-        return row.count.unwrap();
+        row.count.unwrap()
     }
 
     pub async fn get_user_count(&self) -> i64 {
@@ -2848,7 +2877,7 @@ impl Database {
 
         let row = row.unwrap();
 
-        return row.count.unwrap();
+        row.count.unwrap()
     }
     pub async fn get_server_count(&self) -> i64 {
         let row = sqlx::query!("SELECT COUNT(*) FROM servers")
@@ -2861,7 +2890,7 @@ impl Database {
 
         let row = row.unwrap();
 
-        return row.count.unwrap();
+        row.count.unwrap()
     }
 
     pub async fn get_all_bots(&self) -> Vec<models::IndexBot> {
@@ -3181,7 +3210,7 @@ impl Database {
             .fetch_one(&self.pool)
             .await;
 
-            if !expiry_time.is_err() {
+            if expiry_time.is_ok() {
                 sqlx::query!("DELETE FROM user_vote_table WHERE user_id = $1", user_id)
                     .execute(&self.pool)
                     .await
@@ -3224,7 +3253,7 @@ impl Database {
     ) -> Result<(), models::VoteBotError> {
         if test {
             return self
-                .final_vote_handler_server(&discord_server_http, user_id, server_id, test)
+                .final_vote_handler_server(discord_server_http, user_id, server_id, test)
                 .await;
         }
 
@@ -3253,7 +3282,7 @@ impl Database {
             .fetch_one(&self.pool)
             .await;
 
-            if !expiry_time.is_err() {
+            if expiry_time.is_ok() {
                 sqlx::query!(
                     "DELETE FROM user_server_vote_table WHERE user_id = $1",
                     user_id
@@ -3262,7 +3291,7 @@ impl Database {
                 .await
                 .unwrap();
                 return self
-                    .vote_server(&discord_server_http, user_id, server_id, test)
+                    .vote_server(discord_server_http, user_id, server_id, test)
                     .await;
             } else {
                 let expiry_time = sqlx::query!(
@@ -3288,7 +3317,7 @@ impl Database {
             }
         }
 
-        self.final_vote_handler_server(&discord_server_http, user_id, server_id, test)
+        self.final_vote_handler_server(discord_server_http, user_id, server_id, test)
             .await
     }
 
