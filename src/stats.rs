@@ -6,7 +6,7 @@ use actix_web::{get, web, HttpRequest, HttpResponse};
 use log::error;
 
 #[get("/stats")]
-async fn get_botlist_stats(req: HttpRequest) -> HttpResponse {
+async fn get_bot_list_stats(req: HttpRequest) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let uptime = match uptime_lib::get() {

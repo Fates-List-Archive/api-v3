@@ -1548,7 +1548,7 @@ in the future.
                 file_name: "stats.md",
                 routes: vec![
                     models::Route {
-                        title: "Get List Stats",
+                        title: "Get Bot List Stats",
                         method: "GET",
                         path: "/stats",
                         description: r#"

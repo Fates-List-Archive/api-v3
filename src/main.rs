@@ -222,7 +222,7 @@ async fn main() -> std::io::Result<()> {
             .service(reviews::vote_review)
 
             // Stats
-            .service(stats::get_botlist_stats)
+            .service(stats::get_bot_list_stats)
 
             // Commands
             .service(commands::add_command)
