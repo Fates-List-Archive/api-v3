@@ -295,7 +295,7 @@ impl Database {
         let guild_id: i64 = guild_id.parse().unwrap();
 
         sqlx::query(
-            &("UPDATE servers SET ".to_string() + col + " = $1 WHERE guild_id = $2")
+            &("UPDATE servers SET ".to_string() + &col.replace(",", "") + " = $1 WHERE guild_id = $2")
         )
         .bind(value)
         .bind(guild_id)

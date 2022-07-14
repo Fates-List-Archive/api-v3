@@ -135,5 +135,10 @@ async fn set_server_listing_by_web(req: HttpRequest, info: web::Json<models::Slw
         .unwrap();
 
     let resp = data.database.slwebset(auth, &info.value).await;
-    HttpResponse::Ok().json(resp)
+
+    if resp.is_err() {
+	return HttpResponse::BadRequest().json(models::APIResponse::err_small(&resp.unwrap_err()));	
+    }
+
+    HttpResponse::Ok().json(models::APIResponse::ok())
 }
