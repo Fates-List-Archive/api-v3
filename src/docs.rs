@@ -1573,7 +1573,7 @@ if the list grows and then requires it."#,
                 file_name: "commands.md",
                 routes: vec![
                     models::Route {
-                        title: "Create Bot Command",
+                        title: "Add Command",
                         method: "POST",
                         path: "/bots/{id}/commands",
                         description: r#"
@@ -1605,7 +1605,7 @@ multiple requests**
                     },
 
                     models::Route {
-                        title: "Delete Bot Command",
+                        title: "Delete Commands",
                         method: "DELETE",
                         path: "/bots/{id}/commands",
                         description: r#"
