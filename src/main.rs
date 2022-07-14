@@ -161,6 +161,7 @@ async fn main() -> std::io::Result<()> {
             .service(core::get_partners)
             .service(core::search_list)
             .service(core::search_tags)
+            .service(core::set_server_listing_by_web)
 
             // Votes
             .service(votes::create_bot_vote)

@@ -123,7 +123,7 @@ async fn mini_index(req: HttpRequest) -> Json<models::Index> {
 }
 
 #[post("/slwebset")]
-async fn slwebset(req: HttpRequest, info: web::Json<models::SlwebsetJson>) -> HttpResponse {
+async fn set_server_listing_by_web(req: HttpRequest, info: web::Json<models::SlwebsetJson>) -> HttpResponse {
     let data: &models::AppState = req.app_data::<web::Data<models::AppState>>().unwrap();
 
     let auth_default = &HeaderValue::from_str("").unwrap();
