@@ -331,6 +331,19 @@ A default API Response will be of the below format:
                         auth_types: vec![]
                     },
 
+
+                    models::Route {
+                        title: "Ping",
+                        method: "GET",
+                        path: "/ping",
+                        path_params: "",
+                        query_params: "",
+                        description: "Returns nothing",
+                        request_body: "",
+                        response_body: "",
+                        auth_types: vec![]
+                    },
+
                     models::Route {
                         title: "Set Server Listing By Web",
                         method: "POST",
