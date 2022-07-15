@@ -70,10 +70,8 @@ impl Database {
                 // Create the cache.
                 .build(),
             index_cache: Cache::builder()
-                // Time to live (TTL): 1 minute
-                .time_to_live(Duration::from_secs(60))
-                // Time to idle (TTI):  30 seconds
-                .time_to_idle(Duration::from_secs(30))
+                // Time to live (TTL): 2 minutes
+                .time_to_live(Duration::from_secs(120))
                 // Create the cache.
                 .build(),
             search_cache: Cache::builder()

@@ -322,6 +322,7 @@ A default API Response will be of the below format:
                         description: "Returns the index for bots and servers",
                         request_body: "",
                         response_body: &body(RESP_BODY, &models::Index {
+			    random: models::IndexBot::default(),
                             top_voted: index_bots.clone(),
                             certified: index_bots.clone(),
                             new: index_bots.clone(),
@@ -465,6 +466,7 @@ Using -1 for ``gc_to`` will disable ``gc_to`` field"#,
                         query_params: "",
                         request_body: "",
                         response_body: &body(RESP_BODY, &models::Index {
+			    random: models::IndexBot::default(),
                             new: Vec::new(),
                             top_voted: Vec::new(),
                             certified: Vec::new(),

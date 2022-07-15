@@ -23,6 +23,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> HttpRe
     }
 
     let index = Arc::new(if info.target_type == models::TargetType::Bot {
+	index.random = data.database.random_bot().await;
         index.top_voted = data.database.index_bots(models::State::Approved).await;
         index.certified = data.database.index_bots(models::State::Certified).await;
         index.tags = data.database.bot_list_tags().await;
@@ -31,6 +32,7 @@ async fn index(req: HttpRequest, info: web::Query<models::IndexQuery>) -> HttpRe
 
         index
     } else {
+	index.random = data.database.random_server().await;
         index.top_voted = data.database.index_servers(models::State::Approved).await;
         index.certified = data.database.index_servers(models::State::Certified).await;
         index.new = data.database.index_new_servers().await;

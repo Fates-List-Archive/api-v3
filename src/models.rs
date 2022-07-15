@@ -211,6 +211,7 @@ impl PartialEq for Feature {
 
 #[derive(Deserialize, Serialize, Clone, Default)]
 pub struct Index {
+    pub random: IndexBot,
     pub new: Vec<IndexBot>,
     pub top_voted: Vec<IndexBot>,
     pub certified: Vec<IndexBot>,
@@ -221,6 +222,7 @@ pub struct Index {
 impl Index {
     pub fn new() -> Index {
         Index {
+	    random: IndexBot::default(),
             top_voted: Vec::new(),
             certified: Vec::new(),
             new: Vec::new(),
