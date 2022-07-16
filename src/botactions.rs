@@ -245,7 +245,9 @@ async fn check_bot(
         for feature in bot.features.clone() {
             if full_features.contains(&feature) {
                 feature_list.push(feature);
-            }
+            } else {
+		debug!("Dropping {}", feature.id)
+	    }
         }
 
         bot.features = feature_list;

@@ -293,7 +293,7 @@ impl Database {
         let guild_id: i64 = guild_id.parse().unwrap();
 
         sqlx::query(
-            &("UPDATE servers SET ".to_string() + &col.replace(",", "") + " = $1 WHERE guild_id = $2")
+            &("UPDATE servers SET ".to_string() + &col.replace(',', "") + " = $1 WHERE guild_id = $2")
         )
         .bind(value)
         .bind(guild_id)
@@ -831,6 +831,30 @@ impl Database {
                     extra_links.insert(key.clone(), value.as_str().unwrap_or_default().to_string());
                 }
 
+                let mut features = Vec::new();
+
+                for id in data.features.unwrap_or_default() {
+                    let row = sqlx::query!(
+                        "SELECT name, viewed_as, description FROM features WHERE id = $1",
+                        id
+                    )
+                    .fetch_one(&self.pool)
+                    .await;
+                    
+                    if row.is_err() {
+                        continue;
+                    }
+                    
+                    let row = row.unwrap();
+
+                    features.push(models::Feature {
+                        name: row.name,
+                        description: row.description,
+                        viewed_as: row.viewed_as,
+                        id,
+                    })
+                }
+
                 // Make the struct
                 let bot = models::Bot {
                     extra_links,
@@ -852,7 +876,7 @@ impl Database {
                     invite: invite_api,
                     invite_link,
                     invite_amount: data.invite_amount.unwrap_or(0),
-                    features: Vec::new(), // TODO
+                    features,
                     library: data.library.unwrap_or_else(|| "".to_string()),
                     state: models::State::try_from(data.state).unwrap_or(models::State::Approved),
                     user_count: data.user_count.unwrap_or(0),
@@ -1945,6 +1969,8 @@ impl Database {
         for feature in &bot.features {
             features.push(feature.id.clone());
         }
+
+	debug!("Got features: {:?}", features);
 
         let old_bot = sqlx::query!(
             "SELECT flags FROM bots WHERE bot_id = $1",
