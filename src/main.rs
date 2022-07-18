@@ -238,7 +238,7 @@ async fn main() -> std::io::Result<()> {
             .service(notifs::test_notifs)
     })
     .workers(8)
-    .bind("localhost:3010")?
+    .bind("localhost:3987")?
     .run()
     .await
 }
