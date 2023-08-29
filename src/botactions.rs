@@ -687,10 +687,6 @@ async fn get_import_sources(_req: HttpRequest) -> HttpResponse {
                 name: "Rovel Discord List".to_string()
             },
             models::ImportSourceListItem {
-                id: models::ImportSource::Ibl,
-                name: "Infinity Bot List".to_string()
-            },
-            models::ImportSourceListItem {
                 id: models::ImportSource::Custom,
                 name: "Custom Source (top.gg etc.)".to_string()
             },
@@ -882,118 +878,6 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
                     });
                 }
             },
-            models::ImportSource::Ibl => {
-                let mut headers = reqwest::header::HeaderMap::new();
-                headers.insert("Import-Key", HeaderValue::from_str(&data.config.secrets.ibl_fates_key).unwrap());
-                headers.insert("Lightleap-Dest", HeaderValue::from_str("Fates List").unwrap());
-                headers.insert("Lightleap-Site", HeaderValue::from_str("https://fateslist.xyz").unwrap());
-
-
-
-                let mut bot_data: HashMap<String, serde_json::Value> = data.requests.get("https://spider.infinitybotlist.com/bots/".to_owned()+&bot_id.to_string())
-                .timeout(Duration::from_secs(10))
-                .headers(headers)
-                .send()
-                .await
-                .unwrap()
-                .json::<HashMap<String, serde_json::Value>>()
-                .await
-                .unwrap();
-
-                let ibl_msg = bot_data.get("message");
-
-                if ibl_msg.is_some() {
-                    return HttpResponse::NotFound().json(models::APIResponse::err_small(&models::GenericError::NotFound));
-                }
-
-                debug!("{:?}", bot_data);
-
-                // First check owners
-                let main_owner: String = bot_data.remove("owner").unwrap().as_str().unwrap_or("0").to_string();
-
-                let mut got_owner = false;
-
-                let mut extra_owners = Vec::new();
-
-                if main_owner == user_id.to_string() {
-                    got_owner = true;
-                } 
-
-                // Then additional_owners
-                let owners: Vec<String> = bot_data.remove("additional_owners").unwrap().as_array().unwrap().iter().map(|x| x.as_str().unwrap().to_string()).collect();
-    
-                for owner in owners {
-                    if owner == user_id.to_string() {
-                        got_owner = true;
-                    } else {
-                        extra_owners.push(models::BotOwner {
-                            user: models::User {
-                                id: owner,
-                                ..models::User::default()
-                            },
-                            main: false
-                        });
-                    }
-                }    
-
-                if !got_owner {
-                    return HttpResponse::BadRequest().json(models::APIResponse {
-                        done: false,
-                        reason: Some(
-                            "You are not allowed to import bots you are not owner of!".to_string(),
-                        ),
-                        context: None,
-                    });
-                }
-
-                let mut extra_links = indexmap::IndexMap::new();
-
-                let website = bot_data.remove("website").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
-                if website != *"null" && !website.is_empty() {
-                    extra_links.insert("Website".to_string(), website);
-                };
-
-                let github = bot_data.remove("github").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string();
-                if github != *"null" && !github.is_empty() {
-                    extra_links.insert("Github".to_string(), github);
-                };
-
-                let nsfw = bot_data.remove("nsfw").unwrap_or(serde_json::Value::Bool(false)).as_bool().unwrap_or(false);
-
-                let mut flags = Vec::new();
-
-                if nsfw {
-                    flags.push(models::Flags::NSFW as i32);
-                }
-
-                models::Bot {
-                    user: models::User {
-                        id: bot_id.to_string(),
-                        ..models::User::default()
-                    },
-                    description: bot_data.remove("short").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
-                    long_description: bot_data.remove("long").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
-                    prefix: Some(bot_data.remove("prefix").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
-                    library: bot_data.remove("library").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string(),
-                    extra_links,
-                    invite: Some(bot_data.remove("invite").unwrap_or_else(|| json!("")).as_str().unwrap_or("").to_string()),
-                    vanity: "_".to_string() + bot_data.remove("name").unwrap_or_else(|| json!("")).as_str().unwrap_or("") + "-" + &converters::create_token(32),
-                    shard_count: 0,
-                    owners: extra_owners,
-                    flags,
-                    tags: vec![
-                        // Rovel does not provide us with tags, assert utility
-                        models::Tag {
-                            id: "utility".to_string(),
-                            ..models::Tag::default()
-                        }
-                    ],
-                    ..models::Bot::default()
-                }
-            },
-            _ => {
-                return HttpResponse::NotFound().json(models::APIResponse::err_small(&models::GenericError::NotFound));
-            }
         };
 
         let res = check_bot(data, models::BotActionMode::Add, &mut bot).await;

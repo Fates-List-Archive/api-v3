@@ -251,9 +251,9 @@ fn new_doc_file(
 #[allow(clippy::too_many_lines)]
 pub fn document_routes() {
     const BASIC_API: &str = r#"
-**API URL**: ``https://api.fateslist.xyz``
+**API URL**: ``https://fates-api.select-list.xyz``
 
-**Widgets Documentation:** ``https://lynx.fateslist.xyz/widgets`` (docs for widgets available at https://lynx.fateslist.xyz/widgets)
+**Widgets Documentation:** ``https://fates-lynx.select-list.xyz/widgets`` 
 
 ## Authorization
 

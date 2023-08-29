@@ -103,10 +103,8 @@ pub enum CommandType {
 )]
 pub enum ImportSource {
     Rdl,
-    Ibl,
-    Custom,
     #[default]
-    Other
+    Custom,
 }
 
 impl ImportSource {
@@ -114,8 +112,6 @@ impl ImportSource {
         match self {
             ImportSource::Rdl => "Rovel Discord List".to_string(),
             ImportSource::Custom => "Custom Source".to_string(),
-            ImportSource::Ibl => "Infinity Bot List".to_string(),
-            ImportSource::Other => "Unknown Source".to_string(),
         }
     }
 }
@@ -496,7 +492,6 @@ pub struct Secrets {
     pub token_main: String,
     pub token_squirrelflight: String,
     pub japi_key: String,
-    pub ibl_fates_key: String,
     pub metro_key: String,
     pub notif_private_key: String,
     pub notif_public_key: String,
@@ -577,6 +572,9 @@ pub struct DiscordData {
     pub servers: DiscordServers,
     pub channels: DiscordChannels,
     pub roles: DiscordRoles,
+    pub support_server: String,
+    pub fates_api_url: String,
+    pub allowed_oauth2: Vec<String> // What oauth2 url's are allowed?
 }
 
 pub struct AppConfig {
@@ -969,8 +967,8 @@ impl Default for Bot {
             votes: 0,
             total_votes: 0,
             vanity: "".to_string(),
-            banner_card: Some("https://api.fateslist.xyz/static/botlisticon.webp".to_string()),
-            banner_page: Some("https://api.fateslist.xyz/static/botlisticon.webp".to_string()),
+            banner_card: Some("<api url>/static/botlisticon.webp".to_string()),
+            banner_page: Some("<api url>/static/botlisticon.webp".to_string()),
             client_id: "".to_string(),
             flags: Vec::new(),
             action_logs,

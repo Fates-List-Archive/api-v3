@@ -65,7 +65,8 @@ async fn main() -> std::io::Result<()> {
         Cost for Arc is negligible here
         */
         Arc::new(discord_main),
-        Arc::new(discord_server)
+        Arc::new(discord_server),
+        app_config.discord.clone()
     )
     .await;
 

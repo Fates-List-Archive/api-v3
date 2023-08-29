@@ -29,6 +29,7 @@ pub struct Database {
     discord_main: Arc<serenity::http::client::Http>,
     discord_server: Arc<serenity::http::client::Http>,
     default_map: serde_json::Map<String, serde_json::Value>,
+    discord_config: models::DiscordData,
     // Requests
     pub requests: reqwest::Client,
     // Our moka caches
@@ -40,7 +41,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub async fn new(max_connections: u32, url: &str, redis_url: &str, discord_main: Arc<serenity::http::client::Http>, discord_server: Arc<serenity::http::client::Http>) -> Self {
+    pub async fn new(max_connections: u32, url: &str, redis_url: &str, discord_main: Arc<serenity::http::client::Http>, discord_server: Arc<serenity::http::client::Http>, discord_config: models::DiscordData) -> Self {
         let cfg = Config::from_url(redis_url);
         Database {
             pool: PgPoolOptions::new()
@@ -50,6 +51,7 @@ impl Database {
                 .expect("Could not initialize connection"),
             redis: cfg.create_pool(Some(Runtime::Tokio1)).unwrap(),
             default_map: serde_json::Map::new(),
+            discord_config,
             requests: reqwest::Client::builder()
                 .user_agent("Lightleap/0.1.0")
                 .build()
@@ -234,7 +236,7 @@ impl Database {
             username: "Unknown User".to_string(),
             status: models::Status::Unknown,
             disc: "0000".to_string(),
-            avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(),
+            avatar: self.discord_config.fates_api_url.to_string() + "/static/botlisticon.webp",
             bot: false,
         });
 
@@ -278,6 +280,8 @@ impl Database {
 
     /// The webset command (server listing)
     pub async fn slwebset(&self, token: &str, value: &str) -> Result<(), models::GenericError> {
+        const DISABLED: bool = true; // May be vulnerable to XSS, to be updated later
+
         let mut conn = self.redis.get().await.unwrap();
         let data: String = conn
             .get(token)
@@ -290,7 +294,11 @@ impl Database {
         let (guild_id, col) = data.split_at(data.find(',').unwrap());
 
         // Parse guild id to i64
-        let guild_id: i64 = guild_id.parse().unwrap();
+        let guild_id: i64 = guild_id.parse().map_err(|_| models::GenericError::NotFound)?;
+
+        if DISABLED {
+            return Err(models::GenericError::NotFound);
+        }
 
         sqlx::query(
             &("UPDATE servers SET ".to_string() + &col.replace(',', "") + " = $1 WHERE guild_id = $2")
@@ -319,7 +327,7 @@ impl Database {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/botlisticon.webp"
                 }),
                 state: models::State::try_from(row.state).unwrap_or(state),
                 votes: row.votes.unwrap_or(0),
@@ -365,7 +373,7 @@ impl Database {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 votes: row.votes.unwrap_or(0),
@@ -408,7 +416,7 @@ impl Database {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 flags: row.flags,
                 state: models::State::try_from(row.state).unwrap_or(state),
@@ -436,7 +444,7 @@ impl Database {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 votes: row.votes.unwrap_or(0),
@@ -1095,7 +1103,7 @@ impl Database {
                 guild_count: server.guild_count.unwrap_or(0),
                 description: server.description,
                 banner: server.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 state: models::State::try_from(server.state).unwrap_or(models::State::Approved),
                 votes: server.votes.unwrap_or(0),
@@ -1123,7 +1131,7 @@ impl Database {
 
         for profile in profiles_row {
             profiles.push(models::SearchProfile {
-                banner: "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string(),
+                banner: self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp",
                 description: profile.description.unwrap_or_default(),
                 user: self.get_user(profile.user_id).await,
             });
@@ -1164,7 +1172,7 @@ impl Database {
                 description: pack.description,
                 icon: pack.icon.unwrap_or_default(),
                 banner: pack.banner.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 owner: self.get_user(pack.owner).await,
                 created_at: pack.created_at.unwrap_or_else(|| {
@@ -1204,7 +1212,7 @@ impl Database {
                 description: row.description,
                 created_at: row.created_at,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 votes: row.votes.unwrap_or(0),
@@ -1231,7 +1239,7 @@ impl Database {
                 description: row.description,
                 created_at: row.created_at,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 votes: row.votes.unwrap_or(0),
@@ -1259,12 +1267,18 @@ impl Database {
             FROM bots WHERE (state = 0 OR state = 6) ORDER BY RANDOM() LIMIT 1"
         )
         .fetch_one(&self.pool)
-        .await
-        .unwrap();
+        .await;
+
+        if random_row.is_err() {
+            return models::IndexBot::default();
+        }
+
+        let random_row = random_row.unwrap();
+        
         let index_bot = models::IndexBot {
             description: random_row.description,
             banner: random_row.banner_card.unwrap_or_else(|| {
-                "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
             }),
             state: models::State::try_from(random_row.state).unwrap_or(models::State::Approved),
             votes: random_row.votes.unwrap_or(0),
@@ -1290,7 +1304,7 @@ impl Database {
         let index_bot = models::IndexBot {
             description: random_row.description,
             banner: random_row.banner_card.unwrap_or_else(|| {
-                "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
             }),
             state: models::State::try_from(random_row.state).unwrap_or(models::State::Approved),
             votes: random_row.votes.unwrap_or(0),
@@ -1395,7 +1409,7 @@ impl Database {
                 username: user.username,
                 disc: user.discriminator,
                 avatar: user.avatar.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/botlisticon.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/botlisticon.webp"
                 }),
                 bot: false,
                 status: models::Status::Unknown,
@@ -2333,7 +2347,7 @@ impl Database {
                 description: pack.description,
                 icon: pack.icon.unwrap_or_default(),
                 banner: pack.banner.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 owner: self.get_user(pack.owner).await,
                 created_at: pack.created_at.unwrap_or_else(|| {
@@ -2364,7 +2378,7 @@ impl Database {
                 guild_count: row.guild_count.unwrap_or(0),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 state: models::State::try_from(row.state).unwrap_or(models::State::Approved),
                 votes: row.votes.unwrap_or(0),
@@ -2945,7 +2959,7 @@ impl Database {
             };
 
             user.avatar = if user.avatar.is_empty() {
-                "https://api.fateslist.xyz/static/botlisticon.webp".to_string()
+                self.discord_config.fates_api_url.to_string() + "/static/botlisticon.webp"
             } else {
                 user.avatar
             };
@@ -2956,7 +2970,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 guild_count: row.guild_count.unwrap_or_default(),
                 votes: row.votes.unwrap_or_default(),
@@ -2989,7 +3003,7 @@ impl Database {
                     id: row.guild_id.to_string(),
                     username: row.name_cached,
                     disc: "0000".to_string(), // This is unknown
-                    avatar: "https://api.fateslist.xyz/static/botlisticon.webp".to_string(), // This is unknown
+                    avatar: self.discord_config.fates_api_url.to_string() + "/static/botlisticon.webp", // This is unknown
                     bot: true,
                     status: models::Status::Unknown,
                 },
@@ -2997,7 +3011,7 @@ impl Database {
                 state: models::State::try_from(row.state).unwrap_or(models::State::Banned),
                 description: row.description,
                 banner: row.banner_card.unwrap_or_else(|| {
-                    "https://api.fateslist.xyz/static/assets/prod/banner.webp".to_string()
+                    self.discord_config.fates_api_url.to_string() + "/static/assets/prod/banner.webp"
                 }),
                 guild_count: row.guild_count.unwrap_or_default(),
                 votes: row.votes.unwrap_or_default(),
@@ -3766,7 +3780,7 @@ impl Database {
                 auth: device.auth,
                 data: serde_json::to_string(&json!({
                     "title": "Test notification",
-                    "icon": "https://api.fateslist.xyz/static/botlisticon.webp"
+                    "icon": self.discord_config.fates_api_url.to_string() + "/static/botlisticon.webp" 
                 })).unwrap(),
             })
             .send()

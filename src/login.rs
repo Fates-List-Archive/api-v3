@@ -138,16 +138,13 @@ async fn do_oauth2(req: HttpRequest, info: web::Json<models::OauthDoQuery>) -> H
         Ok(mut user) => {
             // Check for a frostpaw login
             if info.frostpaw {
-                // If a frostpaw custom client login is used 
-    		let valid_domains = vec!["fateslist.xyz", "sunbeam.fateslist.xyz", "selectthegang-fates-list-sunbeam-x5w7vwgvvh96j5-5000.githubpreview.dev"];
-
-    		if !valid_domains.contains(&redirect_url_domain) {
-        		return HttpResponse::BadRequest().json(models::APIResponse {
+    		    if !data.config.discord.allowed_oauth2.contains(&(redirect_url_domain.to_string())) {
+        		    return HttpResponse::BadRequest().json(models::APIResponse {
             			done: false,
             			reason: Some("Origin header is not in valid format, perhaps your client isn't setting the header properly?".to_string()),
             			context: None,
-        		});
-    		}
+        		    });
+    		    }
 
                 // Check claw with blood
                 if info.frostpaw_blood.is_none() || info.frostpaw_claw.is_none() || info.frostpaw_claw_unseathe_time.is_none() {
