@@ -59,8 +59,8 @@ async fn main() -> std::io::Result<()> {
 
     let pool = database::Database::new(
         7,
-        "postgres://localhost/fateslist",
-        "redis://127.0.0.1:1001/1",
+        "postgres:///fateslist",
+        "redis://127.0.0.1:6379/1",
         /* Arc is used here for discord to provide shared ownership which is needed by discord integration support
         Cost for Arc is negligible here
         */
