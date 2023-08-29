@@ -220,7 +220,7 @@ fn new_doc_file(
                 "## {title}\n### {method} {url}\n{desc}\n{query_params}\n{path_params}\n{request_body}\n{response_body}\n**Authorization Needed** | {auth_needed}\n\n\n",
                 title = route.title,
                 method = route.method,
-                url = "`https://api.fateslist.xyz`".to_string() + route.path,
+                url = "`https://fates-api.select-list.xyz`".to_string() + route.path,
                 desc = route.description,
                 request_body = route.request_body,
                 response_body = route.response_body,
