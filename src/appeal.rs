@@ -95,7 +95,7 @@ async fn appeal_bot(
         m.content(data.config.discord.roles.staff_ping_add_role.mention());
 
         m.embed(|e| {
-            e.url("https://fateslist.xyz/bot/".to_owned()+&bot_id.to_string());
+            e.url(data.config.discord.site_url.to_string() + "/bot/" + &bot_id.to_string());
             e.title(title);
             e.color(0x0000_ff00);
             e.description(
@@ -210,7 +210,7 @@ async fn appeal_server(
         m.content(data.config.discord.roles.staff_ping_add_role.mention());
 
         m.embed(|e| {
-            e.url("https://fateslist.xyz/server/".to_owned()+&server_id.to_string());
+            e.url(data.config.discord.site_url.to_string() + "/server/" + &server_id.to_string());
             e.title(title);
             e.color(0x0000_ff00);
             e.description(

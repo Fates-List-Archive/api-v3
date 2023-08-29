@@ -573,6 +573,7 @@ pub struct DiscordData {
     pub channels: DiscordChannels,
     pub roles: DiscordRoles,
     pub support_server: String,
+    pub site_url: String,
     pub fates_api_url: String,
     pub allowed_oauth2: Vec<String> // What oauth2 url's are allowed?
 }

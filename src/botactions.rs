@@ -407,7 +407,7 @@ async fn add_bot(
             .send_message(&data.config.discord_http, |m| {
                 m.content(data.config.discord.roles.staff_ping_add_role.mention());
                 m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
+                    e.url(data.config.discord.site_url.to_string() + "/bot/" + &bot.user.id);
                     e.title("New Bot!");
                     e.color(0x00ff00);
                     e.description(format!(
@@ -492,7 +492,7 @@ async fn edit_bot(
             .bot_logs
             .send_message(&data.config.discord_http, |m| {
                 m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
+                    e.url(data.config.discord.site_url.to_string() + "/bot/" + &bot.user.id);
                     e.title("Bot Edit!");
                     e.color(0x00ff00);
                     e.description(format!(
@@ -589,7 +589,7 @@ async fn transfer_ownership(
             .bot_logs
             .send_message(&data.config.discord_http, |m| {
                 m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned() + &id.bot_id.to_string());
+                    e.url(data.config.discord.site_url.to_string() + "/bot/" + &id.bot_id.to_string());
                     e.title("Bot Ownership Transfer!");
                     e.color(0x00ff00);
                     e.description(format!(
@@ -656,7 +656,7 @@ async fn delete_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>) -> 
             .bot_logs
             .send_message(&data.config.discord_http, |m| {
                 m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned() + &id.bot_id.to_string());
+                    e.url(data.config.discord.site_url.to_string() + "/bot/" + &id.bot_id.to_string());
                     e.title("Bot Deleted :(");
                     e.color(0x00ff00);
                     e.description(format!(
@@ -711,7 +711,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
 
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert("Lightleap-Dest", HeaderValue::from_str("Fates List").unwrap());
-        headers.insert("Lightleap-Site", HeaderValue::from_str("https://fateslist.xyz").unwrap());
+        headers.insert("Lightleap-Site", HeaderValue::from_str(&data.config.discord.site_url).unwrap());
 
         let mut bot = match src.src {
             models::ImportSource::Rdl => {
@@ -907,7 +907,7 @@ async fn import_bot(req: HttpRequest, id: web::Path<models::GetUserBotPath>, src
             .send_message(&data.config.discord_http, |m| {
                 m.content(data.config.discord.roles.staff_ping_add_role.mention());
                 m.embed(|e| {
-                    e.url("https://fateslist.xyz/bot/".to_owned() + &bot.user.id);
+                    e.url(data.config.discord.site_url.to_string() + "/bot/" + &bot.user.id);
                     e.title("New Bot!");
                     e.color(0x00ff00);
                     e.description(format!(

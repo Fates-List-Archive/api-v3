@@ -496,7 +496,7 @@ index is too costly and making a new struct is unnecessary.
                         description: r#"
 Returns the oauth2 link used to login with. ``reason`` contains the state UUID
 
-- `Frostpaw-Server` header must be set to `https://fateslist.xyz` if you are a custom client
+- `Frostpaw-Server` header must be set to `https://fates.select-list.xyz` if you are a custom client
 - If you are a custom client, then ignore the state present here and instead set `state` to `Bayshine.${YOUR CLIENT ID}.${CURRENT TIME}.${HMAC PAYLOAD}` where 
 client ID is the client ID given during whitelisting, CURRENT TIME is the current time in Unix Epoch and HMAC PAYLOAD is that same current time HMAC-SHA256
 signed with your client secret given to you during whitelisting. **You must calculate state server side**
@@ -560,7 +560,7 @@ Creates a oauth2 login given a code.
 **This API (as well as the below) is already done for custom clients by the actual site**
 
 - Set `frostpaw` in the JSON if you are a custom client
-- `Frostpaw-Server` header must be set to `https://fateslist.xyz`
+- `Frostpaw-Server` header must be set to `https://fates.select-list.xyz`
 - ``frostpaw_blood`` (client ID), ``frostpaw_claw`` (hmac'd time you sent) and 
 ``frostpaw_claw_unseathe_time`` (time you sent in state) are internal fields used 
 by the site to login.
@@ -1356,7 +1356,7 @@ Gets reviews for a reviewable entity.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
+``target_type`` is a [TargetType](https://fates-lynx.select-list.xyz/docs/endpoints/enums#targettype)
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1405,9 +1405,9 @@ in the future.
 
 The ``parent_id`` is optional and is used to create a reply to a review.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
+``target_type`` is a [TargetType](https://fates-lynx.select-list.xyz/docs/endpoints/enums#targettype)
 
-``review`` is a [Review](https://lynx.fateslist.xyz/docs/endpoints/enums#review)
+``review`` is a [Review](https://fates-lynx.select-list.xyz/docs/endpoints/enums#review)
 
 ``user_id`` is *required* for this endpoint and must be the user making the review. It must
 also match the user token sent in the ``Authorization`` header"#,
@@ -1442,7 +1442,7 @@ so there should not be an error even if provided.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
+``target_type`` is a [TargetType](https://fates-lynx.select-list.xyz/docs/endpoints/enums#targettype)
 
 This reviewable entities id which is a ``i64`` is the id that is specifed in the
 path.
@@ -1486,7 +1486,7 @@ also match the user token sent in the ``Authorization`` header. ``page`` is curr
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
+``target_type`` is a [TargetType](https://fates-lynx.select-list.xyz/docs/endpoints/enums#targettype)
 
 ``target_type`` is not currently checked but it is a good idea to set it anyways. You must
 set this anyways so you might as well set it correctly."#,
@@ -1524,7 +1524,7 @@ also match the user token sent in the ``Authorization`` header.
 A reviewable entity is currently only a bot or a server. Profile reviews are a possibility
 in the future.
 
-``target_type`` is a [TargetType](https://lynx.fateslist.xyz/docs/endpoints/enums#targettype)
+``target_type`` is a [TargetType](https://fates-lynx.select-list.xyz/docs/endpoints/enums#targettype)
 
 **This endpoint does not require ``target_type`` at all. You can safely omit it**
                 "#,

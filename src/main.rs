@@ -73,7 +73,7 @@ async fn main() -> std::io::Result<()> {
     debug!("Connected to postgres/redis");
 
     let client = reqwest::Client::builder()
-        .user_agent("DiscordBot (https://fateslist.xyz, 0.1) FatesList-Lightleap-WarriorCats")
+        .user_agent("DiscordBot (fates-list-group, 0.1) Fates-List")
         .build()
         .unwrap();
 

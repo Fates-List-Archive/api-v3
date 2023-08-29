@@ -223,7 +223,7 @@ impl Database {
 
         // Then call baypaw (http://localhost:1234/getch/928702343732658256)
         let req = reqwest::Client::builder()
-            .user_agent("DiscordBot (https://fateslist.xyz, 0.1) FatesList-Lightleap-WarriorCats")
+            .user_agent("api-v3")
             .build()
             .unwrap()
             .get("http://localhost:1234/getch/".to_string() + &user_id.to_string())
